@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+import { useAuthStore } from '../stores/auth-store';
+import { api } from '../lib/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { User, CreditCard, LogOut, CheckCircle, Zap, Loader2 } from 'lucide-react';
+import { SubscriptionTier } from '../types';
+import { useToast } from '../components/ui/Toast';
+
+export default function Settings() {
+    const { user, logout, upgradeTier } = useAuthStore();
+    const { toast } = useToast();
+    const [loadingTier, setLoadingTier] = useState<string | null>(null);
+
+    if (!user) return null;
+
+    const handleCheckout = async (tier: SubscriptionTier) => {
+        setLoadingTier(tier);
+        try {
+            toast({ type: 'info', title: 'Processing', message: 'Connecting to Stripe secure gateway...' });
+            
+            const response = await api.createCheckoutSession(tier);
+            
+            // In production, we would redirect here:
+            // if (response.url) window.location.href = response.url;
+            
+            // For Demo: Simulate successful return from Stripe
+            upgradeTier(tier);
+            toast({ type: 'success', title: 'Payment Successful', message: `Welcome to ${tier.toUpperCase()} tier.` });
+        } catch (error) {
+            console.error(error);
+            toast({ type: 'error', title: 'Checkout Failed', message: 'Unable to initialize payment protocol.' });
+        } finally {
+            setLoadingTier(null);
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold">
+                            {user.full_name.charAt(0)}
+                        </div>
+                        <div>
+                            <CardTitle>{user.full_name}</CardTitle>
+                            <CardDescription>{user.email}</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input label="Full Name" defaultValue={user.full_name} disabled />
+                        <Input label="Email Address" defaultValue={user.email} disabled />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <h2 className="text-xl font-bold text-gray-900 pt-4">Subscription Protocol</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {/* STARTER */}
+                 <Card className={user.subscription_tier === 'starter' ? 'border-brand-blue ring-1 ring-brand-blue' : ''}>
+                     <CardHeader>
+                         <CardTitle className="text-lg">Starter</CardTitle>
+                         <div className="text-2xl font-bold">$9<span className="text-sm text-gray-500 font-normal">/mo</span></div>
+                     </CardHeader>
+                     <CardContent className="space-y-2 text-sm text-gray-500">
+                         <div className="flex items-center gap-2"><Zap className="w-3 h-3"/> 50 Credits/mo</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3"/> 1 Active Startup</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3"/> Basic Agents</div>
+                     </CardContent>
+                     <CardFooter>
+                         {user.subscription_tier === 'starter' ? (
+                             <Button disabled className="w-full">Current Plan</Button>
+                         ) : (
+                             <Button 
+                                variant="outline" 
+                                className="w-full" 
+                                onClick={() => handleCheckout('starter')}
+                                isLoading={loadingTier === 'starter'}
+                                disabled={!!loadingTier}
+                             >
+                                Downgrade
+                             </Button>
+                         )}
+                     </CardFooter>
+                 </Card>
+
+                 {/* GROWTH */}
+                 <Card className={user.subscription_tier === 'growth' ? 'border-brand-purple ring-1 ring-brand-purple bg-brand-purple/5' : ''}>
+                     <CardHeader>
+                         <CardTitle className="text-lg">Growth</CardTitle>
+                         <div className="text-2xl font-bold">$49<span className="text-sm text-gray-500 font-normal">/mo</span></div>
+                     </CardHeader>
+                     <CardContent className="space-y-2 text-sm text-gray-500">
+                         <div className="flex items-center gap-2"><Zap className="w-3 h-3 text-brand-purple"/> 500 Credits/mo</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-brand-purple"/> 3 Active Startups</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-brand-purple"/> Sales & Dev Agents</div>
+                     </CardContent>
+                     <CardFooter>
+                         {user.subscription_tier === 'growth' ? (
+                             <Button disabled className="w-full">Current Plan</Button>
+                         ) : (
+                             <Button 
+                                variant="cyber" 
+                                className="w-full" 
+                                onClick={() => handleCheckout('growth')}
+                                isLoading={loadingTier === 'growth'}
+                                disabled={!!loadingTier}
+                             >
+                                Select Growth
+                             </Button>
+                         )}
+                     </CardFooter>
+                 </Card>
+
+                 {/* GOD MODE */}
+                 <Card className={user.subscription_tier === 'god_mode' ? 'border-brand-cyan ring-1 ring-brand-cyan bg-brand-cyan/5' : ''}>
+                     <CardHeader>
+                         <CardTitle className="text-lg text-brand-cyan">God Mode</CardTitle>
+                         <div className="text-2xl font-bold">$99<span className="text-sm text-gray-500 font-normal">/mo</span></div>
+                     </CardHeader>
+                     <CardContent className="space-y-2 text-sm text-gray-500">
+                         <div className="flex items-center gap-2"><Zap className="w-3 h-3 text-brand-cyan"/> Unlimited Credits</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-brand-cyan"/> Unlimited Startups</div>
+                         <div className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-brand-cyan"/> All Premium Agents</div>
+                     </CardContent>
+                     <CardFooter>
+                         {user.subscription_tier === 'god_mode' ? (
+                             <Button disabled className="w-full">Current Plan</Button>
+                         ) : (
+                             <Button 
+                                variant="cyber" 
+                                className="w-full border-brand-cyan text-brand-cyan hover:bg-brand-cyan hover:text-black" 
+                                onClick={() => handleCheckout('god_mode')}
+                                isLoading={loadingTier === 'god_mode'}
+                                disabled={!!loadingTier}
+                             >
+                                Activate God Mode
+                             </Button>
+                         )}
+                     </CardFooter>
+                 </Card>
+            </div>
+
+            <div className="flex justify-start pt-8">
+                <Button variant="destructive" onClick={logout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                </Button>
+            </div>
+        </div>
+    );
+}
