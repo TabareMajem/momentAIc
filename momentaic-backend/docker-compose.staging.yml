@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  postgres-staging:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: staging_user
+      POSTGRES_PASSWORD: staging_pass
+      POSTGRES_DB: staging_db
+    volumes:
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - staging-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-staging:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass staging_redis_pass
+    networks:
+      - staging-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "staging_redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://staging_user:staging_pass@postgres-staging:5432/staging_db
+      REDIS_URL: redis://:staging_redis_pass@redis-staging:6379/0
+      CELERY_BROKER_URL: redis://:staging_redis_pass@redis-staging:6379/1
+      CELERY_RESULT_BACKEND: redis://:staging_redis_pass@redis-staging:6379/2
+      APP_ENV: staging
+      SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
+      JWT_SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
+      GOOGLE_API_KEY: AIzaSyCUZ5pp4_VNFSlm0TZaQf3NDedrb9a6gi8
+    command: uvicorn app.main:app --host 0.0.0.0 --port 9452
+    ports:
+      - "127.0.0.1:9939:9452"
+    networks:
+      - staging-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9452/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+
+  worker-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://staging_user:staging_pass@postgres-staging:5432/staging_db
+      REDIS_URL: redis://:staging_redis_pass@redis-staging:6379/0
+      CELERY_BROKER_URL: redis://:staging_redis_pass@redis-staging:6379/1
+      CELERY_RESULT_BACKEND: redis://:staging_redis_pass@redis-staging:6379/2
+      SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
+      JWT_SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
+      GOOGLE_API_KEY: AIzaSyCUZ5pp4_VNFSlm0TZaQf3NDedrb9a6gi8
+    networks:
+      - staging-internal
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+
+networks:
+  staging-internal:
+    driver: bridge

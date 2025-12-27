@@ -13,6 +13,9 @@ from app.api.v1.endpoints import (
     agents,
     workflows,
     billing,
+    integrations,
+    triggers,
+    mcp_tools,
 )
 
 api_router = APIRouter()
@@ -64,4 +67,86 @@ api_router.include_router(
     billing.router,
     prefix="/billing",
     tags=["Billing"],
+)
+
+# Integrations Hub
+api_router.include_router(
+    integrations.router,
+    prefix="/integrations",
+    tags=["Integrations"],
+)
+
+# Proactive Triggers
+api_router.include_router(
+    triggers.router,
+    prefix="/triggers",
+    tags=["Proactive Triggers"],
+)
+
+# MCP Tools (AI orchestration)
+api_router.include_router(
+    mcp_tools.router,
+    tags=["MCP Tools"],
+)
+
+# Traction Score (Performance ranking)
+api_router.include_router(
+    mcp_tools.traction_router,
+    tags=["Traction Score"],
+)
+
+# Leaderboard (Public rankings)
+api_router.include_router(
+    mcp_tools.leaderboard_router,
+    tags=["Leaderboard"],
+)
+
+# Community (Showcase, matching)
+api_router.include_router(
+    mcp_tools.community_router,
+    tags=["Community"],
+)
+
+# Deep Research
+api_router.include_router(
+    mcp_tools.research_router,
+    tags=["Deep Research"],
+)
+
+# Cross-Platform SSO (AgentForgeai.com <-> MomentAIc)
+from app.api.v1.endpoints import sso
+api_router.include_router(
+    sso.router,
+    tags=["Cross-Platform SSO"],
+)
+
+# Admin Panel (Superuser only)
+from app.api.v1.endpoints import admin
+api_router.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["Admin Panel"],
+)
+
+# Investment Dashboard
+from app.api.v1.endpoints import investment
+api_router.include_router(
+    investment.router,
+    tags=["Investment"],
+)
+
+# Viral Referral System
+from app.api.v1.endpoints import referrals
+api_router.include_router(
+    referrals.router,
+    prefix="/referrals",
+    tags=["Referrals"],
+)
+
+# Ambassador Program
+from app.api.v1.endpoints import ambassadors
+api_router.include_router(
+    ambassadors.router,
+    prefix="/ambassadors",
+    tags=["Ambassadors"],
 )

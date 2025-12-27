@@ -109,8 +109,12 @@ class ContentAgent:
         
         # Step 2: Generate content
         if not self.llm:
-            # Mock content generation
-            return self._mock_generate(platform, topic, startup_context, content_type, trends)
+            return {
+                "success": False,
+                "error": "AI Service Unavailable. Please configure keys.",
+                "platform": platform.value,
+                "trends_used": trends if trend_based else None,
+            }
         
         # Build prompt
         prompt = self._build_generation_prompt(
@@ -276,70 +280,6 @@ CTA: [call to action]"""
         
         return content
     
-    def _mock_generate(
-        self,
-        platform: ContentPlatform,
-        topic: str,
-        startup_context: Dict[str, Any],
-        content_type: str,
-        trends: List[str],
-    ) -> Dict[str, Any]:
-        """Generate mock content when LLM is not available"""
-        
-        name = startup_context.get("name", "Our startup")
-        
-        if platform == ContentPlatform.LINKEDIN:
-            return {
-                "success": True,
-                "content": {
-                    "title": f"Why {topic} is changing everything",
-                    "hook": f"I spent 6 months researching {topic}. Here's what I learned:",
-                    "body": f"""Most people think {topic} is just another buzzword.
-
-But after building {name}, I've seen firsthand how it's transforming businesses.
-
-Here are 3 key insights:
-
-1. It's not about the technology, it's about the problem you solve
-2. Early adopters are seeing 10x improvements
-3. The window of opportunity is closing fast
-
-The companies that act now will lead their industries.""",
-                    "cta": f"What's your take on {topic}? Drop a comment below 👇",
-                    "hashtags": ["#AI", "#Startup", "#Innovation", "#Tech", "#Growth"],
-                    "char_count": 450,
-                },
-                "platform": platform.value,
-                "trends_used": trends,
-            }
-        
-        elif platform == ContentPlatform.TWITTER:
-            return {
-                "success": True,
-                "content": {
-                    "title": f"{topic} Thread",
-                    "hook": f"🧵 {topic} is about to explode. Here's why:",
-                    "body": f"1/ Most founders are sleeping on {topic}\n\n2/ At {name}, we've seen it change everything\n\n3/ The key? Start small, iterate fast",
-                    "cta": f"Follow for more insights on {topic} 🚀",
-                    "hashtags": ["#startup", "#tech", "#AI"],
-                    "char_count": 200,
-                },
-                "platform": platform.value,
-                "trends_used": trends,
-            }
-        
-        return {
-            "success": True,
-            "content": {
-                "title": f"About {topic}",
-                "hook": f"Let's talk about {topic}",
-                "body": f"Content about {topic} for {name}",
-                "cta": "Learn more",
-                "hashtags": ["#content"],
-                "char_count": 100,
-            },
-            "platform": platform.value,
-        }
     
     async def generate_ideas(
         self,
@@ -352,14 +292,7 @@ The companies that act now will lead their industries.""",
         trends = get_trending_topics.invoke(industry, "linkedin")
         
         if not self.llm:
-            # Mock ideas
-            return [
-                {"topic": f"The future of {industry}", "platform": "linkedin", "type": "post"},
-                {"topic": f"How we built {startup_context.get('name', 'our product')}", "platform": "twitter", "type": "thread"},
-                {"topic": f"5 lessons from our {industry} journey", "platform": "blog", "type": "article"},
-                {"topic": f"Why {trends[0] if trends else industry} matters", "platform": "linkedin", "type": "post"},
-                {"topic": "Behind the scenes of a startup", "platform": "twitter", "type": "thread"},
-            ][:count]
+             return []
         
         prompt = f"""Generate {count} content ideas for a {industry} startup.
 

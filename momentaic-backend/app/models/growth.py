@@ -222,5 +222,81 @@ class ContentItem(Base):
     )
 
 
+class AcquisitionChannel(Base):
+    """Marketing and acquisition channels (e.g. Twitter Ads, SEO)"""
+    __tablename__ = "acquisition_channels"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    startup_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("startups.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    channel_type: Mapped[str] = mapped_column(String(50), nullable=False)  # ads, organic, social, referral, email
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)      # google, meta, twitter, linkedin
+    
+    status: Mapped[str] = mapped_column(String(20), default="active")     # active, paused, archived
+    monthly_budget: Mapped[float] = mapped_column(Float, default=0)
+    total_spend: Mapped[float] = mapped_column(Float, default=0)
+    
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict)           # Tracking IDs, API keys, etc.
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    startup: Mapped["Startup"] = relationship("Startup", back_populates="acquisition_channels")
+    metrics: Mapped[List["ChannelMetric"]] = relationship(
+        "ChannelMetric", back_populates="channel", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_channel_startup_type", "startup_id", "channel_type"),
+    )
+
+
+class ChannelMetric(Base):
+    """Daily performance metrics for an acquisition channel"""
+    __tablename__ = "channel_metrics"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("acquisition_channels.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Engagement
+    impressions: Mapped[int] = mapped_column(Integer, default=0)
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Conversions
+    leads_count: Mapped[int] = mapped_column(Integer, default=0)
+    conversions_count: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Financials
+    spend: Mapped[float] = mapped_column(Float, default=0)
+    revenue: Mapped[float] = mapped_column(Float, default=0)
+    
+    # Computed (cache)
+    cac: Mapped[float] = mapped_column(Float, default=0)
+    roas: Mapped[float] = mapped_column(Float, default=0)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    channel: Mapped["AcquisitionChannel"] = relationship("AcquisitionChannel", back_populates="metrics")
+
+    __table_args__ = (
+        Index("ix_metric_channel_date", "channel_id", "date"),
+    )
+
+
 # Forward reference
 from app.models.startup import Startup

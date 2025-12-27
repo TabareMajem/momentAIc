@@ -106,13 +106,34 @@ async def log_requests(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors"""
-    logger.warning("Validation error", errors=exc.errors())
+    # Convert errors to JSON-serializable format
+    errors = []
+    for error in exc.errors():
+        serializable_error = {}
+        for key, value in error.items():
+            if key == "ctx":
+                # Context often contains non-serializable objects (like Exceptions)
+                continue
+            
+            if key == "loc":
+                # Preserve location path, but stringify elements just in case
+                serializable_error[key] = [str(x) for x in value]
+                continue
+                
+            if isinstance(value, (str, int, float, bool, type(None))):
+                serializable_error[key] = value
+            else:
+                # Stringify anything else to be safe
+                serializable_error[key] = str(value)
+        errors.append(serializable_error)
+    
+    logger.warning("Validation error", errors=errors)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "success": False,
             "error": "Validation error",
-            "detail": exc.errors(),
+            "detail": errors,
         },
     )
 
@@ -133,6 +154,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include API router
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+# Stripe Webhook Alias (Fix for Misconfigured URL)
+# Redirect /api/stripe/webhook to /api/v1/billing/webhook
+# Using 307 Temporary Redirect to preserve POST method and body
+from fastapi.responses import RedirectResponse
+
+@app.post("/api/stripe/webhook", include_in_schema=False)
+async def legacy_stripe_webhook_redirect(request: Request):
+    return RedirectResponse(url="/api/v1/billing/webhook", status_code=307)
 
 
 # Health check endpoint

@@ -26,6 +26,34 @@ from app.models.growth import (
     ContentItem,
     ContentPlatform,
     ContentStatus,
+    AcquisitionChannel,
+    ChannelMetric,
+)
+
+from app.models.ambassador import (
+    Ambassador,
+    AmbassadorStatus,
+    AmbassadorTier,
+    AmbassadorConversion,
+    ConversionStatus,
+    AmbassadorPayout,
+    PayoutStatus,
+    AmbassadorClick,
+)
+
+from app.models.integration import (
+    Integration,
+    IntegrationProvider,
+    IntegrationStatus,
+    IntegrationData,
+    DataCategory,
+)
+
+from app.models.trigger import (
+    TriggerRule,
+    TriggerType,
+    TriggerOperator,
+    TriggerLog,
 )
 
 from app.models.workflow import (
@@ -84,4 +112,27 @@ __all__ = [
     "MessageRole",
     "AgentType",
     "AgentMemory",
+    # Growth (Extended)
+    "AcquisitionChannel",
+    "ChannelMetric",
+    # Ambassador
+    "Ambassador",
+    "AmbassadorStatus",
+    "AmbassadorTier",
+    "AmbassadorConversion",
+    "ConversionStatus",
+    "AmbassadorPayout",
+    "PayoutStatus",
+    "AmbassadorClick",
+    # Integration
+    "Integration",
+    "IntegrationProvider",
+    "IntegrationStatus",
+    "IntegrationData",
+    "DataCategory",
+    # Trigger
+    "TriggerRule",
+    "TriggerType",
+    "TriggerOperator",
+    "TriggerLog",
 ]

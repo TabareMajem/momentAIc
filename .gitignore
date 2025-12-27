@@ -1,0 +1,14 @@
+# Root .gitignore
+.env
+*.log
+nginx_config_backup/
+momentaic-backend/.env
+momentaic-backend/.env.production
+momentaic-backend/.env.staging
+momentaic front/.env
+momentaic front/node_modules/
+momentaic front/dist/
+*.pem
+*.key
+vps_check.sh
+vps_patch.sh

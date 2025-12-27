@@ -49,17 +49,29 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
             logger.warning("Gemini API key not configured, using mock")
             return None
         return ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",
+            model="gemini-2.5-flash-lite",
             google_api_key=settings.google_api_key,
             temperature=temperature,
         )
     elif model.startswith("claude"):
         if not settings.anthropic_api_key:
-            logger.warning("Anthropic API key not configured, using mock")
+            logger.warning("Anthropic API key not configured")
             return None
         return ChatAnthropic(
             model="claude-3-5-sonnet-20241022",
             anthropic_api_key=settings.anthropic_api_key,
+            temperature=temperature,
+        )
+    elif model.startswith("deepseek") or (settings.deepseek_api_key and not settings.google_api_key):
+        # Fallback to DeepSeek if explicitly requested OR if Google Key is missing but DeepSeek is present
+        if not settings.deepseek_api_key:
+             logger.warning("DeepSeek API key not configured")
+             return None
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model="deepseek-chat",
+            api_key=settings.deepseek_api_key,
+            base_url="https://api.deepseek.com",
             temperature=temperature,
         )
     else:
@@ -83,7 +95,7 @@ def web_search(query: str) -> str:
         Search results as formatted text
     """
     if not settings.serper_api_key:
-        return f"[Mock search results for: {query}]\n- Result 1: Sample finding about {query}\n- Result 2: Another insight"
+        return "Search unavailable. Please configure Serper API key."
     
     try:
         response = httpx.post(
@@ -117,8 +129,7 @@ def linkedin_search(person_name: str, company: Optional[str] = None) -> str:
         LinkedIn profile information
     """
     # In production, integrate with LinkedIn API or use Proxycurl
-    query = f"{person_name} {company or ''} site:linkedin.com"
-    return f"[LinkedIn data for {person_name}]\n- Title: CEO at {company or 'Unknown'}\n- Recent activity: Posted about AI trends"
+    return "LinkedIn search unavailable. API not configured."
 
 
 @tool
@@ -132,7 +143,7 @@ def company_research(company_name: str) -> str:
     Returns:
         Company information
     """
-    return f"[Company Research: {company_name}]\n- Industry: Technology\n- Size: 50-200 employees\n- Recent news: Series A funding announced"
+    return "Company research unavailable. API not configured."
 
 
 @tool
@@ -179,9 +190,9 @@ def analyze_sentiment(text: str) -> Dict[str, Any]:
     """
     # In production, use actual sentiment analysis
     return {
-        "sentiment": "positive",
-        "confidence": 0.85,
-        "key_phrases": ["innovative", "excited", "opportunity"]
+        "sentiment": "unknown",
+        "confidence": 0.0,
+        "error": "Sentiment analysis unavailable"
     }
 
 
@@ -198,13 +209,7 @@ def get_trending_topics(industry: str, platform: str = "twitter") -> List[str]:
         List of trending topics
     """
     # In production, integrate with social APIs
-    return [
-        f"AI in {industry}",
-        f"Future of {industry}",
-        f"{industry} automation trends",
-        "Startup funding news",
-        "Remote work evolution"
-    ]
+    return []
 
 
 @tool
@@ -348,6 +353,23 @@ Focus on user value and business impact. Always tie features to outcomes.""",
         "system_prompt": """You are the General Assistant for MomentAIc.
 Help the user with any task that doesn't require a specialist.
 Be helpful, concise, and action-oriented.""",
+        "tools": [web_search],
+    },
+    AgentType.LEGAL_COUNSEL: {
+        "name": "Legal Counsel",
+        "description": "Expert in startup legal matters, contracts, and compliance",
+        "system_prompt": """You are the Legal Counsel agent - an expert in startup legal matters.
+
+Your capabilities:
+- Contract review and analysis
+- Term sheet guidance
+- IP and trademark basics
+- Employment law fundamentals
+- Compliance overview
+- Founder agreement insights
+
+IMPORTANT: Always include a disclaimer that this is general guidance, not legal advice.
+Recommend consulting a qualified attorney for specific matters.""",
         "tools": [web_search],
     },
 }

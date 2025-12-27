@@ -227,5 +227,77 @@ class ContentCalendarResponse(BaseModel):
     published_this_week: List[ContentResponse]
 
 
+# ==================
+# Acquisition Schemas
+# ==================
+
+class AcquisitionChannelBase(BaseModel):
+    """Base channel fields"""
+    name: str = Field(..., min_length=2, max_length=100)
+    channel_type: str = Field(..., pattern="^(ads|organic|social|referral|email)$")
+    platform: str = Field(..., pattern="^(google|meta|twitter|linkedin|direct|other)$")
+    monthly_budget: float = Field(default=0, ge=0)
+
+
+class AcquisitionChannelCreate(AcquisitionChannelBase):
+    """Create channel request"""
+    settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AcquisitionChannelUpdate(BaseModel):
+    """Update channel request"""
+    name: Optional[str] = None
+    channel_type: Optional[str] = None
+    platform: Optional[str] = None
+    status: Optional[str] = None
+    monthly_budget: Optional[float] = None
+    settings: Optional[Dict[str, Any]] = None
+
+
+class ChannelMetricResponse(BaseModel):
+    """Channel metric response"""
+    id: UUID
+    channel_id: UUID
+    date: datetime
+    impressions: int
+    clicks: int
+    leads_count: int
+    conversions_count: int
+    spend: float
+    revenue: float
+    cac: float
+    roas: float
+    created_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
+class AcquisitionChannelResponse(AcquisitionChannelBase):
+    """Channel response"""
+    id: UUID
+    startup_id: UUID
+    status: str
+    total_spend: float
+    settings: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+    metrics: List[ChannelMetricResponse] = Field(default_factory=list)
+    
+    model_config = {"from_attributes": True}
+
+
+class ChannelSummaryResponse(BaseModel):
+    """Aggregated channel performance summary"""
+    channel_id: UUID
+    name: str
+    total_spend: float
+    total_leads: int
+    total_conversions: int
+    avg_cac: float
+    avg_roas: float
+    roi: float
+
+
 # Forward references
 LeadWithMessages.model_rebuild()
+AcquisitionChannelResponse.model_rebuild()

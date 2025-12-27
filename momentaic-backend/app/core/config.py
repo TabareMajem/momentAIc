@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
-    workers: int = 4
+    workers: int = 1
 
     # Database
     database_url: str
@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
 
     # External APIs
     serper_api_key: Optional[str] = None
@@ -63,6 +64,17 @@ class Settings(BaseSettings):
     stripe_starter_price_id: Optional[str] = None
     stripe_growth_price_id: Optional[str] = None
     stripe_god_mode_price_id: Optional[str] = None
+    
+    # Stripe Connect (for Ambassador Program)
+    stripe_connect_client_id: Optional[str] = None
+    stripe_connect_webhook_secret: Optional[str] = None
+    
+    # Ambassador Program
+    ambassador_commission_micro: float = 0.20   # 20% for <10k followers
+    ambassador_commission_mid: float = 0.25    # 25% for 10k-100k followers
+    ambassador_commission_macro: float = 0.30  # 30% for >100k followers
+    ambassador_chargeback_hold_days: int = 30  # Days to hold for chargebacks
+    ambassador_min_payout: float = 25.0        # Minimum payout amount
 
     # Email
     smtp_host: str = "smtp.gmail.com"
@@ -78,10 +90,10 @@ class Settings(BaseSettings):
     linkedin_client_id: Optional[str] = None
     linkedin_client_secret: Optional[str] = None
 
-    # Credits Configuration
-    default_starter_credits: int = 50
-    default_growth_credits: int = 500
-    default_god_mode_credits: int = 5000
+    # Credits Configuration (monthly limits per tier)
+    default_starter_credits: int = 100      # $9/mo - Starter tier
+    default_growth_credits: int = 500       # $19/mo - Builder tier
+    default_god_mode_credits: int = 2000    # $39/mo - Founder tier
     credit_cost_signal_calc: int = 5
     credit_cost_agent_chat: int = 1
     credit_cost_content_gen: int = 3

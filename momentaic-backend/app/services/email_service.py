@@ -34,8 +34,8 @@ class EmailService:
         self.smtp_port = settings.smtp_port
         self.smtp_user = settings.smtp_user
         self.smtp_password = settings.smtp_password
-        self.from_email = settings.from_email or settings.smtp_user
-        self.from_name = settings.from_name or "MomentAIc"
+        self.from_email = settings.smtp_from_email or settings.smtp_user or "noreply@momentaic.com"
+        self.from_name = settings.smtp_from_name or "MomentAIc"
     
     @property
     def is_configured(self) -> bool:
@@ -270,5 +270,25 @@ class EmailService:
         )
 
 
-# Singleton instance
-email_service = EmailService()
+# Lazy singleton instance
+_email_service: Optional[EmailService] = None
+
+
+def get_email_service() -> EmailService:
+    """Get email service singleton (lazy initialization)"""
+    global _email_service
+    if _email_service is None:
+        _email_service = EmailService()
+    return _email_service
+
+
+# For backward compatibility - lazy property
+class _LazyEmailService:
+    _instance = None
+    
+    def __getattr__(self, name):
+        if self._instance is None:
+            self._instance = EmailService()
+        return getattr(self._instance, name)
+
+email_service = _LazyEmailService()

@@ -32,9 +32,7 @@ target_metadata = Base.metadata
 # Get database URL from environment
 def get_url():
     from app.core.config import settings
-    # Convert async URL to sync for alembic
-    url = settings.database_url
-    return url.replace("+asyncpg", "")
+    return settings.database_url
 
 
 def run_migrations_offline() -> None:

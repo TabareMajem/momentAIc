@@ -21,38 +21,48 @@ import AdminPanel from './pages/AdminPanel';
 import AgentForge from './pages/AgentForge';
 import VisionPortal from './pages/VisionPortal';
 import GrowthEngine from './pages/GrowthEngine';
+import IntegrationsPage from './pages/IntegrationsPage';
+import TriggersPage from './pages/TriggersPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import MissionPage from './pages/MissionPage';
+import CoFounderMatch from './pages/CoFounderMatch';
+import ReferralDashboard from './pages/ReferralDashboard';
+import SocialProofStudio from './pages/SocialProofStudio';
+import ExperimentsLab from './pages/ExperimentsLab';
+import CampaignCenter from './pages/CampaignCenter';
+import AmbassadorDashboard from './pages/AmbassadorDashboard';
 
 const ProtectedLayout = () => {
-    return (
-        <div className="flex min-h-screen bg-[#050505]">
-            <Sidebar />
-            <main className="flex-1 md:ml-64 p-6 md:p-8 overflow-y-auto bg-[#050505]">
-                <div className="max-w-[1600px] mx-auto animate-fade-in">
-                    <Outlet />
-                </div>
-            </main>
+  return (
+    <div className="flex min-h-screen bg-[#050505]">
+      <Sidebar />
+      <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#050505]">
+        <div className="max-w-[1600px] mx-auto animate-fade-in">
+          <Outlet />
         </div>
-    );
+      </main>
+    </div>
+  );
 };
 
 const ProtectedRoute = () => {
-    const { isAuthenticated, loadUser, isLoading } = useAuthStore();
-    useEffect(() => { loadUser(); }, []);
-    
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-[#00f0ff] font-mono">LOADING...</div>;
+  const { isAuthenticated, loadUser, isLoading } = useAuthStore();
+  useEffect(() => { loadUser(); }, []);
 
-    if (!isAuthenticated && !localStorage.getItem('access_token')) {
-        return <Navigate to="/login" replace />;
-    }
-    return <ProtectedLayout />;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-[#00f0ff] font-mono">LOADING...</div>;
+
+  if (!isAuthenticated && !localStorage.getItem('access_token')) {
+    return <Navigate to="/login" replace />;
+  }
+  return <ProtectedLayout />;
 };
 
 const AdminRoute = () => {
-    const { user } = useAuthStore();
-    if (user?.role !== 'admin') {
-        return <Navigate to="/dashboard" replace />;
-    }
-    return <Outlet />;
+  const { user } = useAuthStore();
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Outlet />;
 };
 
 export default function App() {
@@ -64,36 +74,51 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          
+          <Route path="/mission" element={<MissionPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            
+
             {/* Startup Routes */}
             <Route path="/startups" element={<StartupsList />} />
             <Route path="/startups/new" element={<StartupNew />} />
             <Route path="/startups/:id" element={<StartupDetail />} />
             <Route path="/startups/:id/signals" element={<StartupDetail />} />
             <Route path="/startups/:id/sprints" element={<StartupDetail />} />
-            
+
             {/* Agent Routes */}
             <Route path="/agents" element={<AgentsMarket />} />
             <Route path="/agents/chat" element={<AgentChat />} />
-            
-            {/* AgentForge Routes (New) */}
+
+            {/* AgentForge Routes */}
             <Route path="/agent-forge" element={<AgentForge />} />
             <Route path="/vision-portal" element={<VisionPortal />} />
 
-            {/* Growth Engine (New) */}
+            {/* Growth Engine */}
             <Route path="/growth" element={<GrowthEngine />} />
-            
+
+            {/* Integrations & Triggers */}
+            <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/triggers" element={<TriggersPage />} />
+
+            {/* Leaderboard & Community (also accessible when logged in) */}
+            <Route path="/rankings" element={<LeaderboardPage />} />
+            <Route path="/cofounder-match" element={<CoFounderMatch />} />
+
             {/* Other Routes */}
             <Route path="/investment" element={<InvestmentDashboard />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/referrals" element={<ReferralDashboard />} />
+            <Route path="/social-proof" element={<SocialProofStudio />} />
+            <Route path="/experiments" element={<ExperimentsLab />} />
+            <Route path="/campaigns" element={<CampaignCenter />} />
+            <Route path="/ambassador" element={<AmbassadorDashboard />} />
 
             {/* Admin Routes */}
             <Route element={<AdminRoute />}>
-                <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin" element={<AdminPanel />} />
             </Route>
           </Route>
         </Routes>
@@ -101,3 +126,4 @@ export default function App() {
     </ToastProvider>
   );
 }
+

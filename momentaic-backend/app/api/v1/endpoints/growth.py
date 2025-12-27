@@ -19,6 +19,7 @@ from app.models.startup import Startup
 from app.models.growth import (
     Lead, LeadStatus, LeadSource, OutreachMessage,
     ContentItem, ContentPlatform, ContentStatus,
+    AcquisitionChannel, ChannelMetric,
 )
 from app.schemas.growth import (
     LeadCreate, LeadUpdate, LeadResponse, LeadWithMessages, LeadKanbanResponse,
@@ -26,6 +27,8 @@ from app.schemas.growth import (
     GenerateOutreachRequest, GenerateOutreachResponse,
     ContentCreate, ContentUpdate, ContentResponse,
     GenerateContentRequest, GenerateContentResponse, ContentCalendarResponse,
+    AcquisitionChannelCreate, AcquisitionChannelUpdate, AcquisitionChannelResponse,
+    ChannelSummaryResponse,
 )
 
 router = APIRouter()
@@ -685,3 +688,99 @@ async def publish_content(
     # content.published_url = "https://..."
     
     return ContentResponse.model_validate(content)
+
+
+# ==================
+# Acquisition Optimizer
+# ==================
+
+@router.get("/channels", response_model=List[AcquisitionChannelResponse])
+async def list_acquisition_channels(
+    startup_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List all acquisition channels for a startup.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    result = await db.execute(
+        select(AcquisitionChannel)
+        .options(selectinload(AcquisitionChannel.metrics))
+        .where(AcquisitionChannel.startup_id == startup_id)
+        .order_by(AcquisitionChannel.created_at.desc())
+    )
+    channels = result.scalars().all()
+    
+    return [AcquisitionChannelResponse.model_validate(c) for c in channels]
+
+
+@router.post("/channels", response_model=AcquisitionChannelResponse, status_code=status.HTTP_201_CREATED)
+async def create_acquisition_channel(
+    startup_id: UUID,
+    channel_data: AcquisitionChannelCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a new acquisition channel to track.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    channel = AcquisitionChannel(
+        startup_id=startup_id,
+        name=channel_data.name,
+        channel_type=channel_data.channel_type,
+        platform=channel_data.platform,
+        monthly_budget=channel_data.monthly_budget,
+        settings=channel_data.settings,
+    )
+    
+    db.add(channel)
+    await db.flush()
+    
+    return AcquisitionChannelResponse.model_validate(channel)
+
+
+@router.get("/channels/summary", response_model=List[ChannelSummaryResponse])
+async def get_acquisition_summary(
+    startup_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get aggregated performance summary across all channels.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    result = await db.execute(
+        select(AcquisitionChannel)
+        .options(selectinload(AcquisitionChannel.metrics))
+        .where(AcquisitionChannel.startup_id == startup_id)
+    )
+    channels = result.scalars().all()
+    
+    summary = []
+    for chan in channels:
+        total_leads = sum(m.leads_count for m in chan.metrics)
+        total_conversions = sum(m.conversions_count for m in chan.metrics)
+        total_spend = chan.total_spend
+        total_revenue = sum(m.revenue for m in chan.metrics)
+        
+        cac = total_spend / total_leads if total_leads > 0 else 0
+        roas = total_revenue / total_spend if total_spend > 0 else 0
+        roi = (total_revenue - total_spend) / total_spend if total_spend > 0 else 0
+        
+        summary.append(ChannelSummaryResponse(
+            channel_id=chan.id,
+            name=chan.name,
+            total_spend=total_spend,
+            total_leads=total_leads,
+            total_conversions=total_conversions,
+            avg_cac=cac,
+            avg_roas=roas,
+            roi=roi
+        ))
+    
+    return summary

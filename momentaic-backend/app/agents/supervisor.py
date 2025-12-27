@@ -212,7 +212,7 @@ REASON: <brief explanation>"""
         startup_context = state.get("startup_context", {})
         
         if not self.llm:
-            state["final_response"] = f"I understand you're asking about: {user_query}. Let me help with that."
+            state["final_response"] = "AI Service Unavailable. Please configure keys."
             return state
         
         # Build context-aware prompt
@@ -238,7 +238,7 @@ Provide a helpful, concise response. If the question would be better handled by 
             state["final_response"] = response.content
         except Exception as e:
             logger.error("Direct response failed", error=str(e))
-            state["final_response"] = "I apologize, but I encountered an error. Please try again."
+            state["final_response"] = f"An error occurred: {str(e)}"
         
         return state
     

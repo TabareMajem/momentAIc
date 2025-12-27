@@ -195,7 +195,7 @@ class WorkflowLog(Base):
     node_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     level: Mapped[LogLevel] = mapped_column(SQLEnum(LogLevel), default=LogLevel.INFO)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    log_meta: Mapped[dict] = mapped_column(JSONB, default=dict)  # Renamed from 'metadata' (reserved)
     
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

@@ -89,6 +89,9 @@ class Startup(Base):
     conversations: Mapped[List["Conversation"]] = relationship(
         "Conversation", back_populates="startup", cascade="all, delete-orphan"
     )
+    acquisition_channels: Mapped[List["AcquisitionChannel"]] = relationship(
+        "AcquisitionChannel", back_populates="startup", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_startups_owner", "owner_id"),
@@ -198,6 +201,6 @@ class Standup(Base):
 
 # Forward references
 from app.models.user import User
-from app.models.growth import Lead, ContentItem
+from app.models.growth import Lead, ContentItem, AcquisitionChannel
 from app.models.workflow import Workflow
 from app.models.conversation import Conversation

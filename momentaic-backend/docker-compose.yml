@@ -1,58 +1,80 @@
 version: '3.8'
 
+# =============================================================================
+# MOMENTAIC DOCKER COMPOSE - PRODUCTION SECURE
+# Designed for shared VPS isolation
+# =============================================================================
+
 services:
   # PostgreSQL Database
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: momentaic-postgres
+    container_name: momentaic-db-prod
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-momentaic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
       POSTGRES_DB: ${POSTGRES_DB:-momentaic}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - momentaic_postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
+    # SECURITY: No external port exposure - only accessible within Docker network
+    networks:
+      - momentaic-internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-momentaic}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 512M
 
   # Redis
   redis:
     image: redis:7-alpine
-    container_name: momentaic-redis
+    container_name: momentaic-redis-prod
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-momentaic_redis_secret}
     volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
+      - momentaic_redis_data:/data
+    # SECURITY: No external port exposure
+    networks:
+      - momentaic-internal
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-momentaic_redis_secret}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 512M
 
   # API Server
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: momentaic-api
+    container_name: momentaic-api-prod
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-momentaic}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-momentaic}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/2
+      APP_ENV: production
+      DEBUG: "false"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8839:8000"  # SECURITY: Bind to localhost only (use nginx proxy)
+    networks:
+      - momentaic-internal
+      - momentaic-external
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,26 +85,33 @@ services:
       - ./logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 60s
+      timeout: 15s
       retries: 3
-      start_period: 40s
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 512M
 
   # Celery Worker
   celery-worker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: momentaic-celery-worker
+    container_name: momentaic-worker-prod
     restart: unless-stopped
     command: celery -A app.tasks.celery_app worker --loglevel=info -Q default,workflows,signals,content,email
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-momentaic}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-momentaic}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/2
+    networks:
+      - momentaic-internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,46 +119,79 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 512M
 
   # Celery Beat (Scheduler)
   celery-beat:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: momentaic-celery-beat
+    container_name: momentaic-beat-prod
     restart: unless-stopped
     command: celery -A app.tasks.celery_app beat --loglevel=info
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-momentaic}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-momentaic}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/2
+    networks:
+      - momentaic-internal
     depends_on:
       - celery-worker
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 512M
 
-  # Flower (Celery monitoring)
-  flower:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: momentaic-flower
-    restart: unless-stopped
-    command: celery -A app.tasks.celery_app flower --port=5555
-    env_file:
-      - .env
-    environment:
-      CELERY_BROKER_URL: redis://redis:6379/1
-    ports:
-      - "5555:5555"
-    depends_on:
-      - celery-worker
+  # Flower (DISABLED in production - only for debugging)
+  # Uncomment and secure with authentication if needed
+  # flower:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: momentaic-flower-prod
+  #   command: celery -A app.tasks.celery_app flower --port=5555
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-momentaic_redis_secret}@redis:6379/1
+  #   ports:
+  #     - "127.0.0.1:5555:5555"  # Localhost only
+  #   networks:
+  #     - momentaic-internal
+  #   depends_on:
+  #     - celery-worker
 
+# Named volumes with unique prefix to avoid conflicts
 volumes:
-  postgres_data:
-  redis_data:
+  momentaic_postgres_data:
+    name: momentaic_postgres_data
+  momentaic_redis_data:
+    name: momentaic_redis_data
 
+# Isolated networks
 networks:
-  default:
-    name: momentaic-network
+  momentaic-internal:
+    name: momentaic-internal
+    internal: true  # No external access
+  momentaic-external:
+    name: momentaic-external

@@ -1,0 +1,77 @@
+# Production docker-compose override for Momentaic
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  postgres:
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-momentaic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-momentaic}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  api:
+    restart: always
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  celery-worker:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  celery-beat:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Disable Flower in production (or secure it behind auth)
+  flower:
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Frontend container
+  frontend:
+    build:
+      context: ../momentaic front
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://api.momentaic.com
+    container_name: momentaic-frontend
+    restart: always
+    ports:
+      - "2685:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -114,7 +114,7 @@ class CreditTransaction(Base):
     balance_after: Mapped[int] = mapped_column(Integer, nullable=False)
     transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'deduction', 'topup', 'refund'
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    transaction_meta: Mapped[dict] = mapped_column(JSONB, default=dict)  # Renamed from 'metadata' (reserved)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

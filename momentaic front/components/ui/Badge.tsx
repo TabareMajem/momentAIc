@@ -3,8 +3,9 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'success' | 'warning' | 'error' | 'outline' | 'purple';
+  variant?: 'default' | 'secondary' | 'success' | 'warning' | 'error' | 'outline' | 'purple' | 'cyber';
   className?: string;
+  children?: React.ReactNode;
 }
 
 export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
@@ -16,6 +17,7 @@ export function Badge({ className, variant = 'default', ...props }: BadgeProps) 
     error: 'bg-red-100 text-red-700 border-red-200 border',
     purple: 'bg-purple-900/50 text-purple-200 border border-purple-500/50',
     outline: 'text-gray-700 border border-gray-300',
+    cyber: 'bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/50 shadow-[0_0_10px_rgba(0,240,255,0.2)]',
   };
 
   return (

@@ -22,29 +22,40 @@ export default function SignupPage() {
       await signup(data.email, data.password, data.fullName);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Initialization failed. Please try again.');
+      // Parse validation errors from backend
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail) && detail.length > 0) {
+        // Pydantic validation errors
+        const messages = detail.map((e: any) => e.msg || e.message).filter(Boolean);
+        setError(messages.join('. ') || 'Validation failed.');
+      } else if (typeof detail === 'string') {
+        setError(detail);
+      } else {
+        setError(err.response?.data?.message || err.response?.data?.error || 'Initialization failed. Please try again.');
+      }
     }
   };
 
+
   return (
     <div className="min-h-screen bg-[#020202] flex items-center justify-center p-4 relative overflow-hidden">
-       {/* Background Grid */}
-       <div className="absolute inset-0 bg-cyber-grid bg-[length:50px_50px] opacity-10 pointer-events-none"></div>
-       <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-[#00f0ff] opacity-[0.03] blur-[100px] rounded-full pointer-events-none"></div>
+      {/* Background Grid */}
+      <div className="absolute inset-0 bg-cyber-grid bg-[length:50px_50px] opacity-10 pointer-events-none"></div>
+      <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-[#00f0ff] opacity-[0.03] blur-[100px] rounded-full pointer-events-none"></div>
 
-       <Link to="/" className="absolute top-8 left-8 text-gray-500 hover:text-white flex items-center gap-2 font-mono text-sm tracking-widest transition-colors z-20">
-         <ArrowLeft className="w-4 h-4" /> BACK TO BASE
-       </Link>
+      <Link to="/" className="absolute top-8 left-8 text-gray-500 hover:text-white flex items-center gap-2 font-mono text-sm tracking-widest transition-colors z-20">
+        <ArrowLeft className="w-4 h-4" /> BACK TO BASE
+      </Link>
 
       <div className="w-full max-w-md relative z-10 animate-fade-in-up">
         <div className="flex justify-center mb-8">
-            <Logo collapsed={false} />
+          <Logo collapsed={false} />
         </div>
 
         <Card className="border-white/10 bg-[#050505]/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
           <CardHeader className="text-center pb-8 border-b border-white/5">
             <div className="mx-auto w-12 h-12 bg-[#00f0ff]/10 rounded-full flex items-center justify-center mb-4 border border-[#00f0ff]/20 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-               <Cpu className="w-6 h-6 text-[#00f0ff]" />
+              <Cpu className="w-6 h-6 text-[#00f0ff]" />
             </div>
             <CardTitle className="text-2xl tracking-tighter">Initialize Protocol</CardTitle>
             <CardDescription>Create your admin credentials to begin</CardDescription>
@@ -67,7 +78,7 @@ export default function SignupPage() {
                 label="Contact Email"
                 type="email"
                 placeholder="founder@mars.com"
-                {...register('email', { 
+                {...register('email', {
                   required: 'Email is required',
                   pattern: {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -81,7 +92,7 @@ export default function SignupPage() {
                 label="Secret Key"
                 type="password"
                 placeholder="••••••••"
-                {...register('password', { 
+                {...register('password', {
                   required: 'Password is required',
                   minLength: { value: 6, message: 'Min 6 chars' }
                 })}
@@ -92,7 +103,7 @@ export default function SignupPage() {
                 label="Verify Key"
                 type="password"
                 placeholder="••••••••"
-                {...register('confirmPassword', { 
+                {...register('confirmPassword', {
                   required: 'Confirmation required',
                   validate: value => value === password || "Keys do not match"
                 })}

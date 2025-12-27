@@ -124,16 +124,13 @@ class SalesAgent:
         startup_context = state.get("startup_context", {})
         
         if not self.llm:
-            # Mock strategy
+             # Fallback if no LLM
             strategy = {
-                "hook": "Recent news about their company",
-                "angle": "Value proposition alignment",
-                "tone": "professional",
-                "key_points": [
-                    "Mention their recent achievement",
-                    "Connect to your value prop",
-                    "Clear CTA for meeting"
-                ],
+                "hook": "Error: AI Service Unavailable",
+                "angle": "N/A",
+                "tone": "N/A",
+                "key_points": [],
+                "error": True
             }
         else:
             # Use LLM to develop strategy
@@ -192,20 +189,11 @@ Respond in JSON format."""
         startup_context = state.get("startup_context", {})
         
         if not self.llm:
-            # Mock draft
-            draft = {
-                "subject": f"Quick question about {lead_info.get('company_name')}'s growth",
-                "body": f"""Hi {lead_info.get('contact_name')},
-
-I noticed {lead_info.get('company_name')}'s recent achievements and thought there might be an interesting synergy.
-
-{startup_context.get('name')} helps companies like yours with {startup_context.get('tagline', 'growth')}.
-
-Would you be open to a quick 15-minute call this week?
-
-Best,
-[Your Name]""",
+             draft = {
+                "subject": "Error: AI Service Unavailable",
+                "body": "Unable to draft message without AI service.",
                 "channel": "email",
+                "error": True
             }
         else:
             # Use LLM to draft

@@ -19,14 +19,26 @@ from app.core.database import Base
 
 class AgentType(str, enum.Enum):
     """Available agent types in the swarm"""
+    # Core Agents
     SUPERVISOR = "supervisor"  # Routes to other agents
     SALES_HUNTER = "sales_hunter"  # Lead research & outreach
     CONTENT_CREATOR = "content_creator"  # Content generation
+    # Phase 1 Specialists
     TECH_LEAD = "tech_lead"  # Technical advice
     FINANCE_CFO = "finance_cfo"  # Financial analysis
     LEGAL_COUNSEL = "legal_counsel"  # Legal guidance
     GROWTH_HACKER = "growth_hacker"  # Growth strategies
     PRODUCT_PM = "product_pm"  # Product management
+    # Phase 2 Specialists
+    CUSTOMER_SUCCESS = "customer_success"  # Retention & churn
+    DATA_ANALYST = "data_analyst"  # Metrics & analytics
+    HR_OPERATIONS = "hr_operations"  # Hiring & people ops
+    MARKETING = "marketing"  # Brand & campaigns
+    COMMUNITY = "community"  # Community building
+    DEVOPS = "devops"  # Infrastructure & deployment
+    STRATEGY = "strategy"  # Vision & planning
+    # Special Agents
+    BROWSER = "browser"  # Web automation
     GENERAL = "general"  # General assistant
 
 
@@ -119,7 +131,7 @@ class Message(Base):
     tool_results: Mapped[List[dict]] = mapped_column(JSONB, default=list)
     
     # Metadata
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    message_meta: Mapped[dict] = mapped_column(JSONB, default=dict)  # Renamed from 'metadata' (reserved)
     # Example: {"tokens_used": 500, "model": "gemini-pro", "latency_ms": 1200}
     
     # Timestamps

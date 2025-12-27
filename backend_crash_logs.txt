@@ -1,0 +1,61 @@
+=== CAPTURING BACKEND LOGS ===
+
+=== Container Status ===
+093d779a16d0   momentaic-backend-api             "uvicorn app.main:ap…"   39 minutes ago   Up 39 minutes (healthy)         127.0.0.1:8839->8000/tcp                      momentaic-api-prod
+333dd11fab44   momentaic-backend-celery-beat     "celery -A app.tasks…"   19 hours ago     Up 19 hours (unhealthy)         8000/tcp                                      momentaic-beat-prod
+7aaa4e6c2ef0   momentaic-backend-celery-worker   "celery -A app.tasks…"   19 hours ago     Up 19 hours (unhealthy)         8000/tcp                                      momentaic-worker-prod
+2d98101c234f   redis:7-alpine                    "docker-entrypoint.s…"   19 hours ago     Up 19 hours (healthy)           6379/tcp                                      momentaic-redis-prod
+d63899d676a9   pgvector/pgvector:pg16            "docker-entrypoint.s…"   19 hours ago     Up 19 hours (healthy)           5432/tcp                                      momentaic-db-prod
+
+=== Last 100 Lines of API Logs ===
+INFO:     127.0.0.1:35620 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52256 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43850 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36904 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36760 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53306 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42286 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48342 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46904 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59906 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57888 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60118 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51114 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51586 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40200 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35368 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55218 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34076 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40554 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34118 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34112 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40388 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52146 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51686 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39842 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51808 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43290 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44380 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46496 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49048 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39544 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57984 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42908 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58024 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50204 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57094 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47836 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42386 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35768 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+=== Health Check Test ===
+{"status":"healthy","app":"MomentAIc","version":"1.0.0","environment":"production"}
+=== Current .env PORT setting ===
+PORT=8000
+SMTP_PORT=587
+CREDIT_COST_VISION_PORTAL=20

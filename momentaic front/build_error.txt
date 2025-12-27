@@ -1,0 +1,31 @@
+
+> momentaic@0.0.0 build
+> vite build
+
+vite v6.4.1 building for production...
+
+/index.css doesn't exist at build time, it will remain unchanged to be resolved at runtime
+transforming...
+✓ 2449 modules transformed.
+✗ Build failed in 7.49s
+error during build:
+pages/CoFounderMatch.tsx (3:7): "default" is not exported by "lib/api.ts", imported by "pages/CoFounderMatch.tsx".
+file: /root/momentaic/momentaic front/pages/CoFounderMatch.tsx:3:7
+
+1: import React, { useState } from 'react';
+2: import { Users, Briefcase, Globe, Heart, Zap, Award, CheckCircle } from 'lucide-react';
+3: import api from '../lib/api';
+          ^
+4: 
+5: interface Match {
+
+    at getRollupError (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:16994:16)
+    at Module.traceVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:17450:29)
+    at ModuleScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:15113:39)
+    at FunctionScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:5674:38)
+    at FunctionBodyScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:5674:38)
+    at ReturnValueScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:5674:38)
+    at FunctionBodyScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:5674:38)
+    at BlockScope.findVariable (file:///root/momentaic/momentaic%20front/node_modules/rollup/dist/es/shared/node-entry.js:5674:38)

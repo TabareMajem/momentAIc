@@ -3,6 +3,9 @@ MomentAIc API Schemas
 Pydantic models for request/response validation
 """
 
+from pydantic import BaseModel
+from typing import List, Any, Optional
+
 from app.schemas.auth import (
     UserCreate,
     UserLogin,
@@ -116,7 +119,3 @@ class PaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
-
-
-from pydantic import BaseModel
-from typing import List, Any, Optional

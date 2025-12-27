@@ -300,7 +300,41 @@ async def _get_agent_response(
 ) -> dict:
     """
     Get response from a specialized agent.
+    Routes to the appropriate agent instance based on type.
     """
+    from app.agents import (
+        sales_agent, content_agent, tech_lead_agent,
+        finance_cfo_agent, legal_counsel_agent, growth_hacker_agent,
+        product_pm_agent,
+    )
+    
+    # Map agent types to instances
+    agent_map = {
+        AgentType.SALES_HUNTER: sales_agent,
+        AgentType.CONTENT_CREATOR: content_agent,
+        AgentType.TECH_LEAD: tech_lead_agent,
+        AgentType.FINANCE_CFO: finance_cfo_agent,
+        AgentType.LEGAL_COUNSEL: legal_counsel_agent,
+        AgentType.GROWTH_HACKER: growth_hacker_agent,
+        AgentType.PRODUCT_PM: product_pm_agent,
+    }
+    
+    agent = agent_map.get(agent_type)
+    
+    if agent:
+        try:
+            result = await agent.process(
+                message=message,
+                startup_context=startup_context,
+                user_id=user_id,
+            )
+            return result
+        except Exception as e:
+            import structlog
+            logger = structlog.get_logger()
+            logger.error("Agent response error", agent=agent_type.value, error=str(e))
+    
+    # Fallback to generic LLM response
     from app.agents.base import get_llm, get_agent_config
     from langchain_core.messages import HumanMessage, SystemMessage
     
@@ -310,7 +344,6 @@ async def _get_agent_response(
     if not llm:
         return {"response": f"[{config['name']}] I'd be happy to help with that. How can I assist you further?"}
     
-    # Build context
     context_section = ""
     if startup_context:
         context_section = f"""
