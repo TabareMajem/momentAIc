@@ -40,7 +40,7 @@ services:
       APP_ENV: staging
       SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
       JWT_SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
-      GOOGLE_API_KEY: AIzaSyCUZ5pp4_VNFSlm0TZaQf3NDedrb9a6gi8
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
     command: uvicorn app.main:app --host 0.0.0.0 --port 9452
     ports:
       - "127.0.0.1:9939:9452"
@@ -69,7 +69,7 @@ services:
       CELERY_RESULT_BACKEND: redis://:staging_redis_pass@redis-staging:6379/2
       SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
       JWT_SECRET_KEY: dummy_secret_key_at_least_32_chars_long_12345
-      GOOGLE_API_KEY: AIzaSyCUZ5pp4_VNFSlm0TZaQf3NDedrb9a6gi8
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
     networks:
       - staging-internal
     depends_on:

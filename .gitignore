@@ -12,3 +12,5 @@ momentaic front/dist/
 *.key
 vps_check.sh
 vps_patch.sh
+*.crt
+env.complete.production
