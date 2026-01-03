@@ -1,163 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MomentAIc // OS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@100;300;400;500;700;800&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Space Grotesk', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://momentaic.com/" />
+  <meta property="og:title" content="MomentAIc // OS" />
+  <meta property="og:description" content="Build Your Empire. The AI Operating System for Entrepreneurs." />
+  <meta property="og:image" content="https://momentaic.com/og-image.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://momentaic.com/" />
+  <meta property="twitter:title" content="MomentAIc // OS" />
+  <meta property="twitter:description" content="Build Your Empire. The AI Operating System for Entrepreneurs." />
+  <meta property="twitter:image" content="https://momentaic.com/og-image.png" />
+  <title>MomentAIc // OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@100;300;400;500;700;800&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              purple: '#a855f7',
+              blue: '#3b82f6',
+              cyan: '#06b6d4',
             },
-            colors: {
-              brand: {
-                purple: '#a855f7',
-                blue: '#3b82f6',
-                cyan: '#06b6d4',
-              },
-              cyber: {
-                black: '#020202',
-                dark: '#050505',
-                panel: '#0a0a0a',
-                glass: 'rgba(255, 255, 255, 0.03)'
-              }
+            cyber: {
+              black: '#020202',
+              dark: '#050505',
+              panel: '#0a0a0a',
+              glass: 'rgba(255, 255, 255, 0.03)'
+            }
+          },
+          backgroundImage: {
+            'brand-gradient': 'linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%)',
+            'brand-gradient-hover': 'linear-gradient(135deg, #c084fc 0%, #60a5fa 50%, #22d3ee 100%)',
+            'cyber-grid': "linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)",
+            'crt-gradient': "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+          },
+          animation: {
+            'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'scanline': 'scanline 8s linear infinite',
+            'dash-draw': 'dashDraw 1s linear infinite',
+            'glitch': 'glitch 1s linear infinite',
+            'decode': 'decode 0.5s ease-out forwards',
+            'grid-flow': 'gridFlow 20s linear infinite',
+            'shimmer': 'shimmer 2.5s linear infinite',
+            'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' },
             },
-            backgroundImage: {
-              'brand-gradient': 'linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%)',
-              'brand-gradient-hover': 'linear-gradient(135deg, #c084fc 0%, #60a5fa 50%, #22d3ee 100%)',
-              'cyber-grid': "linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)",
-              'crt-gradient': "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+            scanline: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(100%)' },
             },
-            animation: {
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'float': 'float 6s ease-in-out infinite',
-              'scanline': 'scanline 8s linear infinite',
-              'dash-draw': 'dashDraw 1s linear infinite',
-              'glitch': 'glitch 1s linear infinite',
-              'decode': 'decode 0.5s ease-out forwards',
-              'grid-flow': 'gridFlow 20s linear infinite',
-              'shimmer': 'shimmer 2.5s linear infinite',
-              'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+            dashDraw: {
+              'to': { strokeDashoffset: '-20' }
             },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-20px)' },
-              },
-              scanline: {
-                '0%': { transform: 'translateY(-100%)' },
-                '100%': { transform: 'translateY(100%)' },
-              },
-              dashDraw: {
-                'to': { strokeDashoffset: '-20' }
-              },
-              glitch: {
-                '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
-                '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
-                '62%': { transform: 'translate(0,0) skew(5deg)' },
-              },
-              gridFlow: {
-                '0%': { backgroundPosition: '0 0' },
-                '100%': { backgroundPosition: '0 50px' }
-              },
-              shimmer: {
-                '0%': { transform: 'translateX(-100%)' },
-                '100%': { transform: 'translateX(100%)' }
-              },
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' }
-              }
+            glitch: {
+              '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+              '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+              '62%': { transform: 'translate(0,0) skew(5deg)' },
+            },
+            gridFlow: {
+              '0%': { backgroundPosition: '0 0' },
+              '100%': { backgroundPosition: '0 50px' }
+            },
+            shimmer: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' }
+            },
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
             }
           }
         }
       }
-    </script>
-    <style>
-      html {
-        scroll-behavior: smooth;
-      }
-      body {
-        background-color: #020202;
-        color: #e5e5e5;
-        overflow-x: hidden;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      
-      ::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-        background: #000;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 2px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #3b82f6;
-      }
-      
-      .no-scrollbar::-webkit-scrollbar {
-          display: none;
-      }
-      .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
-      
-      .bg-noise {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 50;
-        opacity: 0.03;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      }
+    }
+  </script>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
 
-      .text-glow-brand { text-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
-      
-      .tech-panel {
-        position: relative;
-        background: rgba(10, 10, 10, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(12px);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-      }
-      
-      .btn-brand {
-        background-image: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%);
-        transition: all 0.3s ease;
-      }
-      .btn-brand:hover {
-        background-image: linear-gradient(135deg, #9333ea 0%, #2563eb 50%, #0891b2 100%);
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-      }
+    body {
+      background-color: #020202;
+      color: #e5e5e5;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
 
-      /* CRT Effect Overlay */
-      .crt-overlay {
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-        background-size: 100% 2px, 3px 100%;
-        pointer-events: none;
-        position: absolute;
-        inset: 0;
-        z-index: 20;
-      }
-      
-      .perspective-1000 { perspective: 1000px; }
-      .transform-style-3d { transform-style: preserve-3d; }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+      background: #000;
+    }
 
-      * { -webkit-tap-highlight-color: transparent; }
-    </style>
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 2px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .bg-noise {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    .text-glow-brand {
+      text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+
+    .tech-panel {
+      position: relative;
+      background: rgba(10, 10, 10, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn-brand {
+      background-image: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%);
+      transition: all 0.3s ease;
+    }
+
+    .btn-brand:hover {
+      background-image: linear-gradient(135deg, #9333ea 0%, #2563eb 50%, #0891b2 100%);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+
+    /* CRT Effect Overlay */
+    .crt-overlay {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+    }
+
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -175,15 +209,18 @@
     "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.66.1",
     "axios": "https://aistudiocdn.com/axios@^1.13.2",
     "@radix-ui/react-tabs": "https://aistudiocdn.com/@radix-ui/react-tabs@^1.1.13",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.16.0"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+
 </head>
-  <body>
-    <div class="bg-noise"></div>
-    <div id="root"></div>
+
+<body>
+  <div class="bg-noise"></div>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

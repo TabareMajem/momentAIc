@@ -150,3 +150,48 @@ api_router.include_router(
     prefix="/ambassadors",
     tags=["Ambassadors"],
 )
+
+# Viral Campaign Engine (Soul Cards, etc.)
+from app.api.v1.endpoints import viral
+api_router.include_router(
+    viral.router,
+    prefix="/viral",
+    tags=["Viral Campaigns"],
+)
+
+# Activity Stream (Live Matrix)
+from app.api.v1.endpoints import events
+api_router.include_router(
+    events.router,
+    prefix="/events",
+    tags=["Activity Stream"],
+)
+
+# Onboarding Wizard (60-Second Result)
+from app.api.v1.endpoints import onboarding
+api_router.include_router(
+    onboarding.router,
+    prefix="/onboarding",
+    tags=["Onboarding"],
+)
+
+# Marketplace
+from app.api.v1.endpoints import marketplace
+api_router.include_router(
+    marketplace.router,
+    tags=["Marketplace"],
+)
+
+# QA & Testing
+from app.api.v1.endpoints import qa
+api_router.include_router(
+    qa.router,
+    tags=["QA & Testing"],
+)
+
+# Launch Strategy
+from app.api.v1.endpoints import launch
+api_router.include_router(
+    launch.router,
+    tags=["Launch Strategy"],
+)

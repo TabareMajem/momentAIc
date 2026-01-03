@@ -165,6 +165,17 @@ async def legacy_stripe_webhook_redirect(request: Request):
     return RedirectResponse(url="/api/v1/billing/webhook", status_code=307)
 
 
+# Mount static files (for agent screenshots)
+from fastapi.staticfiles import StaticFiles
+import os
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
 # Health check endpoint
 @app.get("/api/v1/health")
 async def health_check():

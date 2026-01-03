@@ -1,0 +1,7 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0data: {"type": "connection", "status": "connected"}
+
+100    53    0    53    0     0     52      0 --:--:--  0:00:01 --:--:--    52100    53    0    53    0     0     26      0 --:--:--  0:00:02 --:--:--    26100    53    0    53    0     0     17      0 --:--:--  0:00:03 --:--:--    17data: {"type": "test", "data": {"message": "Hello World", "user": "admin@momentaic.com", "timestamp": "2025-12-29 18:14:45.261374"}, "timestamp": "2025-12-29 18:14:45.261374"}
+
+100   230    0   230    0     0     56      0 --:--:--  0:00:04 --:--:--    56100   230    0   230    0     0     45      0 --:--:--  0:00:05 --:--:--    45

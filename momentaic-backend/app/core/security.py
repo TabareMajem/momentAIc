@@ -4,7 +4,10 @@ JWT authentication, password hashing, and authorization
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.models.user import User, RefreshToken
+
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -17,7 +20,6 @@ import structlog
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.user import User, RefreshToken
 
 logger = structlog.get_logger()
 
@@ -72,7 +74,7 @@ def decode_access_token(token: str) -> Optional[dict]:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
-) -> User:
+) -> "User":
     """
     Dependency to get the current authenticated user
     """
@@ -97,6 +99,7 @@ async def get_current_user(
     except ValueError:
         raise credentials_exception
     
+    from app.models.user import User
     result = await db.execute(
         select(User).where(User.id == user_uuid, User.is_active == True)
     )
@@ -109,8 +112,8 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
+    current_user: "User" = Depends(get_current_user),
+) -> "User":
     """Dependency to get current active user"""
     if not current_user.is_active:
         raise HTTPException(
@@ -121,8 +124,8 @@ async def get_current_active_user(
 
 
 async def get_current_verified_user(
-    current_user: User = Depends(get_current_active_user),
-) -> User:
+    current_user: "User" = Depends(get_current_active_user),
+) -> "User":
     """Dependency to get current verified user"""
     if not current_user.is_verified:
         raise HTTPException(
@@ -133,8 +136,8 @@ async def get_current_verified_user(
 
 
 async def get_superuser(
-    current_user: User = Depends(get_current_active_user),
-) -> User:
+    current_user: "User" = Depends(get_current_active_user),
+) -> "User":
     """Dependency to get superuser"""
     if not current_user.is_superuser:
         raise HTTPException(
@@ -156,9 +159,9 @@ class RequireCredits:
     
     async def __call__(
         self,
-        current_user: User = Depends(get_current_active_user),
+        current_user: "User" = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db),
-    ) -> User:
+    ) -> "User":
         if current_user.credits_balance < self.amount:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -198,7 +201,7 @@ def require_credits(amount: int, reason: str = "API call"):
 
 async def verify_startup_access(
     startup_id: UUID,
-    user: User,
+    user: "User",
     db: AsyncSession,
 ) -> bool:
     """

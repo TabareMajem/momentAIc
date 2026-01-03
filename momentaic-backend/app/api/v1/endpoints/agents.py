@@ -3,19 +3,25 @@ Agent Swarm Endpoints
 Multi-agent chat system with supervisor routing
 """
 
-from typing import List, Optional
+from typing import Any, List, Optional
+import structlog
+import uuid
+import json
+import re
 from uuid import UUID
-from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-import json
+from pydantic import BaseModel, Field
 import asyncio
 
 from app.core.database import get_db
-from app.core.security import get_current_active_user, verify_startup_access, require_credits
+from app.core.security import (
+    get_current_active_user, verify_startup_access, require_credits
+)
 from app.core.config import settings
 from app.models.user import User
 from app.models.startup import Startup
@@ -383,23 +389,92 @@ async def chat_stream(
     Stream a chat response.
     
     Returns server-sent events with response chunks.
+    Event format: data: {"chunk": "token", "is_final": false, "metadata": {...}}
     """
     await verify_startup_access(chat_request.startup_id, current_user, db)
     
-    async def generate():
-        # Simplified streaming - in production, use actual LLM streaming
-        response = "I'm analyzing your question and preparing a response..."
-        
-        for chunk in response.split():
-            yield f"data: {json.dumps({'chunk': chunk + ' ', 'is_final': False})}\n\n"
-            await asyncio.sleep(0.05)
-        
-        yield f"data: {json.dumps({'chunk': '', 'is_final': True})}\n\n"
+    # Get startup context (reuse logic from chat endpoint)
+    conversation_id = chat_request.conversation_id
+    if not conversation_id:
+        # Create new conversation logic would go here, for now require conversation_id or create basic
+        pass 
+
+    startup_result = await db.execute(select(Startup).where(Startup.id == chat_request.startup_id))
+    startup = startup_result.scalar_one()
     
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-    )
+    startup_context = {
+        "name": startup.name,
+        "description": startup.description,
+        "industry": startup.industry,
+        "stage": startup.stage.value,
+        "metrics": startup.metrics,
+    } if chat_request.include_context else {}
+
+    async def event_generator():
+        # 1. Supervisor Routing (Synchronous Step)
+        from app.agents.supervisor import supervisor_agent
+        
+        yield f"data: {json.dumps({'chunk': '', 'is_final': False, 'status': 'Routing...'})}\n\n"
+        
+        routing_result = await supervisor_agent.route(
+            message=chat_request.message,
+            startup_context=startup_context,
+            user_id=str(current_user.id),
+            startup_id=str(chat_request.startup_id),
+        )
+        
+        routed_to = None
+        if routing_result.get("routed") and routing_result.get("route_to"):
+            routed_to = AgentType(routing_result["route_to"])
+            yield f"data: {json.dumps({'chunk': '', 'is_final': False, 'status': f'Routed to {routed_to.value}'})}\n\n"
+        
+        # 2. Agent Processing (Streaming)
+        if routed_to:
+            # specialized agent streaming
+            from app.agents import (
+                growth_hacker_agent, sales_agent, content_agent, 
+                tech_lead_agent, finance_cfo_agent, legal_counsel_agent, product_pm_agent
+            )
+            agent_map = {
+                AgentType.GROWTH_HACKER: growth_hacker_agent,
+                AgentType.SALES_HUNTER: sales_agent,
+                AgentType.CONTENT_CREATOR: content_agent,
+                AgentType.TECH_LEAD: tech_lead_agent,
+                AgentType.FINANCE_CFO: finance_cfo_agent,
+                AgentType.LEGAL_COUNSEL: legal_counsel_agent,
+                AgentType.PRODUCT_PM: product_pm_agent,
+            }
+            agent = agent_map.get(routed_to)
+            
+            if agent and hasattr(agent, "stream_process"):
+                async for chunk in agent.stream_process(chat_request.message, startup_context, str(current_user.id)):
+                    yield f"data: {json.dumps({'chunk': chunk, 'is_final': False})}\n\n"
+            else:
+                # Fallback to non-streaming if method missing
+                result = await _get_agent_response(routed_to, chat_request.message, startup_context, str(current_user.id))
+                yield f"data: {json.dumps({'chunk': result.get('response', ''), 'is_final': False})}\n\n"
+        else:
+            # 3. Generic LLM Fallback (Streaming)
+            from app.agents.base import get_llm, get_agent_config
+            from langchain_core.messages import HumanMessage, SystemMessage
+            
+            llm = get_llm("gemini-2.0-flash") # Use fast model
+            if llm:
+                config = get_agent_config(AgentType.SUPERVISOR)
+                prompt = f"""Startup Context: {json.dumps(startup_context)}\n\nUser Question: {chat_request.message}"""
+                
+                async for chunk in llm.astream([
+                    SystemMessage(content=config["system_prompt"]),
+                    HumanMessage(content=prompt)
+                ]):
+                    if chunk.content:
+                        yield f"data: {json.dumps({'chunk': chunk.content, 'is_final': False})}\n\n"
+            else:
+                 yield f"data: {json.dumps({'chunk': routing_result.get('response', 'Error'), 'is_final': False})}\n\n"
+
+        yield f"data: {json.dumps({'chunk': '', 'is_final': True})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 # ==================
@@ -607,3 +682,113 @@ code here
         )
     
     return VisionPortalResponse(**result)
+
+
+# ==================
+# Shared Brain (Memory Context)
+# ==================
+
+@router.get("/memory/shared-brain")
+async def get_shared_brain(
+    startup_id: UUID,
+    limit: int = 10,
+    min_importance: int = 7,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get the agent's 'Shared Brain' context.
+    Returns high-importance memories and current focus.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    from app.models.conversation import AgentMemory
+    
+    # Fetch high importance memories
+    result = await db.execute(
+        select(AgentMemory)
+        .where(
+            AgentMemory.startup_id == startup_id,
+            AgentMemory.importance >= min_importance
+        )
+        .order_by(AgentMemory.created_at.desc())
+        .limit(limit)
+    )
+    memories = result.scalars().all()
+    
+    formatted_memories = [
+        {
+            "id": str(m.id),
+            "type": m.memory_type,
+            "content": m.content,
+            "agent": m.agent_type.value,
+            "importance": m.importance,
+            "created_at": m.created_at.isoformat()
+        } for m in memories
+    ]
+    
+    return {
+        "memories": formatted_memories,
+        "count": len(formatted_memories),
+        "status": "active"
+    }
+
+
+# ==================
+# Judgement Agent (Optimization)
+# ==================
+
+class ContentOptimizationRequest(BaseModel):
+    goal: str
+    target_audience: str
+    variations: List[str]
+
+@router.post("/optimize/content")
+async def optimize_content(
+    request: ContentOptimizationRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Use Judgement Agent to evaluate and pick the best content variation.
+    """
+    # Quick visual check simulation for UI demo (optional delay or event)
+    from app.agents import judgement_agent
+    
+    result = await judgement_agent.evaluate_content(
+        goal=request.goal,
+        target_audience=request.target_audience,
+        variations=request.variations
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+        
+    return result
+
+
+@router.post("/marketing/optimize-loop")
+async def optimize_loop(
+    request: ContentOptimizationRequest, # Reusing same model for input
+    topic: str = "", # Optional override
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger the recursive feedback loop: Marketing -> Judge -> Marketing.
+    """
+    from app.agents import marketing_agent
+    
+    # Use topic from request if valid, or derive from goal
+    search_topic = topic if topic else request.goal
+    
+    result = await marketing_agent.optimize_post_loop(
+        topic=search_topic,
+        goal=request.goal,
+        target_audience=request.target_audience
+    )
+    
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+        
+    return result

@@ -12,7 +12,7 @@ import { useToast } from '../components/ui/Toast';
 import {
     BarChart2, Users, Mail, ArrowRight, Sparkles, Send,
     Copy, RefreshCw, PenTool, Share2, DollarSign, Calendar,
-    Zap, Power, Activity
+    Zap, Power, Activity, Target
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { Textarea } from '../components/ui/Textarea';
@@ -308,12 +308,20 @@ export default function GrowthEngine() {
     const [selectedStartupId, setSelectedStartupId] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'crm' | 'content'>('crm');
     const [autopilot, setAutopilot] = useState(false);
+    const [stats, setStats] = useState<any>(null); // AdminStats
 
     useEffect(() => {
-        api.getStartups().then(data => {
-            setStartups(data);
-            if (data.length > 0) setSelectedStartupId(data[0].id);
-        });
+        const init = async () => {
+            const [startupsData, statsData] = await Promise.all([
+                api.getStartups(),
+                api.getAdminStats().catch(() => null) // Fail gracefully if not admin
+            ]);
+
+            setStartups(startupsData);
+            if (startupsData.length > 0) setSelectedStartupId(startupsData[0].id);
+            setStats(statsData);
+        };
+        init();
     }, []);
 
     const selectedStartup = startups.find(s => s.id === selectedStartupId);
@@ -321,12 +329,31 @@ export default function GrowthEngine() {
     return (
         <div className="h-[calc(100vh-6rem)] flex flex-col">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-6 border-b border-white/10 pb-6 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 border-b border-white/10 pb-4 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tighter mb-2 flex items-center gap-3">
                         GROWTH_ENGINE <span className="px-2 py-0.5 rounded text-[10px] bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20">BETA</span>
                     </h1>
-                    <p className="text-gray-500 font-mono text-xs">AUTOMATED REVENUE PROTOCOL</p>
+                    <div className="flex gap-6 text-xs font-mono text-gray-500">
+                        {stats?.hunter_stats ? (
+                            <>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Target className="w-3 h-3 text-green-500" />
+                                    LEADS: {stats.hunter_stats.leads_generated}
+                                </span>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Mail className="w-3 h-3 text-[#00f0ff]" />
+                                    SENT: {stats.hunter_stats.emails_sent}
+                                </span>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Activity className="w-3 h-3 text-purple-500" />
+                                    ACTIVE: {stats.hunter_stats.campaigns_active}
+                                </span>
+                            </>
+                        ) : (
+                            <span>AUTOMATED REVENUE PROTOCOL</span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">

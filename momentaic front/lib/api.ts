@@ -85,9 +85,51 @@ class ApiClient {
   }
 
 
-  // === BILLING ===
+  // === INTEGRATIONS ===
+  async getIntegrations(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/integrations?startup_id=${startupId}`);
+    return data;
+  }
+
+  async connectIntegration(startupId: string, payload: any) {
+    const { data } = await this.client.post(`/api/v1/integrations?startup_id=${startupId}`, payload);
+    return data;
+  }
+
+  async disconnectIntegration(startupId: string, integrationId: string) {
+    const { data } = await this.client.delete(`/api/v1/integrations/${integrationId}?startup_id=${startupId}`);
+    return data;
+  }
+
+  async syncIntegration(startupId: string, integrationId: string, dataTypes?: string[]) {
+    const { data } = await this.client.post(`/api/v1/integrations/${integrationId}/sync?startup_id=${startupId}`, { data_types: dataTypes });
+    return data;
+  }
+
+  // === MARKETPLACE ===
+  async getMarketplaceTools(category?: string) {
+    const { data } = await this.client.get('/api/v1/marketplace/tools' + (category ? `?category=${category}` : ''));
+    return data;
+  }
+
+  async submitMarketplaceTool(payload: any) {
+    const { data } = await this.client.post('/api/v1/marketplace/submit', payload);
+    return data;
+  }
+
+  async installMarketplaceTool(startupId: string, toolId: string) {
+    const { data } = await this.client.post(`/api/v1/marketplace/install/${toolId}?startup_id=${startupId}`);
+    return data;
+  }
+
+  // === ONBOARDING ===
   async createCheckoutSession(tier: string): Promise<{ url?: string; success?: boolean }> {
     const { data } = await this.client.post('/api/v1/billing/checkout', { tier });
+    return data;
+  }
+
+  async analyzeStartup(description: string): Promise<{ industry: string; stage: string; follow_up_question: string }> {
+    const { data } = await this.client.post('/api/v1/onboarding/analyze', { description });
     return data;
   }
 
@@ -143,6 +185,83 @@ class ApiClient {
   async chatWithAgent(request: AgentChatRequest): Promise<AgentChatResponse> {
     const { data } = await this.client.post('/api/v1/agents/chat', request);
     return data;
+  }
+
+  async streamChatWithAgent(
+    request: AgentChatRequest,
+    onToken: (token: string) => void,
+    onComplete?: (fullText: string) => void,
+    onError?: (err: any) => void
+  ): Promise<void> {
+    try {
+      const token = this.getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Use fetch for streaming support (Axios is bad at this)
+      // Construct full URL properly
+      const baseUrl = API_URL || window.location.origin; // Fallback if API_URL is relative
+      // If API_URL is relative (empty string), fetch handles it relative to current origin.
+      // If it's absolute, it works.
+      const url = `${API_URL}/api/v1/agents/chat/stream`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Stream failed: ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        // Parse SSE format: "data: {...}\n\n"
+        const lines = chunk.split('\n\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6);
+            if (jsonStr === '[DONE]') continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.token) {
+                onToken(data.token);
+                fullText += data.token;
+              }
+              // Handle other event types if needed (e.g., tool_use)
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', jsonStr);
+            }
+          }
+        }
+      }
+
+      if (onComplete) {
+        onComplete(fullText);
+      }
+
+    } catch (error) {
+      console.error('Streaming chat error:', error);
+      if (onError) onError(error);
+    }
   }
 
   async getAvailableAgents() {

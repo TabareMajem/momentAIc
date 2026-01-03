@@ -63,8 +63,9 @@ class BaseIntegration(ABC):
     # Scopes to request during OAuth
     default_scopes: List[str] = []
     
-    def __init__(self, credentials: Optional[IntegrationCredentials] = None):
+    def __init__(self, credentials: Optional[IntegrationCredentials] = None, config: Optional[Dict[str, Any]] = None):
         self.credentials = credentials or IntegrationCredentials()
+        self.config = config or {}
         self.http_client = httpx.AsyncClient(timeout=30.0)
     
     @abstractmethod

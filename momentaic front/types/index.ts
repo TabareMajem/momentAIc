@@ -23,11 +23,18 @@ export interface AuthResponse {
 }
 
 // Admin
+export interface HunterStats {
+  leads_generated: number;
+  emails_sent: number;
+  campaigns_active: number;
+}
+
 export interface AdminStats {
   total_users: number;
   active_subscriptions: number;
   total_revenue: number;
   agents_deployed: number;
+  hunter_stats: HunterStats;
 }
 
 // Startup
@@ -70,9 +77,9 @@ export interface SignalScores {
 }
 
 // Agents
-export type AgentType = 
-  | 'orchestrator' | 'technical_copilot' | 'business_copilot' 
-  | 'fundraising_copilot' | 'momentum_ai' | 'sales_agent' 
+export type AgentType =
+  | 'orchestrator' | 'technical_copilot' | 'business_copilot'
+  | 'fundraising_copilot' | 'momentum_ai' | 'sales_agent'
   | 'content_agent' | 'legal_agent' | 'data_agent';
 
 export interface AgentInfo {
@@ -89,6 +96,7 @@ export interface ChatMessage {
   content: string;
   agent_used?: AgentType;
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 export interface AgentChatRequest {
@@ -96,7 +104,7 @@ export interface AgentChatRequest {
   agent_type: AgentType;
   startup_id?: string;
   session_id?: string;
-  conversation_history?: Array<{role: string; content: string}>;
+  conversation_history?: Array<{ role: string; content: string }>;
 }
 
 export interface AgentChatResponse {

@@ -31,8 +31,8 @@ class GitHubIntegration(BaseIntegration):
     
     default_scopes = ["repo", "read:org"]
     
-    def __init__(self, credentials: Optional[IntegrationCredentials] = None):
-        super().__init__(credentials)
+    def __init__(self, credentials: Optional[IntegrationCredentials] = None, config: Optional[Dict[str, Any]] = None):
+        super().__init__(credentials, config)
         self.base_url = "https://api.github.com"
         self.client_id = settings.github_client_id if hasattr(settings, 'github_client_id') else None
         self.client_secret = settings.github_client_secret if hasattr(settings, 'github_client_secret') else None

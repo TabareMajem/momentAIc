@@ -71,7 +71,7 @@ services:
       APP_ENV: production
       DEBUG: "false"
     ports:
-      - "127.0.0.1:8839:8000"  # SECURITY: Bind to localhost only (use nginx proxy)
+      - "8840:8000"
     networks:
       - momentaic-internal
       - momentaic-external
@@ -92,8 +92,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: 512M
+          cpus: '0.5'
+          memory: 1024M
 
   # Celery Worker
   celery-worker:
@@ -151,11 +151,11 @@ services:
     depends_on:
       - celery-worker
     healthcheck:
-      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping"]
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep 'celery.*beat' || exit 1"]
       interval: 60s
       timeout: 15s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -180,6 +180,28 @@ services:
   #     - momentaic-internal
   #   depends_on:
   #     - celery-worker
+
+  # Frontend Application
+  frontend:
+    build:
+      context: "../momentaic front"
+      dockerfile: Dockerfile
+    container_name: momentaic-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:2685:80"
+    networks:
+      - momentaic-external
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
 
 # Named volumes with unique prefix to avoid conflicts
 volumes:

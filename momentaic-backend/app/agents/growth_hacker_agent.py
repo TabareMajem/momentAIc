@@ -34,7 +34,8 @@ class GrowthHackerAgent:
     
     def __init__(self):
         self.config = get_agent_config(AgentType.GROWTH_HACKER)
-        self.llm = get_llm("gemini-pro", temperature=0.7)
+        # Use valid model name for streaming
+        self.llm = get_llm("gemini-2.0-flash", temperature=0.7)
     
     async def process(
         self,
@@ -46,38 +47,41 @@ class GrowthHackerAgent:
         Process a growth-related question or request
         """
         if not self.llm:
-            return {"response": "AI Service Unavailable", "agent": AgentType.GROWTH_HACKER.value, "error": True}
+            return {"response": "Growth Hacker Agent not initialized (LLM missing).", "agent": AgentType.GROWTH_HACKER.value}
+
+        prompt = f"""You are the Growth Hacker Agent.
+        Context: {startup_context}
+        Query: {message}
+        
+        Provide a detailed, actionable growth strategy or answer."""
         
         try:
-            context_section = self._build_context(startup_context)
-            
-            prompt = f"""{context_section}
-
-User Request: {message}
-
-As the Growth Hacker, provide:
-1. Direct, actionable advice
-2. Specific tactics they can implement today
-3. Metrics to track
-4. Expected timeline and effort
-5. Examples from similar startups
-
-Focus on high-impact, low-cost growth tactics suitable for their stage."""
-            
-            response = await self.llm.ainvoke([
-                SystemMessage(content=self.config["system_prompt"]),
-                HumanMessage(content=prompt),
-            ])
-            
-            return {
-                "response": response.content,
-                "agent": AgentType.GROWTH_HACKER.value,
-                "tools_used": [],
-            }
-            
+            response = await self.llm.ainvoke(prompt)
+            return {"response": response.content, "agent": AgentType.GROWTH_HACKER.value}
         except Exception as e:
             logger.error("Growth Hacker agent error", error=str(e))
             return {"response": f"Error: {str(e)}", "agent": AgentType.GROWTH_HACKER.value, "error": True}
+
+    async def stream_process(
+        self,
+        message: str,
+        startup_context: Dict[str, Any],
+        user_id: str,
+    ):
+        """Stream the growth hacker response"""
+        if not self.llm:
+            yield "Agent not initialized"
+            return
+
+        prompt = f"""You are the Growth Hacker Agent.
+        Context: {startup_context}
+        Query: {message}
+        
+        Provide a detailed, actionable growth strategy or answer."""
+
+        async for chunk in self.llm.astream(prompt):
+            if chunk.content:
+                yield chunk.content
     
     async def design_experiment(
         self,
@@ -313,7 +317,62 @@ Provide:
         if denominator == 0:
             return "0"
         return f"{(numerator / denominator) * 100:.1f}"
-    
+        
+    async def analyze_startup_wizard(self, url: str, description: str = "") -> Dict[str, Any]:
+        """
+        One-Shot Wizard Analysis: Generates complete GTM strategy from URL/Description.
+        Used for 60-Second Result onboarding.
+        """
+        if not self.llm:
+            return {"error": "Growth Hacker Agent not initialized"}
+            
+        import json
+        
+        prompt = f"""
+        Analyze this startup for a "60-Second Growth Strategy":
+        URL: {url}
+        Description: {description}
+        
+        If the URL is valid, infer what the company does. If description is provided, use it.
+        
+        You must generate a structured JSON strategy with:
+        1. "target_audience": The single most lucrative initial customer segment (e.g. "Senior React Developers").
+        2. "pain_point": Their bleeding neck problem (e.g. "Wasting 10h/week on CSS debugging").
+        3. "value_prop": The killer hook (e.g. "Ship pixel-perfect UIs in 1 click").
+        4. "viral_post_hook": A contrarian or curiosity-driven hook for LinkedIn/X first post.
+        5. "weekly_goal": A concrete first-week metric (e.g. "10 Beta Signups").
+        
+        Format as purely JSON:
+        {{
+            "target_audience": "...",
+            "pain_point": "...",
+            "value_prop": "...",
+            "viral_post_hook": "...",
+            "weekly_goal": "..."
+        }}
+        """
+        
+        try:
+            response = await self.llm.ainvoke(prompt)
+            content = response.content
+            
+            # Simple cleanup to ensure JSON
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                return json.loads(json_match.group())
+            else:
+                return {
+                    "target_audience": "Early Adopters",
+                    "pain_point": "Unknown problem",
+                    "value_prop": "Innovative solution",
+                    "viral_post_hook": "We are launching something new!",
+                    "weekly_goal": "Get 100 visitors"
+                }
+        except Exception as e:
+            logger.error("Wizard analysis failed", error=str(e))
+            return {"error": str(e)}
+
     def _identify_biggest_leak(self, funnel: Dict[str, Any]) -> str:
         """Identify biggest conversion drop"""
         steps = [

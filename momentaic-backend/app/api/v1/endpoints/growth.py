@@ -784,3 +784,61 @@ async def get_acquisition_summary(
         ))
     
     return summary
+
+
+@router.get("/metrics/velocity")
+async def get_lead_velocity(
+    startup_id: UUID,
+    days: int = 30,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get Lead Velocity (New leads per day) for sparkline charts.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    from sqlalchemy import func
+    from datetime import timedelta
+    
+    # Calculate date range
+    start_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Query leads grouped by day
+    # Note: SQLite/Postgres syntax differs for date truncation. 
+    # Using python-side aggregation for DB-agnostic safety in MVP, 
+    # but Postgres 'date_trunc' is better for scale.
+    
+    # Efficient fetch: only created_at needed
+    result = await db.execute(
+        select(Lead.created_at)
+        .where(
+            Lead.startup_id == startup_id,
+            Lead.created_at >= start_date
+        )
+    )
+    lead_dates = result.scalars().all()
+    
+    # Aggregate in memory (MVP)
+    daily_counts = {}
+    for date in lead_dates:
+        day_str = date.strftime("%Y-%m-%d")
+        daily_counts[day_str] = daily_counts.get(day_str, 0) + 1
+        
+    # Fill missing days with 0
+    velocity_data = []
+    current = start_date
+    now = datetime.utcnow()
+    while current <= now:
+        day_str = current.strftime("%Y-%m-%d")
+        velocity_data.append({
+            "date": day_str,
+            "count": daily_counts.get(day_str, 0)
+        })
+        current += timedelta(days=1)
+        
+    return {
+        "velocity": velocity_data,
+        "total_period": len(lead_dates),
+        "trend": "up" if len(velocity_data) > 1 and velocity_data[-1]["count"] >= velocity_data[0]["count"] else "down"
+    }

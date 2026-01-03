@@ -12,6 +12,7 @@ from app.integrations.github import GitHubIntegration
 from app.integrations.slack import SlackIntegration
 from app.integrations.hubspot import HubSpotIntegration
 from app.integrations.notion import NotionIntegration
+from app.integrations.mcp import MCPIntegration
 
 # Payments
 from app.integrations.payments import (
@@ -116,6 +117,7 @@ INTEGRATION_REGISTRY = {
     "slack": SlackIntegration,
     "hubspot": HubSpotIntegration,
     "notion": NotionIntegration,
+    "mcp": MCPIntegration,
     # Payments
     "paypal": PayPalIntegration,
     "gumroad": GumroadIntegration,
@@ -175,9 +177,11 @@ INTEGRATION_REGISTRY = {
 }
 
 
-def get_integration_class(provider: str):
-    """Get integration class by provider name"""
-    return INTEGRATION_REGISTRY.get(provider)
+def get_integration_class(provider: any):
+    """Get integration class by provider name or enum"""
+    if hasattr(provider, "value"):
+        provider = provider.value
+    return INTEGRATION_REGISTRY.get(str(provider))
 
 
 def list_available_integrations():

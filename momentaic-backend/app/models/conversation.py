@@ -37,8 +37,10 @@ class AgentType(str, enum.Enum):
     COMMUNITY = "community"  # Community building
     DEVOPS = "devops"  # Infrastructure & deployment
     STRATEGY = "strategy"  # Vision & planning
+    JUDGEMENT = "judgement"  # Content critique & optimization
     # Special Agents
     BROWSER = "browser"  # Web automation
+    QA_TESTER = "qa_tester"  # App auditing & automated testing
     GENERAL = "general"  # General assistant
 
 

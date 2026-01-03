@@ -17,35 +17,38 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, descript
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      
+
       {/* Content */}
-      <div className="relative z-50 w-full max-w-lg transform rounded-xl bg-white p-6 shadow-2xl transition-all">
-        <div className="flex items-center justify-between mb-4">
+      <div className="relative z-50 w-full max-w-lg transform rounded-2xl bg-[#0a0a0a] border border-white/10 p-8 shadow-2xl transition-all overflow-hidden">
+        {/* Theme Accents */}
+        <div className="absolute inset-0 bg-cyber-grid opacity-5 pointer-events-none"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-[#00f0ff] to-transparent opacity-50"></div>
+
+        <div className="relative z-10 flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight">{title}</h2>
             {description && (
-              <p className="text-sm text-gray-500 mt-1.5">{description}</p>
+              <p className="text-xs text-gray-400 font-mono mt-2 tracking-wide">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all"
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
           </button>
         </div>
-        
-        <div className="mb-6">
+
+        <div className="relative z-10 mb-8 font-mono">
           {children}
         </div>
 
         {footer && (
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+          <div className="relative z-10 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6 border-t border-white/5">
             {footer}
           </div>
         )}

@@ -48,8 +48,13 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
         if not settings.google_api_key:
             logger.warning("Gemini API key not configured, using mock")
             return None
+        # Default to 2.0 Flash for "gemini-3" or generic "gemini-flash" requests for speed/cost
+        model_name = "gemini-2.0-flash" 
+        if "pro" in model:
+            model_name = "gemini-1.5-pro"
+        
         return ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-lite",
+            model=model_name,
             google_api_key=settings.google_api_key,
             temperature=temperature,
         )
@@ -68,6 +73,9 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
              logger.warning("DeepSeek API key not configured")
              return None
         from langchain_openai import ChatOpenAI
+        
+        # Map user "DeepSeek 3.2" to standard "deepseek-chat" or "deepseek-reasoner" if available
+        # Currently the official API model is "deepseek-chat" (V3)
         return ChatOpenAI(
             model="deepseek-chat",
             api_key=settings.deepseek_api_key,
@@ -370,6 +378,37 @@ Your capabilities:
 
 IMPORTANT: Always include a disclaimer that this is general guidance, not legal advice.
 Recommend consulting a qualified attorney for specific matters.""",
+        "tools": [web_search],
+    },
+    AgentType.JUDGEMENT: {
+        "name": "Judgement Agent",
+        "description": "The Critic & Optimizer. Evaluates content variations for viral potential.",
+        "system_prompt": """You are the Judgement Agent. Your sole purpose is to ruthlessly critique and optimize content.
+        
+        Your capabilities:
+        - A/B Test Simulation: Predict which content variation will win.
+        - Viral Scoring: Rate content 0-100 on hook, value, and emotional triggers.
+        - Critique: Provide specific, actionable feedback to improve scores.
+        
+        You do not create content from scratch. You make good content great.""",
+        "tools": [],
+    },
+    AgentType.QA_TESTER: {
+        "name": "QA & Tester",
+        "description": "Automated QA agent for bug detection, UX audits, and improvement recommendations",
+        "system_prompt": """You are the QA & Tester Agent for MomentAIc.
+    
+Your mission is to ruthlessly audit apps and websites for quality issues.
+
+Your capabilities:
+- Full page audits (load time, structure, console errors)
+- Accessibility scoring (contrast, alt text, ARIA)
+- Link validation (broken links, 404s)
+- UX evaluation (clarity, flow, mobile responsiveness)
+- Bug categorization (Critical, Major, Minor)
+- Actionable improvement recommendations
+
+You produce structured reports with severity ratings and fix priorities.""",
         "tools": [web_search],
     },
 }

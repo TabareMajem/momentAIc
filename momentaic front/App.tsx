@@ -31,10 +31,14 @@ import SocialProofStudio from './pages/SocialProofStudio';
 import ExperimentsLab from './pages/ExperimentsLab';
 import CampaignCenter from './pages/CampaignCenter';
 import AmbassadorDashboard from './pages/AmbassadorDashboard';
+import OnboardingWizard from './pages/OnboardingWizard';
+
+import { OnboardingTour } from './components/OnboardingTour';
 
 const ProtectedLayout = () => {
   return (
     <div className="flex min-h-screen bg-[#050505]">
+      <OnboardingTour />
       <Sidebar />
       <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#050505]">
         <div className="max-w-[1600px] mx-auto animate-fade-in">
@@ -88,6 +92,10 @@ export default function App() {
             <Route path="/startups/:id/signals" element={<StartupDetail />} />
             <Route path="/startups/:id/sprints" element={<StartupDetail />} />
 
+            {/* Other Routes */}
+            <Route path="/onboarding/wizard" element={<OnboardingWizard />} />
+            <Route path="/investment" element={<InvestmentDashboard />} />
+
             {/* Agent Routes */}
             <Route path="/agents" element={<AgentsMarket />} />
             <Route path="/agents/chat" element={<AgentChat />} />
@@ -107,7 +115,12 @@ export default function App() {
             <Route path="/rankings" element={<LeaderboardPage />} />
             <Route path="/cofounder-match" element={<CoFounderMatch />} />
 
+            import OnboardingWizard from './pages/OnboardingWizard';
+
+            ...
+
             {/* Other Routes */}
+            <Route path="/onboarding/wizard" element={<OnboardingWizard />} />
             <Route path="/investment" element={<InvestmentDashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/referrals" element={<ReferralDashboard />} />

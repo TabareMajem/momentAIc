@@ -68,6 +68,83 @@ class SubscriptionResponse(BaseModel):
     cancel_at_period_end: bool = False
 
 
+class TierInfo(BaseModel):
+    """Subscription tier information"""
+    id: str
+    name: str
+    price: float
+    currency: str = "USD"
+    interval: str = "month"
+    credits: int
+    features: List[str]
+    stripe_price_id: Optional[str] = None
+
+
+class TiersResponse(BaseModel):
+    """All available tiers"""
+    tiers: List[TierInfo]
+
+
+# ==================
+# Public Endpoints
+# ==================
+
+@router.get("/tiers", response_model=TiersResponse)
+async def get_tiers():
+    """
+    Get all available subscription tiers.
+    Public endpoint - no authentication required.
+    """
+    tiers = [
+        TierInfo(
+            id="starter",
+            name="Starter",
+            price=9.0,
+            credits=settings.default_starter_credits,
+            features=[
+                "100 AI credits/month",
+                "Basic Agent Access",
+                "Email Support",
+                "1 Startup Profile",
+            ],
+            stripe_price_id=settings.stripe_starter_price_id,
+        ),
+        TierInfo(
+            id="growth",
+            name="Growth",
+            price=19.0,
+            credits=settings.default_growth_credits,
+            features=[
+                "500 AI credits/month",
+                "Full Agent Swarm Access",
+                "Hunter Sales Automation",
+                "Priority Support",
+                "5 Startup Profiles",
+                "Content Scheduling",
+            ],
+            stripe_price_id=settings.stripe_growth_price_id,
+        ),
+        TierInfo(
+            id="god_mode",
+            name="God Mode",
+            price=39.0,
+            credits=settings.default_god_mode_credits,
+            features=[
+                "2000 AI credits/month",
+                "Unlimited Agent Access",
+                "White-glove Onboarding",
+                "Custom Integrations",
+                "Unlimited Startups",
+                "API Access",
+                "Dedicated Success Manager",
+            ],
+            stripe_price_id=settings.stripe_god_mode_price_id,
+        ),
+    ]
+    
+    return TiersResponse(tiers=tiers)
+
+
 # ==================
 # Credit Management
 # ==================
@@ -260,7 +337,66 @@ async def create_checkout_session(
             detail=f"Stripe error: {str(e)}"
         )
 
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stripe error: {str(e)}"
+        )
 
+
+@router.post("/checkout/founders-club", response_model=CheckoutSessionResponse)
+async def create_founders_club_checkout(
+    success_url: str,
+    cancel_url: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Create checkout session for "Founders Club" ($350 Lifetime).
+    """
+    if not settings.stripe_secret_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe not configured"
+        )
+        
+    # Fixed price ID for Founders Club (configured in env)
+    # If not set, use a fallback or error
+    price_id = getattr(settings, "stripe_founders_club_price_id", "price_founders_club_test")
+    
+    if not current_user.stripe_customer_id:
+        customer = stripe.Customer.create(
+            email=current_user.email,
+            name=current_user.full_name,
+            metadata={"user_id": str(current_user.id)},
+        )
+        current_user.stripe_customer_id = customer.id
+        
+    try:
+        session = stripe.checkout.Session.create(
+            customer=current_user.stripe_customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="payment", # One-time payment
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                "user_id": str(current_user.id),
+                "type": "founders_club_presale",
+            },
+        )
+        
+        logger.info("Created Founders Club checkout session", user_id=str(current_user.id))
+        
+        return CheckoutSessionResponse(
+            session_id=session.id,
+            url=session.url,
+        )
+        
+    except stripe.error.StripeError as e:
+        logger.error("Founders Club checkout error", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stripe error: {str(e)}"
+        )
 @router.post("/portal", response_model=PortalSessionResponse)
 async def create_portal_session(
     portal_request: CreatePortalSessionRequest,

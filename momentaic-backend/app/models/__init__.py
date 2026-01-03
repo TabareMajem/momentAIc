@@ -47,6 +47,7 @@ from app.models.integration import (
     IntegrationStatus,
     IntegrationData,
     DataCategory,
+    MarketplaceTool,
 )
 
 from app.models.trigger import (

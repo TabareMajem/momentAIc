@@ -55,6 +55,7 @@ class IntegrationProvider(str, enum.Enum):
     # Custom
     WEBHOOK = "webhook"
     API = "api"
+    MCP = "mcp"
 
 
 class IntegrationStatus(str, enum.Enum):
@@ -182,4 +183,34 @@ class IntegrationData(Base):
         Index("ix_integration_data_category", "category"),
         Index("ix_integration_data_type", "data_type"),
         Index("ix_integration_data_date", "metric_date"),
+    )
+class MarketplaceTool(Base):
+    """Vetted community-built MCP tools available for 1-click install"""
+    __tablename__ = "marketplace_tools"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    icon: Mapped[str] = mapped_column(String(100), default="🔌")
+    mcp_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    author_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    category: Mapped[str] = mapped_column(String(100), default="productivity")
+    is_vetted: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Metadata for the marketplace
+    version: Mapped[str] = mapped_column(String(50), default="1.0.0")
+    total_installs: Mapped[int] = mapped_column(Integer, default=0)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_marketplace_tools_vetted", "is_vetted"),
+        Index("ix_marketplace_tools_category", "category"),
     )

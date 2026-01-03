@@ -30,8 +30,8 @@ class StripeIntegration(BaseIntegration):
     description = "Sync revenue, subscription, and customer data from Stripe"
     oauth_required = False  # Uses API key
     
-    def __init__(self, credentials: Optional[IntegrationCredentials] = None):
-        super().__init__(credentials)
+    def __init__(self, credentials: Optional[IntegrationCredentials] = None, config: Optional[Dict[str, Any]] = None):
+        super().__init__(credentials, config)
         self.api_key = credentials.api_key if credentials else settings.stripe_secret_key
         self.base_url = "https://api.stripe.com/v1"
     
@@ -98,33 +98,46 @@ class StripeIntegration(BaseIntegration):
     async def _calculate_mrr(self) -> float:
         """Calculate MRR from active subscriptions"""
         try:
-            response = await self.http_client.get(
-                f"{self.base_url}/subscriptions",
-                params={"status": "active", "limit": 100},
-                headers={"Authorization": f"Bearer {self.api_key}"},
-            )
-            
-            if response.status_code != 200:
-                # Return mock data if API fails
-                logger.warning("Stripe API call failed, using mock data")
-                return 10000.0
-            
-            data = response.json()
             mrr = 0.0
+            has_more = True
+            starting_after = None
             
-            for sub in data.get("data", []):
-                for item in sub.get("items", {}).get("data", []):
-                    price = item.get("price", {})
-                    amount = price.get("unit_amount", 0) / 100  # Convert cents
-                    interval = price.get("recurring", {}).get("interval", "month")
-                    quantity = item.get("quantity", 1)
+            while has_more:
+                params = {"status": "active", "limit": 100}
+                if starting_after:
+                    params["starting_after"] = starting_after
                     
-                    if interval == "year":
-                        mrr += (amount * quantity) / 12
-                    else:
-                        mrr += amount * quantity
+                response = await self.http_client.get(
+                    f"{self.base_url}/subscriptions",
+                    params=params,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
+                
+                if response.status_code != 200:
+                    logger.warning("Stripe API call failed", status=response.status_code)
+                    break
+                
+                data = response.json()
+                subs = data.get("data", [])
+                
+                for sub in subs:
+                    # Handle multi-item subscriptions
+                    for item in sub.get("items", {}).get("data", []):
+                        price = item.get("price", {})
+                        amount = price.get("unit_amount", 0) / 100
+                        interval = price.get("recurring", {}).get("interval", "month")
+                        quantity = item.get("quantity", 1) or 1
+                        
+                        if interval == "year":
+                            mrr += (amount * quantity) / 12
+                        else:
+                            mrr += amount * quantity
+                
+                has_more = data.get("has_more", False)
+                if has_more and subs:
+                    starting_after = subs[-1]["id"]
             
-            return mrr
+            return round(mrr, 2)
         except Exception as e:
             logger.error("MRR calculation failed", error=str(e))
             return 0.0
@@ -132,22 +145,43 @@ class StripeIntegration(BaseIntegration):
     async def _get_customer_counts(self) -> Dict[str, int]:
         """Get customer counts"""
         try:
-            response = await self.http_client.get(
-                f"{self.base_url}/customers",
-                params={"limit": 1},
-                headers={"Authorization": f"Bearer {self.api_key}"},
-            )
+            # Note: For exact counts on large datasets, Stripe suggests using exports or search
+            # Here we iterate up to a reasonable limit for dashboard speed
+            total = 0
+            has_more = True
+            starting_after = None
             
-            if response.status_code != 200:
-                return {"total": 0, "new_this_month": 0}
+            while has_more and total < 1000: # Cap at 1000 for performance
+                params = {"limit": 100}
+                if starting_after:
+                    params["starting_after"] = starting_after
+                    
+                response = await self.http_client.get(
+                    f"{self.base_url}/customers",
+                    params=params,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
+                
+                if response.status_code != 200:
+                    break
+                    
+                data = response.json()
+                batch = data.get("data", [])
+                total += len(batch)
+                
+                has_more = data.get("has_more", False)
+                if has_more and batch:
+                    starting_after = batch[-1]["id"]
             
-            # Get total from has_more pagination info
-            # In production, use proper counting
+            # Simple "new this month" check using search API if available, or simplified logic
+            # For now, just return total
             return {
-                "total": 100,  # Placeholder
-                "new_this_month": 10,
+                "total": total, 
+                "new_this_month": 0 # TODO: Implement date filtering
             }
         except Exception as e:
+            logger.error("Customer counting failed", error=str(e))
+            return {"total": 0, "new_this_month": 0}
             logger.error("Customer count failed", error=str(e))
             return {"total": 0, "new_this_month": 0}
     
@@ -191,8 +225,49 @@ class StripeIntegration(BaseIntegration):
             return response.json()
         except Exception as e:
             return {"error": str(e)}
-    
-    def get_supported_data_types(self) -> List[str]:
+
+    async def create_checkout_session(
+        self,
+        price_id: str,
+        success_url: str,
+        cancel_url: str,
+        customer_email: Optional[str] = None,
+        client_reference_id: Optional[str] = None,
+        mode: str = "payment",
+    ) -> Dict[str, Any]:
+        """Create a Stripe Checkout Session"""
+        try:
+            payload = {
+                "line_items": [{"price": price_id, "quantity": 1}],
+                "mode": mode,
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+            }
+            
+            if customer_email:
+                payload["customer_email"] = customer_email
+            
+            if client_reference_id:
+                payload["client_reference_id"] = client_reference_id
+                
+            response = await self.http_client.post(
+                f"{self.base_url}/checkout/sessions",
+                data=payload, # Stripe API uses form-urlencoded usually, httpx handles dict as form if headers set? No, httpx.post with data=dict sends form-encoded.
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+            )
+            
+            if response.status_code != 200:
+                logger.error("Stripe Checkout failed", status=response.status_code, response=response.text)
+                return {"error": "Failed to create checkout session", "details": response.text}
+            
+            return response.json()
+            
+        except Exception as e:
+            logger.error("Stripe Checkout error", error=str(e))
+            return {"error": str(e)}
         return ["mrr", "arr", "customers", "subscriptions", "charges"]
     
     def get_supported_actions(self) -> List[Dict[str, Any]]:

@@ -38,6 +38,7 @@ class LeadSource(str, enum.Enum):
     CONFERENCE = "conference"
     COLD_OUTREACH = "cold_outreach"
     INBOUND = "inbound"
+    JUKU_COLD_WALK = "juku_cold_walk"  # Month 1 Guerilla: Door-to-door Juku sales
 
 
 class Lead(Base):
@@ -295,6 +296,53 @@ class ChannelMetric(Base):
 
     __table_args__ = (
         Index("ix_metric_channel_date", "channel_id", "date"),
+    )
+
+
+class CampaignRunStatus(str, enum.Enum):
+    """Campaign execution status"""
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class CampaignRun(Base):
+    """
+    Tracks Hunter Swarm campaign executions.
+    Used to populate real-time dashboard metrics.
+    """
+    __tablename__ = "campaign_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    
+    # Campaign metadata
+    campaign_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    campaign_type: Mapped[str] = mapped_column(String(50), default="hunter_swarm")
+    target_region: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    target_industry: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Execution stats
+    status: Mapped[CampaignRunStatus] = mapped_column(
+        SQLEnum(CampaignRunStatus, name="campaign_run_status"), default=CampaignRunStatus.RUNNING
+    )
+    leads_found: Mapped[int] = mapped_column(Integer, default=0)
+    emails_generated: Mapped[int] = mapped_column(Integer, default=0)
+    emails_sent: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Timing
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Results (link to output file or summary)
+    results_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_campaign_run_status", "status"),
+        Index("ix_campaign_run_started", "started_at"),
     )
 
 

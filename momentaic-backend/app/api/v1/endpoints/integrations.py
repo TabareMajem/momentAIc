@@ -231,16 +231,11 @@ async def sync_integration(
         )
     
     # Import and use appropriate integration class
-    from app.integrations import StripeIntegration, GitHubIntegration
+    from app.integrations import get_integration_class
     from app.integrations.base import IntegrationCredentials
     from datetime import datetime
     
-    provider_map = {
-        IntegrationProvider.STRIPE: StripeIntegration,
-        IntegrationProvider.GITHUB: GitHubIntegration,
-    }
-    
-    IntegrationClass = provider_map.get(integration.provider)
+    IntegrationClass = get_integration_class(integration.provider)
     
     if not IntegrationClass:
         return {
@@ -248,14 +243,14 @@ async def sync_integration(
             "message": f"Sync not implemented for {integration.provider.value}"
         }
     
-    # Create integration instance with credentials
+    # Create integration instance with credentials and config
     credentials = IntegrationCredentials(
         access_token=integration.access_token,
         api_key=integration.api_key,
         api_secret=integration.api_secret,
     )
     
-    integration_client = IntegrationClass(credentials)
+    integration_client = IntegrationClass(credentials, config=integration.config)
     
     try:
         sync_result = await integration_client.sync_data(sync_request.data_types)
