@@ -42,6 +42,13 @@ class AgentType(str, enum.Enum):
     BROWSER = "browser"  # Web automation
     QA_TESTER = "qa_tester"  # App auditing & automated testing
     GENERAL = "general"  # General assistant
+    # Personas
+    ELON_MUSK = "elon_musk" # First principles, hardcore
+    PAUL_GRAHAM = "paul_graham" # YC Founder wisdom
+    # New Guidance Agents
+    ONBOARDING_COACH = "onboarding_coach"  # Guides users through startup journey
+    COMPETITOR_INTEL = "competitor_intel"  # Competitive intelligence
+    FUNDRAISING_COACH = "fundraising_coach" # Fundraising guidance
 
 
 class MessageRole(str, enum.Enum):

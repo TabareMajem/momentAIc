@@ -12,7 +12,7 @@ export const Logo: React.FC<LogoProps> = ({ className, collapsed }) => {
     <Link to="/" className={cn("flex items-center gap-3 group select-none", className)}>
       <div className="relative w-10 h-10 flex items-center justify-center">
         <img
-          src="/logo.png"
+          src="/logo-new.png"
           alt="MomentAIc Logo"
           className="w-full h-full object-contain drop-shadow-lg"
         />

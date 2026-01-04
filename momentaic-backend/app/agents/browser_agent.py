@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import structlog
 import asyncio
+import requests
 
 logger = structlog.get_logger()
 
@@ -218,10 +219,16 @@ class BrowserAgent:
                 }
         
         if "search" in message_lower:
-            # Could integrate with search engines
+            # Extract query
+            query = message.replace("search for", "").replace("search", "").strip()
+            if not query:
+                return {"response": "What should I search for?", "agent": "browser"}
+                
+            results = await self.search_google(query)
             return {
-                "response": "I can help you search the web. Please specify what you'd like to search for.",
-                "agent": "browser",
+                "response": f"Found {len(results)} results for '{query}':\n" + "\n".join([f"- {r['title']}: {r['snippet']}" for r in results[:3]]),
+                "data": {"results": results},
+                "agent": "browser"
             }
         
         if "screenshot" in message_lower:
@@ -243,6 +250,52 @@ class BrowserAgent:
 What would you like me to do?""",
             "agent": "browser",
         }
+    
+    async def search_google(self, query: str) -> List[Dict[str, str]]:
+        """
+        Perform a Google search using the browser.
+        Returns a list of {title, link, snippet}
+        """
+        if not self._browser:
+            await self.initialize()
+            
+        if not self._browser:
+            return [{"title": "Error", "link": "", "snippet": "Browser could not initialize"}]
+
+        try:
+            # Use a specialized search URL or just google.com
+            # Note: Selectors here are fragile and depend on Google's DOM. 
+            # In a real app we'd maintain these selectors or use a SearXNG instance.
+            encoded_query = requests.utils.quote(query)
+            url = f"https://www.google.com/search?q={encoded_query}&hl=en"
+            
+            await self._page.goto(url, wait_until="domcontentloaded")
+            
+            # Simple extraction strategy
+            results = await self._page.evaluate("""
+                () => {
+                    const items = Array.from(document.querySelectorAll('div.g'));
+                    return items.map(item => {
+                        const titleEl = item.querySelector('h3');
+                        const linkEl = item.querySelector('a');
+                        const snippetEl = item.querySelector('div.VwiC3b');
+                        
+                        if (!titleEl || !linkEl) return null;
+                        
+                        return {
+                            title: titleEl.innerText,
+                            link: linkEl.href,
+                            snippet: snippetEl ? snippetEl.innerText : ''
+                        };
+                    }).filter(x => x);
+                }
+            """)
+            
+            return results[:5]
+            
+        except Exception as e:
+            logger.error("Google search failed", error=str(e))
+            return [{"title": "Error", "link": "", "snippet": str(e)}]
     
     
     async def close(self):

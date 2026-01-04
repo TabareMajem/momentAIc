@@ -79,8 +79,10 @@ export interface SignalScores {
 // Agents
 export type AgentType =
   | 'orchestrator' | 'technical_copilot' | 'business_copilot'
-  | 'fundraising_copilot' | 'momentum_ai' | 'sales_agent'
-  | 'content_agent' | 'legal_agent' | 'data_agent';
+  | 'fundraising_coach' | 'momentum_ai' | 'sales_agent'
+  | 'content_agent' | 'legal_agent' | 'data_agent'
+  | 'elon_musk' | 'paul_graham'
+  | 'onboarding_coach' | 'competitor_intel';
 
 export interface AgentInfo {
   id: AgentType;

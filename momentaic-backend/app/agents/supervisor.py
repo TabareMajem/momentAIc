@@ -93,10 +93,17 @@ class SupervisorAgent:
             return state
         
         # Finance keywords
-        if any(kw in query_lower for kw in ["revenue", "mrr", "arr", "runway", "funding", "investor", "valuation", "burn"]):
+        if any(kw in query_lower for kw in ["revenue", "mrr", "arr", "runway", "financial model", "cfo"]):
             state["route_to"] = AgentType.FINANCE_CFO.value
             state["should_route"] = True
             return state
+
+        # Fundraising keywords
+        if any(kw in query_lower for kw in ["fundraising", "pitch deck", "investor", "vc", "term sheet", "valuation", "angel", "raise capital"]):
+            state["route_to"] = AgentType.FUNDRAISING_COACH.value
+            state["should_route"] = True
+            return state
+        
         
         # Growth keywords
         if any(kw in query_lower for kw in ["growth", "acquisition", "retention", "viral", "experiment", "funnel"]):
@@ -107,6 +114,29 @@ class SupervisorAgent:
         # Product keywords
         if any(kw in query_lower for kw in ["feature", "roadmap", "user story", "requirement", "priorit", "backlog"]):
             state["route_to"] = AgentType.PRODUCT_PM.value
+            state["should_route"] = True
+            return state
+        
+        # Onboarding/Journey keywords
+        if any(kw in query_lower for kw in ["onboarding", "journey", "phase", "stage", "where am i", "what should i", "guide", "help me start"]):
+            state["route_to"] = AgentType.ONBOARDING_COACH.value
+            state["should_route"] = True
+            return state
+        
+        # Competitor keywords
+        if any(kw in query_lower for kw in ["competitor", "competition", "battle card", "versus", " vs ", "compare"]):
+            state["route_to"] = AgentType.COMPETITOR_INTEL.value
+            state["should_route"] = True
+            return state
+        
+        # Persona keywords
+        if any(kw in query_lower for kw in ["elon", "first principles", "hardcore"]):
+            state["route_to"] = AgentType.ELON_MUSK.value
+            state["should_route"] = True
+            return state
+            
+        if any(kw in query_lower for kw in ["paul graham", "pg", "yc", "y combinator"]):
+            state["route_to"] = AgentType.PAUL_GRAHAM.value
             state["should_route"] = True
             return state
         

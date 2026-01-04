@@ -67,6 +67,9 @@ class StartupAnalysisResponse(BaseModel):
     industry: str
     stage: str
     follow_up_question: str
+    summary: str
+    potential_competitors: List[str]
+    insight: str
 
 @router.post("/analyze", response_model=StartupAnalysisResponse)
 async def analyze_startup_concept(
@@ -74,34 +77,49 @@ async def analyze_startup_concept(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Analyzes a startup description to infer industry and stage, 
-    and generates a context-aware follow-up question.
+    Analyzes a startup description using a heavy-lifting prompt to provide
+    strategic insights, infer industry/stage, and prove understanding.
     """
     from app.agents.base import get_llm
     from langchain_core.messages import SystemMessage, HumanMessage
     import json
     import re
 
-    llm = get_llm("gemini-flash", temperature=0.3)
+    # Use Gemini 2.0 Flash for speed + intelligence
+    llm = get_llm("gemini-2.0-flash", temperature=0.4)
+    if not llm:
+        # Fallback to older flash or whatever is configured if 2.0 specific fail, 
+        # but get_llm handles defaults.
+        llm = get_llm("gemini-flash", temperature=0.4)
     
-    prompt = f"""Analyze this startup description and infer:
-1. The most accurate Industry Category (e.g. FinTech, BioTech, SaaS, E-commerce).
-2. The implied Stage (Idea, MVP, Growth, Scale) based on how they describe it.
-3. A specific, intelligent follow-up question to clarify their niche or technical approach.
-
-Description: "{request.description}"
-
-Respond in JSON format:
-{{
-  "industry": "Found Industry",
-  "stage": "Inferred Stage",
-  "follow_up_question": "Your smart question here?"
-}}
-"""
+    prompt = f"""You are a world-class Venture Capitalist and Product Strategist (like Paul Graham meets refined AI).
+    
+    Your goal is to analyze a raw startup idea/description and provide an "Immediate Insight" that WOWs the founder.
+    
+    Input Description: "{request.description}"
+    
+    Task:
+    1.  **Summarize & Validate**: In 1 sentence, rephrase what they are building to prove you understand it (e.g., "You're building an Airbnb for X...").
+    2.  **Identify Industry**: Be specific. Not just "SaaS", but "Vertical SaaS for HVAC" or "Generative AI for Legal".
+    3.  **Infer Stage**: (Idea, Prototype, MVP, Growth, Scale) based on the nuance of their text.
+    4.  **Strategic Insight**: Give one high-value, non-obvious observation. It could be a risk, a distribution channel to try, or a core metric to focus on.
+    5.  **Competitors**: Name 2-3 real or likely competitors/analogous companies.
+    6.  **Follow-up Question**: Ask the ONE most critical question that would determine if this business lives or dies.
+    
+    Return pure JSON:
+    {{
+      "industry": "...",
+      "stage": "...",
+      "summary": "...",
+      "insight": "...",
+      "potential_competitors": ["Comp1", "Comp2"],
+      "follow_up_question": "..."
+    }}
+    """
 
     try:
         response = await llm.ainvoke([
-            SystemMessage(content="You are an expert VC and Product Analyst. Be precise and concise."),
+            SystemMessage(content="You are an expert VC. Be sharp, concise, and insightful. Output JSON only."),
             HumanMessage(content=prompt)
         ])
         
@@ -115,7 +133,10 @@ Respond in JSON format:
         return StartupAnalysisResponse(
             industry=data.get("industry", "Technology"),
             stage=data.get("stage", "idea"),
-            follow_up_question=data.get("follow_up_question", "Could you elaborate on your core technology?")
+            summary=data.get("summary", "An innovative tech project."),
+            insight=data.get("insight", "Focus on validating your core value proposition first."),
+            potential_competitors=data.get("potential_competitors", []),
+            follow_up_question=data.get("follow_up_question", "What is your go-to-market strategy?")
         )
         
     except Exception as e:
@@ -123,5 +144,8 @@ Respond in JSON format:
         return StartupAnalysisResponse(
             industry="Technology",
             stage="idea",
+            summary="A new technology startup.",
+            insight="Ensure you have a clear target audience.",
+            potential_competitors=[],
             follow_up_question="Could you tell me more about your target audience?"
         )

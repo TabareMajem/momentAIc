@@ -40,10 +40,14 @@ class StrategyAgent:
             return {"response": "AI Service Unavailable", "agent": "strategy", "error": True}
         
         try:
-            context = self._build_context(startup_context)
-            prompt = f"""{context}
-
-User Request: {message}
+            # Deep Context Injection
+            from app.agents.base import build_system_prompt
+            from app.models.conversation import AgentType
+            
+            # Dynamically build prompt with full startup context
+            system_prompt = build_system_prompt(AgentType.STRATEGY, startup_context)
+            
+            prompt = f"""User Request: {message}
 
 As Strategy Advisor, provide:
 1. Big-picture perspective
@@ -53,7 +57,7 @@ As Strategy Advisor, provide:
 5. Actionable next steps"""
 
             response = await self.llm.ainvoke([
-                SystemMessage(content=self._get_system_prompt()),
+                SystemMessage(content=system_prompt),
                 HumanMessage(content=prompt),
             ])
             
@@ -258,21 +262,15 @@ Provide:
             return {"exit_analysis": f"Error: {str(e)}", "agent": "strategy", "error": True}
     
     def _get_system_prompt(self) -> str:
-        return """You are the Strategy & Vision agent - expert strategic advisor.
-
-Your expertise:
-- Mission and vision development
-- Strategic planning
-- Market analysis
-- Business models
-- Competitive strategy
-- Exit planning
-
+        # NOTE: This is the fallback prompt. 
+        # The actual prompt used in process() is dynamic via build_system_prompt(AgentType.STRATEGY, ctx)
+        return """You are the Strategy & Vision agent.
 Think long-term but provide actionable steps.
 Challenge assumptions and provide honest assessment.
 Help founders see the bigger picture."""
     
     def _build_context(self, ctx: Dict[str, Any]) -> str:
+        # Legacy method kept for compatibility, but logic moved to base.py
         return f"""Startup Context:
 - Name: {ctx.get('name', 'Unknown')}
 - Industry: {ctx.get('industry', 'Technology')}

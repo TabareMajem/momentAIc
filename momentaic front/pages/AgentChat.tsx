@@ -17,8 +17,12 @@ const AGENTS: { id: AgentType, name: string, tier: SubscriptionTier }[] = [
   { id: 'technical_copilot', name: 'Technical Co-Pilot', tier: 'starter' },
   { id: 'business_copilot', name: 'Business Strategist', tier: 'growth' },
   { id: 'sales_agent', name: 'Sales Rep', tier: 'growth' },
-  { id: 'fundraising_copilot', name: 'Fundraising Expert', tier: 'god_mode' },
+  { id: 'fundraising_coach', name: 'Fundraising Coach', tier: 'god_mode' },
   { id: 'legal_agent', name: 'Legal Counsel', tier: 'god_mode' },
+  { id: 'elon_musk', name: 'Elon (Hardcore Mode)', tier: 'god_mode' },
+  { id: 'paul_graham', name: 'PG (Startups)', tier: 'god_mode' },
+  { id: 'onboarding_coach', name: 'Onboarding Coach', tier: 'starter' },
+  { id: 'competitor_intel', name: 'Competitor Intel', tier: 'growth' },
 ];
 
 export default function AgentChat() {
@@ -215,6 +219,18 @@ export default function AgentChat() {
         {/* Input Area */}
         <div className="p-4 border-t border-white/10 bg-[#0a0a0a]">
           <form onSubmit={handleSend} className="flex gap-3 max-w-4xl mx-auto">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-12 px-0 border-[#00f0ff]/20 text-[#00f0ff] hover:bg-[#00f0ff]/10 hover:border-[#00f0ff]/50"
+              title="Generate Proactive Insight"
+              onClick={() => {
+                setInput("Based on my startup context (stage, industry, metrics), what is the ONE most critical thing I should focus on right now? Be proactive and specific.");
+                // Optional: auto-submit? Let's let user confirm.
+              }}
+            >
+              <Zap className="w-5 h-5" />
+            </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}

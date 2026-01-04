@@ -128,7 +128,14 @@ class ApiClient {
     return data;
   }
 
-  async analyzeStartup(description: string): Promise<{ industry: string; stage: string; follow_up_question: string }> {
+  async analyzeStartup(description: string): Promise<{
+    industry: string;
+    stage: string;
+    follow_up_question: string;
+    summary: string;
+    potential_competitors: string[];
+    insight: string;
+  }> {
     const { data } = await this.client.post('/api/v1/onboarding/analyze', { description });
     return data;
   }
