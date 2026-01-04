@@ -1,3 +1,17 @@
+"""
+SDR Agent Extensions
+Additional capabilities for the SDR Agent
+"""
+
+from typing import Dict, Any
+
+
+class SDRAgentExtensions:
+    """Mixin class with extended SDR capabilities"""
+    
+    def __init__(self):
+        self.llm = None  # Set by parent class
+    
     async def check_spam_score(self, email_content: str) -> Dict[str, Any]:
         """
         Analyze email content for spam triggers.
@@ -27,6 +41,6 @@ Return JSON:
         try:
             response = await self.llm.ainvoke(prompt)
             # In production, use JSON output parser
-            return {"score": 0, "analysis": response.content} # Placeholder parsing
+            return {"score": 0, "analysis": response.content}  # Placeholder parsing
         except Exception:
             return {"score": 0, "error": "Check failed"}
