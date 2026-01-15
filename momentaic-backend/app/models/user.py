@@ -54,6 +54,10 @@ class User(Base):
     linkedin_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     gmail_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
+    # Referrals
+    referral_code: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    referrer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
     # Preferences
     preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
     

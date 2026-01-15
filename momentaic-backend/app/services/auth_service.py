@@ -50,14 +50,46 @@ class AuthService:
                 detail="Email already registered"
             )
         
+
+        
+        # Check Referral & Calculate Credits
+        referrer_id = None
+        initial_credits = settings.default_starter_credits
+        
+        if user_data.referral_code:
+            # Find referrer
+            ref_result = await self.db.execute(
+                select(User).where(User.referral_code == user_data.referral_code.upper())
+            )
+            referrer = ref_result.scalar_one_or_none()
+            
+            if referrer and str(referrer.id) != "00000000-0000-0000-0000-000000000000":
+                referrer_id = referrer.id
+                initial_credits += 100  # Bonus for new user (total 150)
+                
+                # Award referrer
+                REFERRER_BONUS = 100
+                referrer.credits_balance += REFERRER_BONUS
+                
+                ref_txn = CreditTransaction(
+                    user_id=referrer.id,
+                    amount=REFERRER_BONUS,
+                    balance_after=referrer.credits_balance,
+                    transaction_type="referral_reward",
+                    reason=f"Referral bonus for {user_data.email}"
+                )
+                self.db.add(ref_txn)
+                logger.info("Referral reward awarded", referrer=str(referrer.id), new_user=user_data.email)
+
         # Create user
         user = User(
             email=user_data.email.lower(),
             hashed_password=get_password_hash(user_data.password),
             full_name=user_data.full_name,
             tier=UserTier.STARTER,
-            credits_balance=settings.default_starter_credits,
+            credits_balance=initial_credits,
             avatar_url=f"https://api.dicebear.com/7.x/avataaars/svg?seed={user_data.full_name}",
+            referrer_id=referrer_id,
         )
         
         self.db.add(user)
@@ -66,10 +98,10 @@ class AuthService:
         # Create initial credit transaction
         transaction = CreditTransaction(
             user_id=user.id,
-            amount=settings.default_starter_credits,
-            balance_after=settings.default_starter_credits,
+            amount=initial_credits,
+            balance_after=initial_credits,
             transaction_type="topup",
-            reason="Welcome bonus - Starter tier",
+            reason="Welcome bonus" + (" (Referral)" if referrer_id else ""),
         )
         self.db.add(transaction)
         

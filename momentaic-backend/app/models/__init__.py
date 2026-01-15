@@ -18,6 +18,13 @@ from app.models.startup import (
     Standup,
 )
 
+from app.models.action_item import (
+    ActionItem,
+    ActionStatus,
+    ActionPriority,
+)
+
+
 from app.models.growth import (
     Lead,
     LeadStatus,
@@ -136,4 +143,9 @@ __all__ = [
     "TriggerType",
     "TriggerOperator",
     "TriggerLog",
+    # Action Items
+    "ActionItem",
+    "ActionStatus",
+    "ActionPriority",
 ]
+

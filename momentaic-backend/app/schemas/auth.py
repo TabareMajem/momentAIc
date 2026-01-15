@@ -20,6 +20,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """User registration"""
     password: str = Field(..., min_length=8, max_length=100)
+    referral_code: Optional[str] = None
     
     @field_validator("password")
     @classmethod

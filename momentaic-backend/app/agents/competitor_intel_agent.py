@@ -25,8 +25,9 @@ class CompetitorIntelAgent:
     - Generate competitive battle cards
     """
     
-    def __init__(self):
-        self.llm = get_llm("gemini-2.0-flash", temperature=0.5)
+    @property
+    def llm(self):
+        return get_llm("gemini-flash", temperature=0.5)
     
     async def identify_competitors(
         self,
@@ -62,7 +63,7 @@ Format as a structured list."""
         try:
             # Try web search first for real data
             search_query = f"{industry} {description[:50]} competitors startups"
-            search_results = web_search(search_query)
+            search_results = await web_search.ainvoke(search_query)
             
             enhanced_prompt = f"""{prompt}
 
@@ -86,6 +87,61 @@ Use this information to provide accurate, real competitor data."""
             logger.error("Competitor identification failed", error=str(e))
             return {"error": str(e), "competitors": []}
     
+    async def auto_discover(
+        self,
+        startup_name: str,
+        description: str,
+        industry: str,
+        limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Quick competitor discovery for onboarding flow.
+        Returns structured list of competitors with name, url, description.
+        """
+        if not self.llm:
+            return []
+        
+        try:
+            # Search for competitors
+            search_query = f"{industry} {description[:100]} alternatives competitors startups"
+            search_results = await web_search.ainvoke(search_query)
+            
+            prompt = f"""Find {limit} competitors for a startup in {industry}.
+
+Startup description: "{description}"
+
+Search Results for context:
+{search_results}
+
+Return ONLY a JSON array with this exact format:
+[
+  {{"name": "Company Name", "url": "https://company.com", "description": "One sentence about them"}}
+]
+
+Be specific. Name REAL companies. If you can't find real ones, make educated guesses based on the industry."""
+
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a competitive intelligence expert. Return valid JSON only."),
+                HumanMessage(content=prompt)
+            ])
+            
+            import re
+            import json
+            content = response.content
+            content = re.sub(r'```json\s*', '', content)
+            content = re.sub(r'```\s*', '', content)
+            
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                competitors = json.loads(match.group())
+                return competitors[:limit]
+            return []
+            
+        except Exception as e:
+            logger.error("Auto discover failed", error=str(e))
+            return []
+
+    
     async def analyze_competitor(
         self,
         competitor_name: str,
@@ -99,7 +155,7 @@ Use this information to provide accurate, real competitor data."""
         
         try:
             # Search for competitor info
-            search_results = web_search(f"{competitor_name} company product features pricing")
+            search_results = await web_search.ainvoke(f"{competitor_name} company product features pricing")
             
             prompt = f"""Analyze this competitor in detail:
 
@@ -263,6 +319,82 @@ What would you like to know about your competitive landscape?""",
             logger.error("Competitor intel processing failed", error=str(e))
             return {"response": f"Error: {str(e)}", "agent": "competitor_intel", "error": True}
 
+
+    async def monitor_market(
+        self,
+        startup_context: Dict[str, Any],
+        known_competitors: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Autonomous monitoring: Discovery or Surveillance
+        """
+        if not self.llm:
+            return {"error": "LLM invalid"}
+
+        # 1. Discovery Mode (If no competitors known)
+        if not known_competitors:
+            logger.info("CompetitorIntel: Starting auto-discovery")
+            discovery = await self.identify_competitors(startup_context, num_competitors=3)
+            
+            # Parse the text response into a list of names (naive or LLM based)
+            # For robustness, let's ask LLM to give us just the names list
+            try:
+                parser_prompt = f"""
+                Extract just the company names from this list as a JSON array of strings:
+                {discovery.get('competitors')}
+                """
+                from langchain_core.messages import HumanMessage
+                response = await self.llm.ainvoke([HumanMessage(content=parser_prompt)])
+                import json
+                import re
+                content = response.content
+                match = re.search(r'\[.*\]', content, re.DOTALL)
+                new_competitors = json.loads(match.group(0)) if match else []
+            except:
+                new_competitors = []
+
+            return {
+                "mode": "discovery",
+                "new_competitors": new_competitors,
+                "summary": discovery.get("competitors")
+            }
+
+        # 2. Surveillance Mode (If competitors exist)
+        logger.info("CompetitorIntel: Surveillance run", targets=known_competitors)
+        updates = []
+        
+        for comp in known_competitors[:3]: # Limit to top 3 to save time/tokens
+            try:
+                # Search for recent news
+                query = f"{comp} company news details pricing changes features last month"
+                search_results = await web_search.ainvoke(query)
+                
+                # Analyze if meaningful
+                analysis_prompt = f"""
+                Is there any SIGNIFICANT news in these search results for competitor "{comp}"?
+                Focus on: Pricing changes, Major feature launches, Funding, or Pivots.
+                
+                Search Results:
+                {search_results}
+                
+                If NO significant news, return "NONE".
+                If YES, return a 1-sentence summary of the alert.
+                """
+                
+                resp = await self.llm.ainvoke([HumanMessage(content=analysis_prompt)])
+                alert = resp.content.strip()
+                
+                if "NONE" not in alert and len(alert) > 10:
+                    updates.append(f"⚠️ {comp}: {alert}")
+                    
+            except Exception as e:
+                logger.error(f"Failed to scan {comp}", error=str(e))
+                
+        return {
+            "mode": "surveillance",
+            "updates": updates,
+            "checked_count": len(known_competitors)
+        }
 
 # Singleton
 competitor_intel_agent = CompetitorIntelAgent()

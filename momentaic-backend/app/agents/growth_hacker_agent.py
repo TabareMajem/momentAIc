@@ -12,6 +12,7 @@ from app.agents.base import (
     get_llm,
     get_agent_config,
     web_search,
+    read_url_content,
     get_trending_topics,
 )
 from app.models.conversation import AgentType
@@ -328,12 +329,27 @@ Provide:
             
         import json
         
+        # [REALITY UPGRADE] Scrape the URL if provided
+        scraped_content = ""
+        if url and "http" in url:
+            try:
+                from app.agents.browser_agent import browser_agent
+                logger.info(f"GrowthHacker: Scraping {url} for wizard analysis")
+                result = await browser_agent.navigate(url)
+                if result.success:
+                    scraped_content = f"\n\nWEBSITE CONTENT ({url}):\n{result.text_content[:8000]}"
+                else:
+                    scraped_content = f"\n\nWEBSITE CONTENT: Failed to scrape {url}. Error: {result.error}"
+            except Exception as e:
+                logger.error(f"Scraping failed for {url}", error=str(e))
+        
         prompt = f"""
         Analyze this startup for a "60-Second Growth Strategy":
         URL: {url}
         Description: {description}
+        {scraped_content}
         
-        If the URL is valid, infer what the company does. If description is provided, use it.
+        If the URL is valid, infer what the company does from the WEBSITE CONTENT. If description is provided, use it.
         
         You must generate a structured JSON strategy with:
         1. "target_audience": The single most lucrative initial customer segment (e.g. "Senior React Developers").
@@ -383,6 +399,99 @@ Provide:
         ]
         return min(steps, key=lambda x: x[1])[0]
     
+    async def monitor_social(
+        self,
+        keywords: List[str],
+        platform: str = "reddit",
+        limit: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Monitor social platforms for discussions relevant to the startup and draft replies.
+        """
+        if not self.llm:
+            return {"error": "Growth Hacker Agent not initialized"}
+            
+        try:
+            results = []
+            
+            # 1. Search for discussions
+            base_query = " OR ".join(keywords)
+            search_query = f"site:{platform}.com {base_query} after:2024-01-01"
+            logger.info("GrowthHacker: Monitoring social", platform=platform, query=search_query)
+            
+            # Use async invoke for the tool
+            search_text = await web_search.ainvoke(search_query)
+            
+            # 2. Parse URLs (Simple regex or LLM extraction)
+            import re
+            urls = re.findall(r'https?://[^\s\)]+', search_text)[:limit]
+            
+            if not urls:
+                return {"message": "No recent discussions found.", "opportunities": []}
+                
+            logger.info("GrowthHacker: Found discussions", count=len(urls))
+            
+            # 3. Analyze each thread and draft reply
+            opportunities = []
+            for url in urls:
+                try:
+                    # Read thread content
+                    content = await read_url_content.ainvoke(url)
+                    if "Failed" in content:
+                        continue
+                        
+                    # Draft detailed reply
+                    prompt = f"""
+                    You are a helpful expert (not a spam bot).
+                    
+                    Thread Content:
+                    {content[:10000]}
+                    
+                    Task: 
+                    1. Analyze if this thread is relevant to our keywords: {keywords}.
+                    2. If relevant, draft a genuinely helpful reply that adds value first, and subtly mentions our solution if appropriate.
+                    3. If not relevant, return "SKIP".
+                    
+                    Format: JSON
+                    {{
+                        "relevant": true/false,
+                        "summary": "Thread summary...",
+                        "draft_reply": "Hey OP, I ran into this too...",
+                        "sentiment": "positive/negative/neutral"
+                    }}
+                    """
+                    
+                    analysis_msg = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                    analysis_text = analysis_msg.content
+                    
+                    # Clean JSON markdown if present
+                    json_match = re.search(r'\{[\s\S]*\}', analysis_text)
+                    if json_match:
+                        import json
+                        data = json.loads(json_match.group(0))
+                        
+                        if data.get("relevant"):
+                            opportunities.append({
+                                "url": url,
+                                "summary": data.get("summary"),
+                                "draft_reply": data.get("draft_reply"),
+                                "status": "drafted"
+                            })
+                            
+                except Exception as e:
+                    logger.warning(f"Failed to process thread {url}", error=str(e))
+            
+            return {
+                "platform": platform,
+                "keywords": keywords,
+                "opportunities": opportunities,
+                "agent": AgentType.GROWTH_HACKER.value
+            }
+
+        except Exception as e:
+            logger.error("Social monitoring failed", error=str(e))
+            return {"error": str(e)}
+
 
 
 # Singleton instance

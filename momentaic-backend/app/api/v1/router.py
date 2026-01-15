@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     integrations,
     triggers,
     mcp_tools,
+    import_flows,
 )
 
 api_router = APIRouter()
@@ -175,6 +176,13 @@ api_router.include_router(
     tags=["Onboarding"],
 )
 
+# GitHub Import
+api_router.include_router(
+    import_flows.router,
+    prefix="/startups/import",
+    tags=["Import Flows"],
+)
+
 # Marketplace
 from app.api.v1.endpoints import marketplace
 api_router.include_router(
@@ -194,4 +202,65 @@ from app.api.v1.endpoints import launch
 api_router.include_router(
     launch.router,
     tags=["Launch Strategy"],
+)
+
+# War Room (Admin Only - Global Launch Agents)
+from app.api.v1.endpoints import war_room
+api_router.include_router(
+    war_room.router,
+    tags=["War Room"],
+)
+
+# Free Roast (Public Viral Hook)
+from app.api.v1.endpoints import free_roast
+api_router.include_router(
+    free_roast.router,
+    tags=["Free Roast"],
+)
+
+# Growth Hacking Tools (Admin Only)
+from app.api.v1.endpoints import growth_hack
+api_router.include_router(
+    growth_hack.router,
+    tags=["Growth Hacking"],
+)
+
+# The Vault (Day 1 Deliverables)
+from app.api.v1.endpoints import vault
+api_router.include_router(
+    vault.router,
+    prefix="/vault",
+    tags=["The Vault"],
+)
+
+# Proactive Actions (Morning Brief)
+from app.api.v1.endpoints import actions
+api_router.include_router(
+    actions.router,
+    prefix="/actions",
+    tags=["Proactive Actions"],
+)
+
+# Innovator Lab (Deep Research, War Gaming, Growth)
+from app.api.v1.endpoints import innovator
+api_router.include_router(
+    innovator.router,
+    prefix="/innovator",
+    tags=["Innovator Lab"],
+)
+
+# Notifications (Web Push)
+from app.api.v1.endpoints import notifications
+api_router.include_router(
+    notifications.router,
+    prefix="/notifications",
+    tags=["Notifications"],
+)
+
+# Infinite Content Loop (Admin)
+from app.api.v1.endpoints import content_loop
+api_router.include_router(
+    content_loop.router,
+    prefix="/admin/loops",
+    tags=["Infinite Content Loop"],
 )

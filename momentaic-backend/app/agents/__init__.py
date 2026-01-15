@@ -304,5 +304,10 @@ __all__ = [
     "judgement_agent",
     "qa_tester_agent",
     "launch_strategist_agent",
+    # USAF (Ultimate Startup Automation Flow) Components
+    "startup_brain",
+    "chain_executor",
+    "success_protocol",
+    "swarm_router",
 ]
 

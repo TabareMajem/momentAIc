@@ -61,6 +61,18 @@ class SyncRequest(BaseModel):
     data_types: Optional[List[str]] = None
 
 
+class EcosystemConnectRequest(BaseModel):
+    platform: str  # "symbiotask" or "mangaka"
+    email: str
+
+
+class EcosystemStatusResponse(BaseModel):
+    """Status of ecosystem connections"""
+    connections: dict
+
+
+
+
 # ==================
 # Endpoints
 # ==================
@@ -322,5 +334,69 @@ async def get_integration_data(
             data=d.data,
             synced_at=d.synced_at.isoformat(),
         )
-        for d in data_records
     ]
+
+
+# ==================
+# Ecosystem Connect (User-Level)
+# ==================
+
+@router.post("/ecosystem/connect")
+async def connect_ecosystem_account(
+    request: EcosystemConnectRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Connect an external ecosystem account (Symbiotask/Mangaka).
+    Verifies membership via email and stores in user preferences.
+    """
+    from app.services.ecosystem_service import ecosystem_service
+    
+    # 1. Verify membership
+    verification = await ecosystem_service.verify_membership(
+        platform=request.platform.lower(),
+        email=request.email
+    )
+    
+    if not verification.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=verification.get("error", "Verification failed")
+        )
+    
+    # 2. Update User Preferences
+    # We need to copy formatting to avoid mutation issues with SQLAlchemy JSONB
+    prefs = dict(current_user.preferences) if current_user.preferences else {}
+    if "integrations" not in prefs:
+        prefs["integrations"] = {}
+        
+    prefs["integrations"][request.platform.lower()] = {
+        "connected": True,
+        "email": request.email,
+        "tier": verification["data"].get("tier", "unknown"),
+        "verified_at": verification.get("data", {}).get("timestamp", "now")
+    }
+    
+    current_user.preferences = prefs
+    db.add(current_user)
+    await db.commit()
+    
+    return {
+        "success": True, 
+        "platform": request.platform,
+        "data": prefs["integrations"][request.platform.lower()]
+    }
+
+
+@router.get("/ecosystem/status", response_model=EcosystemStatusResponse)
+async def get_ecosystem_status(
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get status of ecosystem connections"""
+    prefs = current_user.preferences or {}
+    integrations = prefs.get("integrations", {})
+    
+    return {
+        "connections": integrations
+    }

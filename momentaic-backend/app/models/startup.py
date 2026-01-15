@@ -92,6 +92,10 @@ class Startup(Base):
     acquisition_channels: Mapped[List["AcquisitionChannel"]] = relationship(
         "AcquisitionChannel", back_populates="startup", cascade="all, delete-orphan"
     )
+    action_items: Mapped[List["ActionItem"]] = relationship(
+        "ActionItem", back_populates="startup", cascade="all, delete-orphan"
+    )
+
 
     __table_args__ = (
         Index("ix_startups_owner", "owner_id"),

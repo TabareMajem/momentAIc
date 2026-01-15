@@ -35,7 +35,6 @@ mkdir -p "$DEST_DIR"
 # No trailing slash on DEST_DIR means "copy into this dir" (if it existed as folder in rsync logic, but here we want contents)
 # Correct rsync to copy CONTENTS of backend to DEST_DIR
 rsync -av \
-    --exclude='.env' \
     --exclude='.git' \
     --exclude='__pycache__' \
     --exclude='node_modules' \

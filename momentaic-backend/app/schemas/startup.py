@@ -31,6 +31,12 @@ class StartupCreate(StartupBase):
     metrics: Optional[Dict[str, Any]] = None
 
 
+class ImportGithubRequest(BaseModel):
+    """Import startup from GitHub repo"""
+    repo_url: str = Field(..., pattern=r"^https://github\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-_.]+$")
+    branch: Optional[str] = "main"
+
+
 class StartupUpdate(BaseModel):
     """Update startup request"""
     name: Optional[str] = Field(None, min_length=2, max_length=255)

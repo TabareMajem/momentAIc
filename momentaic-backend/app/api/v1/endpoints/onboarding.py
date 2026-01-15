@@ -85,16 +85,13 @@ async def analyze_startup_concept(
     import json
     import re
 
-    # Use Gemini 2.0 Flash for speed + intelligence
-    llm = get_llm("gemini-2.0-flash", temperature=0.4)
-    if not llm:
-        # Fallback to older flash or whatever is configured if 2.0 specific fail, 
-        # but get_llm handles defaults.
-        llm = get_llm("gemini-flash", temperature=0.4)
+    # Use DeepSeek V3 for "WOW" reasoning at low cost
+    llm = get_llm("deepseek-chat", temperature=0.6)
     
     prompt = f"""You are a world-class Venture Capitalist and Product Strategist (like Paul Graham meets refined AI).
     
     Your goal is to analyze a raw startup idea/description and provide an "Immediate Insight" that WOWs the founder.
+    The founder thinks most advice is generic. PROVE THEM WRONG.
     
     Input Description: "{request.description}"
     
@@ -102,7 +99,7 @@ async def analyze_startup_concept(
     1.  **Summarize & Validate**: In 1 sentence, rephrase what they are building to prove you understand it (e.g., "You're building an Airbnb for X...").
     2.  **Identify Industry**: Be specific. Not just "SaaS", but "Vertical SaaS for HVAC" or "Generative AI for Legal".
     3.  **Infer Stage**: (Idea, Prototype, MVP, Growth, Scale) based on the nuance of their text.
-    4.  **Strategic Insight**: Give one high-value, non-obvious observation. It could be a risk, a distribution channel to try, or a core metric to focus on.
+    4.  **Strategic Insight**: Give one high-value, non-obvious observation. It could be a risk, a distribution channel to try, or a core metric to focus on. BE SPECIFIC.
     5.  **Competitors**: Name 2-3 real or likely competitors/analogous companies.
     6.  **Follow-up Question**: Ask the ONE most critical question that would determine if this business lives or dies.
     

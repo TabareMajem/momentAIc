@@ -1,27 +1,36 @@
 #!/bin/bash
-VPS_IP="62.72.56.216"
+VPS_IP="207.180.227.179"
 VPS_USER="root"
+VPS_PASS="Yokaizen14-88888888"
 REMOTE_DIR="/opt/momentaic"
 
 echo "=== DEPLOYING FRONTEND UI UPDATES ==="
 
 # 1. Sync updated files
-echo "[1/2] Syncing Frontend Code..."
+echo "[1/2] Syncing Frontend Code & Build..."
+export SSMPASS="$VPS_PASS"
 
-# Sync entire entries to catch new pages (like CoFounderMatch.tsx)
-rsync -avz "momentaic front/pages/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic front/pages/"
-rsync -avz "momentaic front/App.tsx" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic front/"
-rsync -avz "momentaic front/components/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic front/components/"
-rsync -avz "momentaic front/lib/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic front/lib/"
+# Sync dependencies config
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/package.json" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/"
+
+# Sync Source (for reference/backup)
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/pages/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/pages/"
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/App.tsx" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/"
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/components/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/components/"
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/lib/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/lib/"
+
+# Sync Build (The important part)
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/dist/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/dist/"
 
 # 2. Rebuild & Restart
-echo "[2/2] Rebuilding Frontend..."
-ssh $VPS_USER@$VPS_IP << 'EOF'
+echo "[2/2] Restarting Frontend..."
+sshpass -p "$VPS_PASS" ssh $VPS_USER@$VPS_IP << 'EOF'
     set -e
-    cd "/opt/momentaic/momentaic front"
+    cd "/opt/momentaic/momentaic-frontend"
     
-    # Rebuild
-    npm run build
+    # Install new deps (react-markdown)
+    echo "Installing new deps..."
+    npm install
     
     # Restart
     pm2 restart momentaic-frontend

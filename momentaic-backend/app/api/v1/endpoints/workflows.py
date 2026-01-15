@@ -693,3 +693,105 @@ async def trigger_webhook(
         status="started",
         message="Workflow execution started",
     )
+
+
+# ==================
+# Power Plays - Direct Chain Execution
+# ==================
+
+from pydantic import BaseModel as PydanticBaseModel
+from typing import Dict, Any, List as TypingList
+
+class ExecuteChainRequest(PydanticBaseModel):
+    """Request to execute an agent chain directly"""
+    chain: TypingList[str]
+    context: Dict[str, Any] = {}
+
+class ExecuteChainResponse(PydanticBaseModel):
+    """Response from chain execution"""
+    chain_id: str
+    status: str
+    steps: TypingList[Dict[str, Any]]
+    final_output: Dict[str, Any] = None
+    error: str = None
+
+
+@router.post("/execute-chain", response_model=ExecuteChainResponse)
+async def execute_agent_chain(
+    request: ExecuteChainRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Execute a chain of agents directly (Power Plays).
+    
+    This is the backend for the PowerPlays.tsx one-click campaigns.
+    It chains multiple agents together with data handoffs.
+    """
+    # === TIER LIMIT CHECK ===
+    from app.core.tier_limits import can_use_power_play, can_access_ecosystem
+    
+    # Check if this involves ecosystem platforms
+    power_play_id = request.context.get("power_play", "")
+    
+    # Check ecosystem access for relevant power plays
+    if power_play_id in ["lead_gen_machine"]:  # Uses external services
+        allowed, message = can_access_ecosystem(current_user, "yokaizen")
+        if not allowed:
+            # Fallback: Execute locally without external ecosystem
+            import structlog
+            logger = structlog.get_logger()
+            logger.info("Power Play falling back to local execution (no ecosystem access)", user=current_user.email)
+    
+    # Note: In production, track power play usage per month and enforce limits
+    # For now, we allow execution but log the tier check
+    # === END TIER LIMIT CHECK ===
+    
+    from app.agents.chain_executor import chain_executor
+    from app.models.startup import Startup
+    
+    # Get user's first startup for context
+    result = await db.execute(select(Startup).where(Startup.user_id == current_user.id).limit(1))
+    startup = result.scalar_one_or_none()
+    
+    # Build context
+    initial_context = {
+        "user_id": str(current_user.id),
+        **request.context
+    }
+    
+    if startup:
+        initial_context.update({
+            "startup_id": str(startup.id),
+            "startup_name": startup.name,
+            "startup_description": startup.description,
+            "startup_industry": startup.industry,
+            "startup_tagline": startup.tagline,
+        })
+    
+    import structlog
+    logger = structlog.get_logger()
+    logger.info(
+        "🚀 Power Play Execution Started",
+        user=current_user.email,
+        chain=request.chain,
+        power_play=request.context.get("power_play")
+    )
+    
+    # Execute the chain
+    result = await chain_executor.execute_chain(
+        agent_chain=request.chain,
+        initial_context=initial_context,
+        stop_on_error=False,  # Continue even if one step fails
+        timeout_per_step=180.0,  # 3 min per agent
+    )
+    
+    return ExecuteChainResponse(
+        chain_id=result.get("chain_id", ""),
+        status=result.get("status", "unknown"),
+        steps=result.get("steps", []),
+        final_output=result.get("final_output"),
+        error=result.get("error"),
+    )
+
+

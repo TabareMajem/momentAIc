@@ -51,6 +51,8 @@ async_session_maker = async_sessionmaker(
     autoflush=False,
 )
 
+AsyncSessionLocal = async_session_maker
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting async database sessions"""

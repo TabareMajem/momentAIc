@@ -144,6 +144,30 @@ Include:
             logger.error("Playbook creation failed", error=str(e))
             return {"playbook": f"Error: {str(e)}", "agent": "customer_success", "error": True}
     
+    async def triage_ticket(self, ticket_content: str, sender_sentiment: str = "neutral") -> Dict[str, Any]:
+        """Classify a support ticket and draft a reply"""
+        if not self.llm:
+            return {"classification": "error", "draft": "Service Unavailable"}
+            
+        prompt = f"""Triage this support ticket:
+"{ticket_content}"
+(Sentiment: {sender_sentiment})
+
+Output JSON:
+1. "priority": High/Medium/Low
+2. "category": Technical/Billing/Feature/Other
+3. "draft_reply": Empathetic and helpful response (max 100 words)
+4. "action_required": Internal action needed if any
+"""
+        try:
+            from langchain_core.output_parsers import JsonOutputParser
+            chain = self.llm | JsonOutputParser()
+            result = await chain.ainvoke([HumanMessage(content=prompt)])
+            return result
+        except Exception as e:
+             # Fallback parsing
+            return {"priority": "Medium", "category": "General", "draft_reply": "Thank you for your message. We are looking into it.", "item": str(e)}
+    
     def _get_system_prompt(self) -> str:
         return """You are the Customer Success agent - expert in customer retention.
 

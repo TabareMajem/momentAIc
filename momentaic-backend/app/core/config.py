@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # External APIs
     serper_api_key: Optional[str] = None
     tavily_api_key: Optional[str] = None
+    
+    # Ecosystem Integration (AgentForge + Yokaizen)
+    agentforge_api_url: str = "https://api.agentforgeai.com"
+    agentforge_api_key: Optional[str] = None
+    yokaizen_api_url: str = "https://api.yokaizen.com"
+    yokaizen_api_key: Optional[str] = None
 
     # Stripe
     stripe_secret_key: Optional[str] = None
@@ -83,12 +89,18 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     smtp_from_email: str = "noreply@momentaic.com"
     smtp_from_name: str = "MomentAIc"
+    
+    # Web Push (Vapid)
+    vapid_public_key: Optional[str] = None
+    vapid_private_key_path: Optional[str] = "private_key.pem"
 
     # OAuth Integrations
     github_client_id: Optional[str] = None
     github_client_secret: Optional[str] = None
     linkedin_client_id: Optional[str] = None
     linkedin_client_secret: Optional[str] = None
+    twitter_client_id: Optional[str] = None
+    twitter_client_secret: Optional[str] = None
 
     # Credits Configuration (monthly limits per tier)
     default_starter_credits: int = 100      # $9/mo - Starter tier
@@ -120,6 +132,19 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests: int = 100
     rate_limit_window: int = 60
+
+    # Ecosystem Integration (Yokaizen + AgentForge)
+    yokaizen_ai_base_url: str = "https://ai.yokaizen.com/api"
+    
+    # AgentForge Config
+    agentforge_base_url: str = "https://api.agentforgeai.com/api/v1"
+    agentforge_voice_url: str = "https://vibevoice-gpu-507305692088.us-central1.run.app"
+    agentforge_api_key: Optional[str] = "af_live_99d3e8774c1b8f2a5678api2026"
+    
+    # Yokaizen Config
+    momentaic_master_key: Optional[str] = "mk_live_1f45e6f3b16d3dece67b1a0e1a0339bd8e2707ae376073fcf38714ac93519cc4"
+    symbiotask_api_url: str = "https://symbiotask.com/api/v1"
+    mangaka_api_url: str = "https://mangaka.yokaizen.com/api/v1"
 
     @property
     def is_production(self) -> bool:

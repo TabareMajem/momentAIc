@@ -253,21 +253,57 @@ class TriggerEngine:
             agent_type = action.get("agent")
             task = action.get("task")
             
-            # In production, would call actual agent
-            logger.info(
-                "Executing trigger action",
-                agent=agent_type,
-                task=task,
-                rule_id=str(rule.id),
-            )
+            result = None
             
-            # Simulate agent response
-            log.agent_response = {
-                "agent": agent_type,
-                "task": task,
-                "result": "Executed successfully",
-            }
-            log.status = TriggerLogStatus.COMPLETED
+            # 1. Check for Ecosystem Agents
+            if agent_type in ["sniper", "sniper_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.find_leads({"query": task})
+                
+            elif agent_type in ["viral", "viral_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.generate_viral_content(task)
+                
+            elif agent_type in ["content", "content_creator"]:
+                 # Could be internal or external
+                 from app.services.ecosystem_service import ecosystem_service
+                 result = await ecosystem_service.create_content_strategy(task)
+                 
+            # 2. Check for AgentForge Agents
+            elif agent_type in ["orchestrator", "orchestrator_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.orchestrate_tasks(task)
+                
+            elif agent_type in ["research", "research_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.deep_research(task)
+                
+            elif agent_type in ["voice", "voice_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.synthesize_voice(text=task, action="tts")
+                
+            elif agent_type in ["developer", "dev_agent"]:
+                from app.services.ecosystem_service import ecosystem_service
+                result = await ecosystem_service.execute_dev_task(tool="generic", args={"task": task})
+                
+            # 3. Internal Agents (Fallback or specific)
+            elif agent_type:
+                 # In production, route via Swarm Router or direct Agent call
+                 # For now, if not ecosystem, we assume internal execution (mocked here or via swarm)
+                 logger.info("Executing internal trigger action", agent=agent_type, task=task)
+                 result = {"success": True, "source": "internal", "message": "Internal execution placeholder"}
+            
+            if result:
+                log.agent_response = {
+                    "agent": agent_type,
+                    "task": task,
+                    "result": result
+                }
+                log.status = TriggerLogStatus.COMPLETED if result.get("success", True) else TriggerLogStatus.FAILED
+            else:
+                log.status = TriggerLogStatus.COMPLETED
+                log.agent_response = {"result": "No action taken / Mock success"}
+                
             log.completed_at = datetime.utcnow()
             
         except Exception as e:

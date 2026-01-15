@@ -18,7 +18,8 @@ services:
     volumes:
       - momentaic_postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    # SECURITY: No external port exposure - only accessible within Docker network
+    ports:
+      - "127.0.0.1:5432:5432"
     networks:
       - momentaic-internal
     healthcheck:
@@ -184,7 +185,7 @@ services:
   # Frontend Application
   frontend:
     build:
-      context: "../momentaic front"
+      context: "../momentaic-frontend"
       dockerfile: Dockerfile
     container_name: momentaic-frontend
     restart: unless-stopped

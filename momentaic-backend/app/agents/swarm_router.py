@@ -11,6 +11,7 @@ import asyncio
 
 from app.agents.base import get_llm, get_agent_config
 from app.models.conversation import AgentType
+from app.services.ecosystem_service import ecosystem_service
 
 # Import Swarm Leaders/Agents
 from app.agents.content_agent import content_agent
@@ -139,58 +140,307 @@ Return JSON format:
     async def _run_siren_swarm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Orchestrate The Siren: Content & Viral Growth
+        
+        Optimized to use Ecosystem Agents (Viral/Media) first, then fall back to internal chains.
         """
-        # Example: "Post a founder story"
-        # Uses ContentAgent
-        logger.info("Activiting Siren Swarm...")
+        logger.info("Activating Siren Swarm...")
         
-        # Simple mapping for now
-        if "post" in task.lower() or "story" in task.lower():
-            # Delegate to ContentAgent
-            return await content_agent.generate(
-                platform=context.get("platform", "twitter"), # Default
-                topic=task,
-                startup_context=context.get("startup_context", {}),
-                content_type="post"
-            )
+        task_lower = task.lower()
+        startup_context = context.get("startup_context", {})
         
-        return {"success": True, "message": "Siren Swarm task acknowledged (stub)"}
+        # 1. Check for Ecosystem Capabilities
+        if "viral" in task_lower or "tiktok" in task_lower or "script" in task_lower:
+            # Use Ecosystem Viral Agent
+            logger.info("Delegating to Ecosystem: Viral Agent")
+            topic = context.get("topic") or task
+            result = await ecosystem_service.generate_viral_content(topic, platform="tiktok")
+            return {
+                "success": result.get("success", False),
+                "swarm": "siren",
+                "agent": "viral_agent",
+                "result": result
+            }
+            
+        if "image" in task_lower or "video" in task_lower or "media" in task_lower:
+            # Use Ecosystem Media Agent
+            logger.info("Delegating to Ecosystem: Media Agent")
+            prompt = context.get("prompt") or task
+            media_type = "video" if "video" in task_lower else "image"
+            result = await ecosystem_service.generate_media(prompt, type=media_type)
+            return {
+                "success": result.get("success", False),
+                "swarm": "siren",
+                "agent": "media_agent",
+                "result": result
+            }
+            
+        if "voice" in task_lower or "audio" in task_lower or "tts" in task_lower:
+            # Use AgentForge Voice Agent
+            logger.info("Delegating to AgentForge: Voice Agent")
+            text = context.get("text") or task
+            action = "tts"
+            result = await ecosystem_service.synthesize_voice(text, action=action)
+            return {
+                "success": result.get("success", False),
+                "swarm": "siren",
+                "agent": "voice_agent",
+                "result": result
+            }
+            
+        # 2. Fallback to Internal Chain Execution
+        logger.info("Executing Internal Siren Chain...")
+        from app.agents.chain_executor import chain_executor
+        startup_context = context.get("startup_context", {})
+        
+        # Determine the appropriate chain based on task type
+        if "viral" in task_lower or "campaign" in task_lower:
+            # Full viral campaign: content → growth → community → ambassadors
+            chain = ["content", "judgement", "growth_hacker", "community", "ambassador_outreach"]
+        elif "post" in task_lower or "story" in task_lower or "content" in task_lower:
+            # Content creation with optimization
+            chain = ["content", "judgement", "growth_hacker"]
+        elif "community" in task_lower or "engage" in task_lower:
+            # Community focused
+            chain = ["community", "content", "ambassador_outreach"]
+        elif "ambassador" in task_lower or "influencer" in task_lower:
+            # Ambassador outreach
+            chain = ["lead_researcher", "ambassador_outreach", "sdr"]
+        else:
+            # Default: content + optimization
+            chain = ["content", "judgement"]
+        
+        # Execute the chain
+        result = await chain_executor.execute_chain(
+            agent_chain=chain,
+            initial_context={
+                **startup_context,
+                "task_name": task,
+                "task_description": task,
+                "user_id": context.get("user_id", "system"),
+                "platform": context.get("platform", "linkedin"),
+                "content_type": context.get("content_type", "post")
+            }
+        )
+        
+        return {
+            "success": result.get("status") in ["completed", "partial"],
+            "swarm": "siren",
+            "chain_executed": chain,
+            "result": result
+        }
 
     async def _run_hunter_swarm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Orchestrate The Hunter: Sales & Leads
+        
+        Optimized to use Ecosystem Agents (Sniper/Moby/Lemlist) first, then internal chains.
         """
-        logger.info("Activiting Hunter Swarm...")
+        logger.info("Activating Hunter Swarm...")
         
-        # 1. Scrape Leads?
-        if "find" in task.lower() or "scrape" in task.lower():
-            if "juku" in task.lower():
-                return await lead_scraper_agent.find_juku_leads(region="Tokyo")
-            elif "nursing" in task.lower():
-                return await lead_scraper_agent.find_nursing_home_leads(region="Kanto")
-            else:
-                 return await lead_scraper_agent.scrape_google_maps(
-                     business_type=task, location="Japan"
-                 )
+        task_lower = task.lower()
+        startup_context = context.get("startup_context", {})
         
-        # 2. Research Leads?
-        if "research" in task.lower():
-            # specialized research logic
-            pass
+        # 1. Check for Ecosystem Capabilities
+        if "lead" in task_lower and ("find" in task_lower or "scrape" in task_lower):
+            # Use Ecosystem Sniper Agent
+            logger.info("Delegating to Ecosystem: Sniper Agent")
+            criteria = context.get("criteria") or {"query": task}
+            result = await ecosystem_service.find_leads(criteria)
+            return {
+                "success": result.get("success", False),
+                "swarm": "hunter",
+                "agent": "sniper_agent",
+                "result": result
+            }
             
-        # 3. Outreach?
-        if "email" in task.lower() or "outreach" in task.lower():
-            # Delegate to SDRAgent
-            pass
-
-        return {"success": True, "message": "Hunter Swarm task acknowledged (stub)"}
+        if "whale" in task_lower or "high-ticket" in task_lower or "moby" in task_lower:
+            # Use Ecosystem Moby Agent
+            logger.info("Delegating to Ecosystem: Moby Agent")
+            client = context.get("client_example") or "generic"
+            result = await ecosystem_service.find_whale_clients(client)
+            return {
+                "success": result.get("success", False),
+                "swarm": "hunter",
+                "agent": "moby_agent",
+                "result": result
+            }
+            
+        if "campaign" in task_lower and "email" in task_lower:
+            # Use Ecosystem Lemlist Agent
+            logger.info("Delegating to Ecosystem: Lemlist Agent")
+            leads = context.get("leads", [])
+            template = context.get("template_id", "default")
+            result = await ecosystem_service.launch_email_campaign(leads, template)
+            return {
+                "success": result.get("success", False),
+                "swarm": "hunter",
+                "agent": "lemlist_agent",
+                "result": result
+            }
+            
+        if "deep research" in task_lower or ("analyze" in task_lower and "market" in task_lower):
+            # Use AgentForge Research Agent
+            logger.info("Delegating to AgentForge: Research Agent")
+            prompt = task
+            result = await ecosystem_service.deep_research(prompt)
+            return {
+                "success": result.get("success", False),
+                "swarm": "hunter",
+                "agent": "research_agent",
+                "result": result
+            }
+            
+        # 2. Fallback to Internal Chain Execution
+        logger.info("Executing Internal Hunter Chain...")
+        from app.agents.chain_executor import chain_executor
+        
+        # Determine the appropriate chain based on task type
+        if "find" in task_lower or "scrape" in task_lower or "lead" in task_lower:
+            # Full lead generation pipeline
+            if "juku" in task_lower or "nursing" in task_lower:
+                # Japan-specific B2B targets
+                chain = ["lead_scraper", "lead_researcher", "sdr"]
+            else:
+                chain = ["lead_scraper", "lead_researcher", "sdr", "sales"]
+        elif "research" in task_lower:
+            # Research focused
+            chain = ["lead_researcher", "competitor_intel", "data_analyst"]
+        elif "email" in task_lower or "outreach" in task_lower:
+            # Outreach focused
+            chain = ["lead_researcher", "sdr", "sales"]
+        elif "close" in task_lower or "deal" in task_lower:
+            # Closing focused
+            chain = ["sales", "customer_success"]
+        elif "competitor" in task_lower:
+            # Competitor analysis
+            chain = ["competitor_intel", "data_analyst", "strategy"]
+        else:
+            # Default: full pipeline
+            chain = ["lead_scraper", "lead_researcher", "sdr", "sales"]
+        
+        # Execute the chain
+        result = await chain_executor.execute_chain(
+            agent_chain=chain,
+            initial_context={
+                **startup_context,
+                "task_name": task,
+                "task_description": task,
+                "user_id": context.get("user_id", "system"),
+                "target_region": context.get("region", "Global"),
+                "business_type": context.get("business_type", "")
+            }
+        )
+        
+        return {
+            "success": result.get("status") in ["completed", "partial"],
+            "swarm": "hunter",
+            "chain_executed": chain,
+            "result": result
+        }
 
     async def _run_builder_swarm(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Orchestrate The Builder: Dev & Ops
+        
+        Optimized to use Ecosystem Agents (Recruiting/Legal/Support) first, then internal chains.
         """
-        logger.info("Activiting Builder Swarm...")
-        return {"success": True, "message": "Builder Swarm task acknowledged (stub)"}
+        logger.info("Activating Builder Swarm...")
+        
+        task_lower = task.lower()
+        startup_context = context.get("startup_context", {})
+        
+        # 1. Check for Ecosystem Capabilities
+        if "hire" in task_lower or "recruit" in task_lower or "resume" in task_lower:
+            # Use Ecosystem Recruiting Agent
+            logger.info("Delegating to Ecosystem: Recruiting Agent")
+            resume = context.get("resume_text", "")
+            job = context.get("job_description", "")
+            result = await ecosystem_service.screen_resume(resume, job)
+            return {
+                "success": result.get("success", False),
+                "swarm": "builder",
+                "agent": "recruiting_agent",
+                "result": result
+            }
+            
+        if "legal" in task_lower or "contract" in task_lower or "term" in task_lower:
+            # Use Ecosystem Legal Agent
+            logger.info("Delegating to Ecosystem: Legal Agent")
+            terms = context.get("terms") or {"scope": task}
+            result = await ecosystem_service.draft_contract(terms)
+            return {
+                "success": result.get("success", False),
+                "swarm": "builder",
+                "agent": "legal_agent",
+                "result": result
+            }
+            
+        if "support" in task_lower or "ticket" in task_lower or "refund" in task_lower:
+            # Use Ecosystem Support Agent
+            logger.info("Delegating to Ecosystem: Support Agent")
+            ticket = context.get("ticket") or {"message": task}
+            result = await ecosystem_service.handle_support_ticket(ticket)
+            return {
+                "success": result.get("success", False),
+                "swarm": "builder",
+                "agent": "support_agent",
+                "result": result
+            }
+            
+        if "code" in task_lower or "git" in task_lower or "docker" in task_lower:
+            # Use AgentForge Developer Agent
+            logger.info("Delegating to AgentForge: Developer Agent")
+            tool_name = context.get("tool", "coding")
+            args = context.get("args") or {"task": task}
+            result = await ecosystem_service.execute_dev_task(tool_name, args)
+            return {
+                "success": result.get("success", False),
+                "swarm": "builder",
+                "agent": "developer_agent",
+                "result": result
+            }
+            
+        # 2. Fallback to Internal Chain Execution
+        logger.info("Executing Internal Builder Chain...")
+        from app.agents.chain_executor import chain_executor
+        
+        # Determine the appropriate chain based on task type
+        if "launch" in task_lower or "submit" in task_lower or "product hunt" in task_lower:
+            # Launch focused
+            chain = ["launch_strategist", "launch_executor"]
+        elif "test" in task_lower or "qa" in task_lower or "bug" in task_lower:
+            # QA focused
+            chain = ["qa_tester", "tech_lead"]
+        elif "deploy" in task_lower or "server" in task_lower:
+            # DevOps focused
+            chain = ["devops", "tech_lead"]
+        elif "feature" in task_lower or "code" in task_lower or "build" in task_lower:
+            # Development focused
+            chain = ["product_pm", "tech_lead", "qa_tester"]
+        elif "design" in task_lower or "ui" in task_lower or "ux" in task_lower:
+            # Design focused
+            chain = ["design", "product_pm", "tech_lead"]
+        else:
+            # Default: production readiness
+            chain = ["tech_lead", "qa_tester", "devops"]
+        
+        # Execute the chain
+        result = await chain_executor.execute_chain(
+            agent_chain=chain,
+            initial_context={
+                **startup_context,
+                "task_name": task,
+                "task_description": task,
+                "user_id": context.get("user_id", "system")
+            }
+        )
+        
+        return {
+            "success": result.get("status") in ["completed", "partial"],
+            "swarm": "builder",
+            "chain_executed": chain,
+            "result": result
+        }
 
 # Singleton
 swarm_router = SwarmRouter()

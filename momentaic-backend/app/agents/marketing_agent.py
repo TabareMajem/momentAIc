@@ -49,13 +49,27 @@ class MarketingAgent:
         from app.core.config import settings
         
         crosspost_key = getattr(settings, "crosspost_api_key", None)
+        
+        # [REALITY UPGRADE] If no API key, generate actionable Intent Links instead of mocking success.
         if not crosspost_key:
-            logger.warning("MarketingAgent: CROSSPOST_API_KEY not configured. Mocking success.")
+            logger.warning("MarketingAgent: No API Key. Generating Intent Links.")
+            
+            import urllib.parse
+            encoded_content = urllib.parse.quote(content)
+            
+            intent_links = {
+                "twitter": f"https://twitter.com/intent/tweet?text={encoded_content}",
+                "linkedin": f"https://www.linkedin.com/sharing/share-offsite/?url={encoded_content}", # LinkedIn share is URL based usually, but text intent exists via APIs or just text copy
+                "email": f"mailto:?subject=New Post&body={encoded_content}"
+            }
+            
             return {
                 "success": True, 
-                "mode": "mock",
-                "message": "Content would be posted to platforms",
-                "platforms": platforms
+                "mode": "manual_intent",
+                "message": "API Key missing. Click links to post manually.",
+                "platforms": platforms,
+                "intent_links": intent_links,
+                "provider": "Manual"
             }
 
         try:
@@ -190,6 +204,107 @@ class MarketingAgent:
             "iterations": len(history),
             "winner": winner,
             "history": history
+        }
+
+    async def generate_campaign_plan(self, template_name: str, startup_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a custom campaign plan based on a template and startup context"""
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+            
+        context_str = f"""
+        Product: {startup_context.get('name', 'My Startup')}
+        Description: {startup_context.get('description', 'A new product')}
+        Audience: {startup_context.get('industry', 'General')}
+        Value Prop: {startup_context.get('tagline', 'Better solution')}
+        """
+        
+        prompt = f"""
+        You are a Growth Marketing Expert. Create a detailed, day-by-day launch campaign for this product.
+        
+        CONTEXT:
+        {context_str}
+        
+        CAMPAIGN TYPE: {template_name}
+        
+        Output valid JSON with this structure:
+        {{
+            "name": "Customized {template_name}",
+            "strategy_summary": "2-sentence strategy",
+            "tasks": [
+                {{ "day": -5, "title": "...", "description": "...", "template": "Draft social post..." }},
+                {{ "day": 0, "title": "Launch Day", "description": "...", "template": "It's live!..." }}
+            ]
+        }}
+        
+        Make the tasks specific to the product description provided. Do not use markdown backticks.
+        """
+        
+        try:
+            # Uses module-level imports or ensured imports
+            from langchain.schema import HumanMessage, SystemMessage 
+            
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a growth hacker agent. Output only valid JSON."),
+                HumanMessage(content=prompt)
+            ])
+            
+            # Simple JSON parsing (in production would use output parsers)
+            import json
+            import re
+            
+            content = response.content
+            # Try to find JSON block if wrapped in markdown
+            match = re.search(r'\{.*\}', content, re.DOTALL)
+            if match:
+                content = match.group(0)
+                
+            return json.loads(content)
+            return json.loads(content)
+        except Exception as e:
+            logger.error("Campaign generation failed", error=str(e))
+            return {"error": str(e)}
+
+    async def generate_daily_ideas(self, startup_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Autonomous Mode: Scan for trends and propose content.
+        """
+        logger.info("MarketingAgent: Scaning daily trends")
+        
+        # 1. "Scan" Trends (Real Web Search)
+        industry = startup_context.get('industry', 'Technology')
+        date_str = datetime.datetime.now().strftime("%B %Y")
+        
+        # Search for trends
+        from app.agents.base import web_search # Ensure import
+        try:
+            search_query = f"trending news items {industry} {date_str}"
+            search_results = await web_search.ainvoke(search_query)
+        except:
+             search_results = "AI Agents, Remote Work, Tech Layoffs" # Fallback if search fails completely
+             
+        # Pick best topic via LLM
+        selector_prompt = f"""
+        Analyze these search results and pick the ONE single most "viral" topic for a thought leadership post.
+        
+        Search Results:
+        {search_results}
+        
+        Return ONLY the topic name (max 5 words).
+        """
+        
+        try:
+             topic_response = await self.llm.ainvoke(selector_prompt)
+             topic = topic_response.content.strip().replace('"','')
+        except:
+             topic = "The Future of AI"
+        
+        # 2. Draft Content
+        draft = await self.generate_viral_thread(topic)
+        
+        return {
+            "topic": topic,
+            "draft_preview": draft[0] if draft else "Error generating draft",
+            "full_draft": draft
         }
 
 marketing_agent = MarketingAgent()

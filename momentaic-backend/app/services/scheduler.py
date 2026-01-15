@@ -51,7 +51,28 @@ class SchedulerService:
             logger.info("Scheduler shutdown")
     
     def _add_default_jobs(self):
-        """Add default recurring jobs"""
+        """Add default recurring jobs - including ISP (Inevitable Success Protocol) jobs"""
+        
+        # === ISP DAILY DRIVER - THE MONEY MAKER ===
+        # Runs at 8 AM UTC every day to execute automated action plans
+        self.add_cron_job(
+            job_id="isp_daily_driver",
+            func=self._run_daily_driver,
+            cron="0 8 * * *",
+            description="ISP: Execute daily action plans for all startups",
+        )
+        
+        # === ISP WEEKLY PROGRESS REPORTS ===
+        # Runs every Monday at 9 AM UTC
+        self.add_cron_job(
+            job_id="isp_weekly_reports",
+            func=self._run_weekly_reports,
+            cron="0 9 * * 1",
+            description="ISP: Generate weekly progress reports",
+        )
+        
+        # === EXISTING JOBS ===
+        
         # Evaluate triggers every 5 minutes
         self.add_interval_job(
             job_id="evaluate_triggers",
@@ -75,6 +96,18 @@ class SchedulerService:
             cron="0 9 * * *",
             description="Generate daily AI summaries for startups",
         )
+        
+        # === HOURLY HUNTER ===
+        self.add_interval_job(
+            job_id="hourly_hunter",
+            func=self._run_hourly_hunter,
+            hours=1,
+            description="Hourly Sales Hunter: Find new leads for all startups",
+        )
+        
+        logger.info("Default jobs registered", 
+                   jobs=["isp_daily_driver", "isp_weekly_reports", 
+                         "evaluate_triggers", "sync_integrations", "daily_summary", "hourly_hunter"])
     
     def add_cron_job(
         self,
@@ -247,6 +280,138 @@ class SchedulerService:
             logger.info("Daily summary generation complete")
         except Exception as e:
             logger.error("Daily summary failed", error=str(e))
+    
+    # === ISP HANDLER METHODS ===
+    
+    async def _run_daily_driver(self):
+        """Execute the Inevitable Success Protocol Daily Driver"""
+        logger.info("=== ISP Daily Driver Triggered ===")
+        
+        try:
+            from app.tasks.daily_driver import run_all_daily_drivers
+            
+            result = await run_all_daily_drivers()
+            
+            logger.info(
+                "ISP Daily Driver complete",
+                total=result.get("total_startups", 0),
+                successful=result.get("successful", 0),
+                failed=result.get("failed", 0)
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error("ISP Daily Driver failed", error=str(e))
+            return {"success": False, "error": str(e)}
+    
+    async def _run_weekly_reports(self):
+        """Generate ISP Weekly Progress Reports"""
+        logger.info("=== ISP Weekly Reports Triggered ===")
+        
+        try:
+            from app.tasks.daily_driver import generate_weekly_reports
+            
+            result = await generate_weekly_reports()
+            
+            logger.info(
+                "ISP Weekly Reports complete",
+                reports_generated=result.get("reports_generated", 0)
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error("ISP Weekly Reports failed", error=str(e))
+            return {"success": False, "error": str(e)}
+
+    # === HOURLY HUNTER ===
+    
+    async def _run_hourly_hunter(self):
+        """
+        Run Sales Hunter agent for all active startups to find new leads.
+        """
+        logger.info("=== Hourly Sales Hunter Triggered ===")
+        
+        try:
+            from app.models.startup import Startup
+            from app.models.growth import Lead, LeadStatus
+            from app.core.database import async_session
+            from sqlalchemy import select
+            from app.agents.sales_agent import sales_agent
+            
+            async with async_session() as db:
+                # Get active startups
+                result = await db.execute(select(Startup).where(Startup.is_active == True))
+                startups = result.scalars().all()
+                
+                total_leads = 0
+                
+                for startup in startups:
+                    new_leads_count = 0
+                    try:
+                        startup_context = {
+                            "name": startup.name,
+                            "description": startup.description,
+                            "industry": startup.industry or "Technology",
+                            "tagline": startup.tagline
+                        }
+                        
+                        # Run hunter (limited to 1-2 leads per run to avoid spam/cost)
+                        # We pass user_id as owner_id for context
+                        hunter_result = await sales_agent.auto_hunt(
+                            startup_context=startup_context,
+                            user_id=str(startup.owner_id)
+                        )
+                        
+                        leads_data = hunter_result.get("leads", [])
+                        
+                        for item in leads_data:
+                            lead_info = item.get("lead", {})
+                            draft = item.get("draft", "")
+                            
+                            # Create Lead in DB
+                            new_lead = Lead(
+                                startup_id=startup.id,
+                                company_name=lead_info.get("company_name", "Unknown"),
+                                contact_name=lead_info.get("contact_name", "Unknown"),
+                                contact_email=lead_info.get("contact_email"),
+                                status=LeadStatus.NEW,
+                                source="ai_hunter",
+                                score=70, # Initial score
+                                notes=f"Pain point: {lead_info.get('pain_point')}\n\nDraft Outreach:\n{draft}"
+                            )
+                            db.add(new_lead)
+                            total_leads += 1
+                            new_leads_count += 1
+                        
+                        # Use Notification Service if leads found
+                        if new_leads_count > 0:
+                            from app.models.user import User
+                            from app.services.notification_service import notification_service
+                            
+                            # Get Owner
+                            user_result = await db.execute(select(User).where(User.id == startup.owner_id))
+                            owner = user_result.scalar_one_or_none()
+                            
+                            if owner:
+                                await notification_service.notify_user(
+                                    user=owner,
+                                    subject=f"Found {new_leads_count} New Leads",
+                                    body=f"Sales Agent found {new_leads_count} potential leads for {startup.name}.",
+                                    action_url=f"https://app.momentaic.com/startups/{startup.id}/growth",
+                                    db=db
+                                )
+                                logger.info(f"Notified owner {owner.email} of {new_leads_count} new leads")
+                            
+                    except Exception as e:
+                        logger.error(f"Hunter failed for {startup.name}: {e}")
+                        
+                await db.commit()
+                logger.info(f"Hourly Hunter complete. Found {total_leads} new leads.")
+                
+        except Exception as e:
+            logger.error("Hourly Hunter failed", error=str(e))
 
 
 # Singleton instance

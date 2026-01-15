@@ -14,7 +14,9 @@ import httpx
 import structlog
 
 from app.core.config import settings
+from app.core.config import settings
 from app.models.conversation import AgentType
+from app.services.activity_stream import activity_stream
 
 logger = structlog.get_logger()
 
@@ -44,6 +46,39 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
     """
     Get LLM instance based on model name
     """
+    # ... (rest of get_llm as before, omitted for brevity, logic remains in function)
+    # Wait, replace_file_content replaces the whole block. I need to be careful not to delete get_llm.
+    # Actually, BaseAgent is a module, not a class in this file. It seems this file contains tools and configurations.
+    # The actual Agent classes inherit from something? Or are they standalone functions?
+    # Let's check ContentAgent again. It inherits nothing explicit in the outline? 
+    # Ah, I see from `marketing_agent.py` outline: `class MarketingAgent:`. And `content_agent.py`: `class ContentAgent:`.
+    # It seems they don't inherit from a common `BaseAgent` class defined HERE.
+    # This `base.py` module contains shared tools and `get_llm`.
+    
+    # I should check if there IS a BaseAgent class.
+    # The file content shows `class AgentState(TypedDict):`.
+    # It does NOT show a `class BaseAgent:`.
+    
+    # So I cannot add methods to a BaseAgent class here.
+    # I should instead add a mixin or just import `activity_stream` in each agent.
+    # OR, better: Add a `BaseAgent` class here and have agents inherit from it.
+    # BUT that requires refactoring all agents.
+    
+    # Alternative: Create a helper function `report_agent_progress` in this file that agents can import.
+    pass
+
+# Retrying with correct approach:
+# I will add a helper function `run_proactive_wrapper` or similar, OR just let agents import `activity_stream` directly.
+# The plan said "Add report_progress() to base agent". 
+# If there is no BaseAgent class, I should probably create one or just use the service directly.
+# Let's just use the service directly in `main.py` scheduler logic for now to report status,
+# and modify the agents to report progress if I can.
+# Given I cannot easily refactor 42 agents to inherit from a new class right now without risk,
+# I will modifying `main.py` to handle the reporting wrapper.
+
+# Wait, `ContentAgent` and others seem to be standalone classes.
+# I can just import `activity_stream` in `main.py` and wrap the calls.
+
     if model.startswith("gemini"):
         if not settings.google_api_key:
             logger.warning("Gemini API key not configured, using mock")
@@ -91,7 +126,7 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
 # ==================
 
 @tool
-def web_search(query: str) -> str:
+async def web_search(query: str) -> str:
     """
     Search the web for information.
     Use this to research companies, find news, or gather market data.
@@ -118,47 +153,119 @@ def web_search(query: str) -> str:
     try:
         # Import lazily to avoid circular imports
         from app.agents.browser_agent import browser_agent
-        import asyncio
         
-        # We need to run the async browser method in a sync tool context if possible, 
-        # or we accept that this tool might need to be awaited if the caller handles it.
-        # LangChain tools can be async, but standard @tool wrapper is often sync.
-        # For safety in this specific codebase context, we'll assume the environment allows async execution 
-        # or we use an event loop.
+        logger.info(f"Using BrowserAgent to fallback search for: {query}")
         
-        # NOTE: In a real async-native LangChain app, tools should be async def. 
-        # But here valid implementation depends on the runtime. 
-        # We will attempt to use the existing event loop or run completely via browser agent routing.
+        # Use simple Google search via browser automation
+        search_results = await browser_agent.search_google(query)
         
-        # Simpler approach: Just return a string telling the agent to use the browser directly?
-        # Better: actually do it.
-        
-        # Mocking the async call for "tool" wrapper limitations:
-        return "Please ask the Browser Agent directly to search for this. (Context: API Key missing, falling back to manual browsing)."
+        results = []
+        for item in search_results:
+            title = item.get('title', 'No Title')
+            snippet = item.get('snippet', '')
+            link = item.get('link', '')
+            results.append(f"- {title} ({link}): {snippet}")
+            
+        if results:
+            return "\n".join(results)
+        else:
+            return "No results found via browser search."
 
     except Exception as e:
+        logger.error("Browser search failed", error=str(e))
         return f"Search unavailable: {str(e)}"
-    
-    return "Search unavailable (No API Key)"
 
 
 @tool
-def linkedin_search(person_name: str, company: Optional[str] = None) -> str:
+async def linkedin_search(person_name: str, company: Optional[str] = None) -> str:
     """
     Search LinkedIn for a person's profile information.
     """
-    # Fallback to Browser Logic
-    from app.agents.browser_agent import browser_agent
-    return f"Please ask the Browser Agent to: 'Search Google for {person_name} {company or ''} LinkedIn and summarize the profile.'"
+    try:
+        from app.agents.browser_agent import browser_agent
+        
+        query = f"site:linkedin.com/in/ {person_name} {company or ''}".strip()
+        logger.info(f"Using BrowserAgent to searching LinkedIn for: {query}")
+        
+        search_results = await browser_agent.search_google(query)
+        
+        results = []
+        for item in search_results:
+            title = item.get('title', 'No Title')
+            snippet = item.get('snippet', '')
+            link = item.get('link', '')
+            results.append(f"- {title} ({link}): {snippet}")
+            
+        if results:
+            return "\n".join(results)
+        else:
+            return "No LinkedIn profiles found via browser search."
+            
+    except Exception as e:
+        logger.error("LinkedIn search failed", error=str(e))
+        return f"Search unavailable: {str(e)}"
 
 
 @tool
-def company_research(company_name: str) -> str:
+async def company_research(company_name: str) -> str:
     """
     Research a company to find relevant information.
     """
-    # Fallback to Browser Logic
-    return f"Please ask the Browser Agent to: 'Go to {company_name}'s website (or search for it) and analyze the homepage.'"
+    try:
+        from app.agents.browser_agent import browser_agent
+        
+        logger.info(f"Using BrowserAgent to research company: {company_name}")
+        
+        # 1. Search for the company site
+        query = f"{company_name} official website and news"
+        search_results = await browser_agent.search_google(query)
+        
+        if not search_results:
+             return "Company not found via search."
+             
+        # Format search results
+        search_summary = "\n".join([f"- {r.get('title')}: {r.get('snippet')}" for r in search_results[:3]])
+        
+        # 2. Try to visit the top link if it looks official (skip social media)
+        top_link = search_results[0].get("link")
+        site_content = ""
+        
+        if top_link and "linkedin" not in top_link and "facebook" not in top_link:
+             logger.info(f"Navigating to potential company site: {top_link}")
+             browse_result = await browser_agent.navigate(top_link)
+             if browse_result.success:
+                 site_summary = browse_result.text_content[:1000] # First 1000 chars
+                 site_content = f"\n\nWebsite Content Summary ({top_link}):\n{site_summary}..."
+        
+        return f"Search Results:\n{search_summary}{site_content}"
+
+    except Exception as e:
+        logger.error("Company research failed", error=str(e))
+        return f"Research unavailable: {str(e)}"
+
+@tool
+async def read_url_content(url: str) -> str:
+    """
+    Read the full text content of a specific URL.
+    Useful for deep research, summarizing articles, or analyzing competitor pages.
+    """
+    try:
+        from app.agents.browser_agent import browser_agent
+        
+        # Initialize browser if needed (it is lazy)
+        await browser_agent.initialize()
+        
+        logger.info(f"Reading URL: {url}")
+        result = await browser_agent.navigate(url)
+        
+        if result.success and result.text_content:
+            return f"Source: {url}\nTitle: {result.title}\n\nContent:\n{result.text_content[:20000]}" # Increase limit for deep research
+        else:
+            return f"Failed to read content from {url}. Error: {result.error}"
+
+    except Exception as e:
+        logger.error("Read URL failed", url=url, error=str(e))
+        return f"Error reading URL: {str(e)}"
 
 
 @tool

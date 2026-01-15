@@ -301,3 +301,8 @@ class ChannelSummaryResponse(BaseModel):
 # Forward references
 LeadWithMessages.model_rebuild()
 AcquisitionChannelResponse.model_rebuild()
+
+class CampaignGenerateRequest(BaseModel):
+    """Generate campaign request"""
+    template_name: str
+    template_id: str

@@ -308,3 +308,33 @@ async def chat_nano_bananas(
     )
     
     return response
+
+
+@router.post("/agents/yokaizen/chat")
+async def chat_yokaizen(
+    request: AdminChatRequest,
+    admin: User = Depends(require_superuser),
+):
+    """
+    Chat with Yokaizen Specialized Growth Agent.
+    Strategy: Stealth Therapy & ASO.
+    """
+    from app.agents.specialized.yokaizen_agent import yokaizen_agent
+    
+    response = await yokaizen_agent.chat(request.message)
+    return {"response": response}
+
+
+@router.post("/agents/symbiotask/chat")
+async def chat_symbiotask(
+    request: AdminChatRequest,
+    admin: User = Depends(require_superuser),
+):
+    """
+    Chat with Symbiotask Specialized Growth Agent.
+    Strategy: Micro-Influencers for AI Video.
+    """
+    from app.agents.specialized.symbiotask_agent import symbiotask_agent
+    
+    response = await symbiotask_agent.chat(request.message)
+    return {"response": response}

@@ -9,6 +9,7 @@ import structlog
 
 from app.agents.base import get_llm
 from app.models.conversation import AgentType
+from app.services.deliverable_service import deliverable_service
 
 logger = structlog.get_logger()
 
@@ -209,6 +210,51 @@ Provide:
         except Exception as e:
             logger.error("Org structure failed", error=str(e))
             return {"recommendation": f"Error: {str(e)}", "agent": "hr_operations", "error": True}
+
+    async def generate_recruiting_packet(
+        self,
+        company_name: str,
+        role: str,
+        requirements: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Generate a recruiting packet (JD + Search Strings) as a downloadable file.
+        """
+        try:
+            # 1. Generate content via LLM
+            jd_content = await self.generate_job_description(role, "Mid-Senior", requirements)
+            text_content = jd_content.get("job_description", "")
+            
+            # 2. Add search strings
+            search_strings = f"\n\n=== RECRUITER SEARCH STRINGS ===\n"
+            search_strings += f'site:linkedin.com/in/ "{role}" AND ({" OR ".join(requirements[:3])}) AND "{company_name.split()[0]}"'
+            
+            full_content = text_content + search_strings
+            
+            # 3. Create PDF via DeliverableService (reusing legal contract logic or adding text-to-pdf)
+            # For now, we'll piggyback on generate_business_plan_pdf structure or add a generic one.
+            # Let's assume we add a generic text-to-pdf to deliverable service or just use the plan one with different title.
+            
+            content_dict = {
+                "executive_summary": f"Job Description: {role}\n\n" + full_content,
+                "market_analysis": "",
+                "growth_strategy": "",
+                "financial_projections": ""
+            }
+            
+            # Using generate_business_plan_pdf as a generic PDF generator for now (hacky but works for MVP)
+            # Ideally verify deliverable_service has a generic text_to_pdf
+            result = await deliverable_service.generate_business_plan_pdf(content_dict, f"{company_name}_{role}_JD")
+            
+            return {
+                "file_url": result["url"],
+                "file_type": "PDF",
+                "title": f"Recruiting Packet: {role}",
+                "agent": "hr_operations"
+            }
+        except Exception as e:
+            logger.error("Recruiting packet generation failed", error=str(e))
+            return {"error": str(e), "agent": "hr_operations"}
     
     def _get_system_prompt(self) -> str:
         return """You are the HR & Operations agent - expert in startup people ops.

@@ -15,6 +15,8 @@ from app.agents.base import (
     web_search,
 )
 from app.models.conversation import AgentType
+from app.services.deliverable_service import deliverable_service
+from app.services.live_data_service import live_data_service
 
 logger = structlog.get_logger()
 
@@ -220,6 +222,36 @@ Provide:
             logger.error("Projection failed", error=str(e))
             return {"narrative": f"Error: {str(e)}", "projections": [], "agent": AgentType.FINANCE_CFO.value, "error": True}
     
+    async def generate_financial_model_file(
+        self,
+        company_name: str,
+        metrics: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate a downloadable financial model (CSV) with LIVE benchmarks.
+        """
+        try:
+            # 1. Fetch live market data
+            multiples = await live_data_service.get_saas_multiples()
+            
+            # Inject into metrics for the CSV
+            metrics["valuation_multiple"] = multiples["median_arr_multiple"]
+            metrics["valuation_note"] = f"Based on live SaaS index: {multiples['median_arr_multiple']}x ARR"
+            
+            # 2. Generate the file via service
+            result = await deliverable_service.generate_financial_model_csv(metrics, company_name)
+            
+            return {
+                "file_url": result["url"],
+                "file_type": result["type"],
+                "title": f"{result['title']} (Live Data)",
+                "agent": AgentType.FINANCE_CFO.value,
+                "benchmarks": multiples
+            }
+        except Exception as e:
+            logger.error("Financial model generation failed", error=str(e))
+            return {"error": str(e), "agent": AgentType.FINANCE_CFO.value}
+
     def _build_context(self, startup_context: Dict[str, Any], metrics: Dict[str, Any]) -> str:
         """Build financial context"""
         return f"""Startup Financial Context:

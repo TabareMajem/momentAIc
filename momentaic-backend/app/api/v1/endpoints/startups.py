@@ -5,7 +5,7 @@ CRUD and dashboard operations for startups
 
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -29,19 +29,84 @@ from app.schemas.startup import (
     StandupCreate,
     StandupResponse,
 )
+from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
+
+
+# ============ INSTANT ANALYSIS (WOW ONBOARDING) ============
+
+class InstantAnalysisRequest(BaseModel):
+    description: str
+
+
+@router.post("/instant-analysis")
+async def instant_analysis(
+    request: InstantAnalysisRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    SSE endpoint for the WOW onboarding experience.
+    Streams progress updates as agents analyze the startup.
+    
+    Events:
+    - progress: Step updates with percentage
+    - competitor: Each competitor discovered
+    - insight: Industry/stage detection
+    - complete: Full AI CEO report
+    - error: If something fails
+    """
+    from app.services.instant_analysis import instant_analysis_service
+    
+    async def event_generator():
+        async for event in instant_analysis_service.stream_analysis(
+            description=request.description,
+            user_id=str(current_user.id)
+        ):
+            yield event
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+# ============ STARTUP CRUD ============
 
 
 @router.post("", response_model=StartupResponse, status_code=status.HTTP_201_CREATED)
 async def create_startup(
     startup_data: StartupCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Create a new startup entity.
     """
+    # === TIER LIMIT CHECK ===
+    from app.core.tier_limits import can_create_startup
+    
+    # Count user's current startups
+    result = await db.execute(
+        select(func.count(Startup.id)).where(Startup.owner_id == current_user.id)
+    )
+    current_count = result.scalar() or 0
+    
+    allowed, message = can_create_startup(current_user, current_count)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=message
+        )
+    # === END TIER LIMIT CHECK ===
+    
     startup = Startup(
         owner_id=current_user.id,
         name=startup_data.name,
@@ -56,6 +121,26 @@ async def create_startup(
     
     db.add(startup)
     await db.flush()
+    
+    # === WOW ONBOARDING: TRIGGER DAILY DRIVER IMMEDIATELY ===
+    # This pre-seeds the dashboard with an action plan and "activity"
+    try:
+        from app.tasks.daily_driver import run_daily_driver
+        
+        startup_context = {
+            "id": str(startup.id),
+            "name": startup.name,
+            "description": startup.description or "",
+            "industry": startup.industry or "Technology",
+            "stage": startup.stage or "idea",
+            "founder_name": current_user.full_name or "Founder"
+        }
+        
+        background_tasks.add_task(run_daily_driver, str(startup.id), startup_context)
+    except Exception as e:
+        # Don't fail creation if trigger fails, just log it
+        print(f"Failed to trigger initial daily driver: {e}")
+    # ========================================================
     
     return StartupResponse.model_validate(startup)
 

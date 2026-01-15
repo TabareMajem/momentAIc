@@ -42,10 +42,146 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
     
+    # === SUPEROS: Proactive Heartbeat (The 10 Elon Musks) ===
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    from app.services.activity_stream import activity_stream
+    
+    scheduler = AsyncIOScheduler()
+    
+    async def run_proactive_agent(agent_name: str, task_description: str, agent_func):
+        """
+        Wrapper to run a proactive agent task and report to Command Center.
+        """
+        from app.core.database import AsyncSessionLocal
+        from sqlalchemy import select
+        from app.models.startup import Startup
+        
+        # Report start
+        activity_id = await activity_stream.report_start(agent_name, task_description)
+        
+        async with AsyncSessionLocal() as db:
+            try:
+                # 1. Get relevant startups (Active & Growth/God Mode for heavy agents)
+                # For MVP, we run for all, but in prod we'd filter by tier
+                result = await db.execute(select(Startup).limit(100))
+                startups = result.scalars().all()
+                
+                await activity_stream.report_progress(activity_id, f"Targeting {len(startups)} startups...", 10)
+                
+                processed = 0
+                for i, startup in enumerate(startups):
+                    # Update progress
+                    progress = 10 + int((i / len(startups)) * 80)
+                    await activity_stream.report_progress(
+                        activity_id, 
+                        f"Processing {startup.name}...", 
+                        progress
+                    )
+                    
+                    # Execute Agent Logic
+                    try:
+                        # Context construction
+                        context = {
+                            "startup_id": str(startup.id),
+                            "name": startup.name,
+                            "description": startup.description,
+                            "industry": startup.industry
+                        }
+                        
+                        # Call the agent calculation
+                        # Note: We await the function passed in
+                        await agent_func(startup, context)
+                        
+                    except Exception as e:
+                        logger.error(f"Error for {startup.name}", agent=agent_name, error=str(e))
+                    
+                    processed += 1
+                
+                await activity_stream.report_complete(activity_id, {"processed": processed})
+                
+            except Exception as e:
+                logger.error("Proactive run failed", agent=agent_name, error=str(e))
+                await activity_stream.report_error(activity_id, str(e))
+
+    # --- AGENT TASKS ---
+
+    async def run_content_agent(startup, context):
+        """Generate daily content ideas"""
+        from app.agents.content_agent import content_agent
+        from app.models.growth import ContentPlatform
+        
+        # Generate 3 ideas for LinkedIn
+        await content_agent.generate_ideas(startup_context=context, count=3)
+
+    async def run_sdr_agent(startup, context):
+        """Draft outreach for new leads"""
+        # In a real impl, this would query triggers or new leads
+        pass 
+
+    async def run_competitor_intel(startup, context):
+        """Scan competitors"""
+        from app.agents.competitor_intel_agent import competitor_intel_agent
+        # Trigger scan
+        pass
+
+    async def run_growth_hacker(startup, context):
+        """Weekly growth report"""
+        from app.agents.growth_hacker_agent import growth_hacker_agent
+        # Generate report
+        pass
+
+    # --- SCHEDULE ---
+    
+    # 1. ContentAgent: Daily at 6 AM
+    @scheduler.scheduled_job(CronTrigger(hour=6, minute=0), id='daily_content')
+    async def schedule_content():
+        await run_proactive_agent("ContentAgent", "Generating daily content ideas", run_content_agent)
+
+    # 2. SDRAgent: Daily at 9 AM
+    @scheduler.scheduled_job(CronTrigger(hour=9, minute=0), id='daily_sdr')
+    async def schedule_sdr():
+        await run_proactive_agent("SDRAgent", "Drafting outreach for new leads", run_sdr_agent)
+
+    # 3. CompetitorIntel: Daily at 2 PM
+    @scheduler.scheduled_job(CronTrigger(hour=14, minute=0), id='daily_competitor')
+    async def schedule_competitor():
+        await run_proactive_agent("CompetitorIntelAgent", "Scanning competitor landscape", run_competitor_intel)
+
+    # 4. GrowthHacker: Mondays at 8 AM
+    @scheduler.scheduled_job(CronTrigger(day_of_week='mon', hour=8, minute=0), id='weekly_growth')
+    async def schedule_growth():
+        await run_proactive_agent("GrowthHackerAgent", "Generating weekly growth report", run_growth_hacker)
+
+    # 5. Heartbeat (Trigger Engine): Every hour (Backup)
+    @scheduler.scheduled_job(CronTrigger(minute=0), id='hourly_heartbeat')
+    async def schedule_heartbeat():
+         # Keep the original trigger engine running too
+        from app.core.database import AsyncSessionLocal
+        from app.triggers.engine import evaluate_triggers
+        from sqlalchemy import select
+        from app.models.startup import Startup
+        
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Startup).limit(100))
+            for startup in result.scalars().all():
+                await evaluate_triggers(db, str(startup.id))
+
+    # 6. Morning Brief (The 'AI CEO' Report): Daily at 6:00 AM UTC
+    @scheduler.scheduled_job(CronTrigger(hour=6, minute=0), id='morning_brief')
+    async def schedule_morning_brief():
+        from app.services.morning_brief import morning_brief_service
+        await morning_brief_service.generate_daily_brief()
+
+    scheduler.start()
+    logger.info("🚀 SuperOS Heartbeat Scheduler: ACTIVE (runs every 60 min)")
+    # === END SUPEROS ===
+    
     yield
     
     # Shutdown
     logger.info("Shutting down MomentAIc API")
+    scheduler.shutdown(wait=False)
     await close_db()
 
 
