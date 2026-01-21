@@ -418,16 +418,41 @@ def send_email(
     html_body: str = None,
 ) -> Dict[str, Any]:
     """
-    Send an email.
+    Send an email via SMTP.
     """
     logger.info("Sending email", to=to_email, subject=subject)
     
-    # In production, use aiosmtplib or SendGrid
     from app.core.config import settings
     
-    if not settings.smtp_user:
+    if not settings.smtp_user or not settings.smtp_password:
         logger.warning("SMTP not configured, email not sent")
         return {"sent": False, "reason": "SMTP not configured"}
     
-    # Mock send
-    return {"sent": True, "to": to_email, "subject": subject}
+    # [PHASE 25 FIX] Real SMTP implementation
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
+        msg["To"] = to_email
+        
+        # HTML body
+        html_part = MIMEText(body, "html")
+        msg.attach(html_part)
+        
+        # Connect and send
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            server.starttls()
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+        
+        logger.info("Email sent successfully", to=to_email)
+        return {"sent": True, "to": to_email, "subject": subject}
+        
+    except Exception as e:
+        logger.error("Email send failed", error=str(e), to=to_email)
+        return {"sent": False, "reason": str(e)}
+

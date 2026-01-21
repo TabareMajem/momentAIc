@@ -257,7 +257,7 @@ class GeminiService:
             return None
     
     async def _mock_response(self, prompt: str, tools: List = None) -> GeminiResponse:
-        """DeepSeek Fallback or Mock response"""
+        """DeepSeek Fallback. Returns error if all providers fail."""
         # Try DeepSeek First
         if self.deepseek_client:
             try:
@@ -271,7 +271,7 @@ class GeminiService:
                 )
                 return GeminiResponse(
                     text=response.choices[0].message.content,
-                    tool_calls=[], # DeepSeek V3 supports function calling but simplified here for fallback
+                    tool_calls=[],
                     grounding_sources=[],
                     tokens_used=response.usage.total_tokens,
                     model="deepseek-chat"
@@ -279,39 +279,14 @@ class GeminiService:
             except Exception as e:
                 logger.error("DeepSeek fallback failed", error=str(e))
         
-        # Fallback to Mock if both fail
-        logger.warning("All AI providers failed. Using Mock Data.")
-        tool_calls = []
-        
-        # Simulate tool call detection
-        if tools:
-            prompt_lower = prompt.lower()
-            for tool in tools[:3]:  # Check first 3 tools
-                if tool["name"].split("_")[1] in prompt_lower:
-                    tool_calls.append({
-                        "name": tool["name"],
-                        "arguments": {}
-                    })
-                    break
-        
+        # [PHASE 25 FIX] No mock data - Return transparent error
+        logger.error("All AI providers failed. Returning error to user.")
         return GeminiResponse(
-            text=f"""Based on your request, here's my analysis:
-
-**Key Insights:**
-1. Market opportunity analysis indicates strong potential
-2. Recommended next steps for growth
-3. Risk factors to consider
-
-I can help you execute actions using the available tools. Would you like me to:
-- Sync data from your connected integrations?
-- Generate content for your marketing?
-- Analyze your metrics?
-
-Just let me know what action to take!""",
-            tool_calls=tool_calls,
-            grounding_sources=["https://example.com/research"],
-            tokens_used=150,
-            model=self.default_model + " (mock)"
+            text="⚠️ **AI Service Temporarily Unavailable**\n\nWe couldn't process your request because our AI services are currently experiencing issues. This could be due to:\n- Missing or invalid API keys\n- Rate limiting\n- Temporary service outage\n\nPlease try again later or contact support if the issue persists.",
+            tool_calls=[],
+            grounding_sources=[],
+            tokens_used=0,
+            model="error"
         )
 
 

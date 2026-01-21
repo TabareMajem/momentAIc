@@ -107,5 +107,28 @@ Focus on modern aesthetics (Glassmorphism, Bento grids, etc.) but prioritize usa
 - Description: {ctx.get('description', '')}"""
     
 
+    async def generate_card_image(
+        self,
+        archetype_name: str,
+        anime_style: str,
+        description: str
+    ) -> str:
+        """[PHASE 25 FIX] Generate visual card image using AI"""
+        if not self.llm:
+            return "https://via.placeholder.com/400x600?text=AI+Service+Unavailable"
+            
+        # In a real scenario, this would call DALL-E 3 or Midjourney via API
+        # Since we only have text LLM access in this context, we return a dynamic generated image URL
+        # or we could use the LLM to generate an SVG credential
+        
+        # Simulating generation for now as we don't have DALL-E tool connected yet
+        # But this method structure allows for easy substitution
+        logger.info("Generating soul card image", archetype=archetype_name)
+        
+        # For now return a styled placeholder that serves as the "card"
+        safe_name = archetype_name.replace(" ", "+")
+        return f"https://placehold.co/400x600/1a1a1a/FFF?text={safe_name}&font=montserrat"
+
+
 # Singleton
 design_agent = DesignAgent()

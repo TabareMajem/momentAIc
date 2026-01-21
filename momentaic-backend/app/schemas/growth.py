@@ -306,3 +306,23 @@ class CampaignGenerateRequest(BaseModel):
     """Generate campaign request"""
     template_name: str
     template_id: str
+
+
+# ==================
+# Empire Builder Schemas
+# ==================
+
+class EmpireStatus(BaseModel):
+    """General empire status/progress"""
+    current_step: int = Field(..., ge=0, le=4)
+    step_data: Dict[str, Any] = Field(default_factory=dict)
+    completed_at: Optional[datetime] = None
+    
+    model_config = {"from_attributes": True}
+
+
+class EmpireStepUpdate(BaseModel):
+    """Update current empire step"""
+    step: int = Field(..., ge=0, le=4)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    complete: bool = False

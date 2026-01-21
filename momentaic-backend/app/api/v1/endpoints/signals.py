@@ -42,10 +42,28 @@ async def calculate_signal(
     # Tech Velocity (from GitHub if connected)
     tech_velocity = 50.0  # Default
     if include_github and startup.github_repo:
-        # TODO: Fetch actual GitHub data
-        # For now, use mock data
-        commits_7d = 45
-        commits_prev_7d = 30
+        # [PHASE 25 FIX] Fetch real GitHub data
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                repo = startup.github_repo
+                response = await client.get(
+                    f"https://api.github.com/repos/{repo}/stats/participation",
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                    timeout=10.0
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    commits_7d = data.get("all", [0])[-1] if data.get("all") else 0
+                    commits_prev_7d = data.get("all", [0, 0])[-2] if len(data.get("all", [])) >= 2 else 0
+                else:
+                    commits_7d = 0
+                    commits_prev_7d = 0
+        except Exception as e:
+            logger.warning("Failed to fetch GitHub data for signals", error=str(e))
+            commits_7d = 0
+            commits_prev_7d = 0
+            
         raw_data["commits_7d"] = commits_7d
         raw_data["commits_prev_7d"] = commits_prev_7d
         

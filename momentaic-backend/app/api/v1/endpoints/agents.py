@@ -797,7 +797,103 @@ async def optimize_loop(
 # Integration Builder
 # ==================
 
-class BuilderChatRequest(BaseModel):
+class MonitorMarketRequest(BaseModel):
+    startup_id: UUID
+    known_competitors: List[str] = []
+
+@router.post("/competitor/monitor")
+async def monitor_market(
+    request: MonitorMarketRequest,
+    current_user: User = Depends(require_credits(settings.credit_cost_competitor_monitor or 5, "Competitor Monitoring")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger the Competitor Intel Agent to scan the market.
+    """
+    await verify_startup_access(request.startup_id, current_user, db)
+    
+    # Get startup context
+    startup_result = await db.execute(select(Startup).where(Startup.id == request.startup_id))
+    startup = startup_result.scalar_one()
+    
+    context = {
+        "name": startup.name,
+        "description": startup.description,
+        "industry": startup.industry,
+    }
+    
+    from app.agents.competitor_intel_agent import competitor_intel_agent
+    
+    result = await competitor_intel_agent.monitor_market(
+        startup_context=context,
+        known_competitors=request.known_competitors
+    )
+    
+    return result
+
+
+class SalesHuntRequest(BaseModel):
+    startup_id: UUID
+
+@router.post("/sales/hunt")
+async def hunt_leads(
+    request: SalesHuntRequest,
+    current_user: User = Depends(require_credits(settings.credit_cost_sales_hunt or 10, "Sales Lead Hunting")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger the Sales Hunter Agent to find and draft outreach for new leads.
+    """
+    await verify_startup_access(request.startup_id, current_user, db)
+    
+    startup_result = await db.execute(select(Startup).where(Startup.id == request.startup_id))
+    startup = startup_result.scalar_one()
+    
+    context = {
+        "name": startup.name,
+        "description": startup.description,
+        "industry": startup.industry,
+        "tagline": startup.tagline
+    }
+    
+    from app.agents.sales_agent import sales_agent
+    
+    result = await sales_agent.auto_hunt(
+        startup_context=context,
+        user_id=str(current_user.id)
+    )
+    
+    # Auto-save found leads to DB
+    if "leads" in result:
+        leads_data = result["leads"] # List of dicts {lead, draft, verified}
+        for item in leads_data:
+            lead_info = item["lead"]
+            # Create Lead in DB
+            from app.models.growth import Lead, LeadStatus
+            
+            # Check dupes
+            dupe_check = await db.execute(select(Lead).where(
+                Lead.startup_id == request.startup_id, 
+                Lead.company_website == lead_info.get("company_website")
+            ))
+            if dupe_check.scalar_one_or_none():
+                continue
+
+            new_lead = Lead(
+                startup_id=request.startup_id,
+                company_name=lead_info.get("company_name", "Unknown"),
+                company_website=lead_info.get("company_website"),
+                contact_name=lead_info.get("contact_name", "Unknown"),
+                contact_title=lead_info.get("contact_title"),
+                contact_email=lead_info.get("contact_email"),
+                source="ai_hunter",
+                status=LeadStatus.NEW,
+                notes=f"Draft: {item.get('draft')}"
+            )
+            db.add(new_lead)
+        await db.commit()
+    
+    return result
     message: str
 
 @router.post("/builder/chat")

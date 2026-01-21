@@ -29,12 +29,27 @@ class StartupCreate(StartupBase):
     github_repo: Optional[str] = None
     website_url: Optional[str] = None
     metrics: Optional[Dict[str, Any]] = None
+    initial_analysis: Optional[Dict[str, Any]] = None
+
 
 
 class ImportGithubRequest(BaseModel):
     """Import startup from GitHub repo"""
     repo_url: str = Field(..., pattern=r"^https://github\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-_.]+$")
     branch: Optional[str] = "main"
+
+
+from enum import Enum
+class ImportSourceType(str, Enum):
+    GITHUB = "github"
+    WEB = "web"
+    DOC = "doc"
+
+class ImportSourceRequest(BaseModel):
+    """Universal import request"""
+    url: str
+    source_type: ImportSourceType
+    extra_data: Optional[Dict[str, Any]] = None
 
 
 class StartupUpdate(BaseModel):

@@ -54,33 +54,6 @@ class TrackReferralRequest(BaseModel):
     source: Optional[str] = None
 
 
-# ============ MOCK DATA STORE ============
-# In production, this would be database tables
-
-_referral_codes = {}  # user_id -> code
-_referral_stats = {}  # user_id -> stats dict
-_referrals = []  # List of referral records
-
-
-def _get_or_create_code(user_id: str) -> str:
-    """Get or create referral code for user"""
-    if user_id not in _referral_codes:
-        _referral_codes[user_id] = uuid.uuid4().hex[:8].upper()
-    return _referral_codes[user_id]
-
-
-def _get_stats(user_id: str) -> dict:
-    """Get referral stats for user"""
-    if user_id not in _referral_stats:
-        _referral_stats[user_id] = {
-            "total_referrals": 0,
-            "successful_signups": 0,
-            "converted_users": 0,
-            "total_credits_earned": 0,
-            "milestones": [],
-        }
-    return _referral_stats[user_id]
-
 
 # ============ ENDPOINTS ============
 

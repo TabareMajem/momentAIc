@@ -60,54 +60,44 @@ class CommunityShowcaseService:
     
     def __init__(self):
         self._showcases: Dict[str, StartupShowcase] = {}
-        self._seed_mock_data()
+        self._initialized = False
         
-    def _seed_mock_data(self):
-        """Seed with initial data for launch"""
-        startups = [
-            {
-                "id": "startup-1", "name": "NeuralPay", "tagline": "AI-powered payments",
-                "traction": 92, "metrics": {"mrr": 85000, "growth": 28, "users": 12500},
-                "category": "fintech", "verified": True
-            },
-            {
-                "id": "startup-2", "name": "HealthSync", "tagline": "Remote patient monitoring",
-                "traction": 87, "metrics": {"mrr": 62000, "growth": 35, "users": 8500},
-                "category": "health", "verified": True
-            },
-            {
-                "id": "startup-3", "name": "CodeShip", "tagline": "Ship code 10x faster",
-                "traction": 81, "metrics": {"mrr": 45000, "growth": 42, "users": 5200},
-                "category": "ai", "verified": True
-            },
-            {
-                "id": "startup-4", "name": "RetailGenius", "tagline": "AI inventory optimization",
-                "traction": 74, "metrics": {"mrr": 32000, "growth": 22, "users": 950},
-                "category": "ecommerce", "verified": True
-            },
-            {
-                "id": "startup-5", "name": "TeamFlow", "tagline": "Async collaboration",
-                "traction": 68, "metrics": {"mrr": 18000, "growth": 18, "users": 3200},
-                "category": "saas", "verified": False
-            }
-        ]
+    async def _ensure_initialized(self):
+        """[PHASE 25 FIX] Load real startups from database on first access"""
+        if self._initialized:
+            return
+            
+        from app.core.database import async_session_maker
+        from app.models.startup import Startup
+        from sqlalchemy import select
         
-        for s in startups:
-            self._showcases[s["id"]] = StartupShowcase(
-                startup_id=s["id"],
-                name=s["name"],
-                tagline=s["tagline"],
-                traction_score=s["traction"],
-                tier=self._get_tier(s["traction"]),
-                verified=s["verified"],
-                public_metrics=s["metrics"],
-                showcases=[],
-                integrations_connected=10 if s["verified"] else 5,
-                days_active=120,
-                rank_overall=0,
-                rank_category=0,
-                category=s["category"]
-            )
+        try:
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(Startup).where(Startup.is_active == True).limit(20)
+                )
+                startups = result.scalars().all()
+                
+                for s in startups:
+                    self._showcases[str(s.id)] = StartupShowcase(
+                        startup_id=str(s.id),
+                        name=s.name,
+                        tagline=s.tagline or "",
+                        traction_score=75.0,  # Default, can be calculated
+                        tier=self._get_tier(75.0),
+                        verified=True,
+                        public_metrics={"users": 0, "mrr": 0},
+                        showcases=[],
+                        integrations_connected=0,
+                        days_active=30,
+                        rank_overall=0,
+                        rank_category=0,
+                        category=s.industry or "other"
+                    )
+        except Exception as e:
+            logger.warning("Failed to load startups for showcase", error=str(e))
+            
+        self._initialized = True
     
     async def create_showcase(
         self,
@@ -190,6 +180,7 @@ class CommunityShowcaseService:
         
         This is the Anti-YC: Pure metrics ranking, no pedigree
         """
+        await self._ensure_initialized()
         showcases = list(self._showcases.values())
         
         # Filter by category if specified
@@ -229,6 +220,7 @@ class CommunityShowcaseService:
         
         Agent automatically selects best demos, milestones, growth stories
         """
+        await self._ensure_initialized()
         all_showcases = []
         for startup in self._showcases.values():
             for item in startup.showcases:

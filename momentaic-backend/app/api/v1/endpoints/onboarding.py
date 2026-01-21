@@ -146,3 +146,83 @@ async def analyze_startup_concept(
             potential_competitors=[],
             follow_up_question="Could you tell me more about your target audience?"
         )
+
+
+# ==================================
+# GENIUS ONBOARDING (100 Elon Musks)
+# ==================================
+
+class GeniusStartRequest(BaseModel):
+    url: str
+    startup_id: Optional[str] = None
+
+class GeniusChatRequest(BaseModel):
+    message: str
+
+class GeniusExecuteRequest(BaseModel):
+    startup_id: str
+    plan: Dict[str, Any]
+
+@router.post("/genius/start")
+async def start_genius_session(
+    request: GeniusStartRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Start a Genius Onboarding session.
+    AI will scrape the URL, analyze it, and ask intelligent follow-up questions.
+    """
+    from app.agents.onboarding_genius import onboarding_genius
+    from app.agents.browser_agent import browser_agent
+    
+    # Scrape the URL
+    scraped = await browser_agent.scrape_url(request.url)
+    scraped_context = scraped.get("content", "") if isinstance(scraped, dict) else str(scraped)
+    
+    # Start the genius session
+    result = await onboarding_genius.start_session(
+        user_id=str(current_user.id),
+        product_url=request.url,
+        scraped_context=scraped_context
+    )
+    
+    return result
+
+
+@router.post("/genius/chat")
+async def continue_genius_chat(
+    request: GeniusChatRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Continue a Genius Onboarding conversation.
+    After ~3 turns, AI will generate the full execution plan.
+    """
+    from app.agents.onboarding_genius import onboarding_genius
+    
+    result = await onboarding_genius.continue_session(
+        user_id=str(current_user.id),
+        user_message=request.message
+    )
+    
+    return result
+
+
+@router.post("/genius/execute")
+async def execute_genius_plan(
+    request: GeniusExecuteRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Execute the AI-generated plan.
+    Schedules posts, queues leads, creates experiments.
+    """
+    from app.agents.onboarding_genius import onboarding_genius
+    
+    result = await onboarding_genius.execute_plan(
+        user_id=str(current_user.id),
+        startup_id=request.startup_id,
+        plan=request.plan
+    )
+    
+    return result

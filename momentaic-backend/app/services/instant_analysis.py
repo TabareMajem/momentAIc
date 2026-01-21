@@ -27,11 +27,32 @@ class InstantAnalysisService:
     def __init__(self):
         self._llm = None
     
+    def get_llm_for_user(self, user_tier: str = "free"):
+        """
+        Smart Model Selection:
+        - Free/Anon: DeepSeek (Cost Optimized)
+        - Premium: Gemini 2.0 Flash (Performance/Memory)
+        """
+        if user_tier == "premium":
+            return get_llm("gemini-2.0-flash", temperature=0.7)
+        else:
+            # Default to DeepSeek for cost savings on initial "WOW"
+            # Fallback to Gemini if DeepSeek key is missing or fails
+            try:
+                llm = get_llm("deepseek-chat", temperature=0.7)
+                if llm:
+                    return llm
+                logger.info("DeepSeek key missing, falling back to Gemini")
+            except Exception as e:
+                logger.warning(f"DeepSeek init failed: {e}, falling back to Gemini")
+            
+            # Fallback
+            return get_llm("gemini-2.0-flash", temperature=0.7)
+
     @property
     def llm(self):
-        if self._llm is None:
-            self._llm = get_llm("gemini-2.0-flash", temperature=0.7)
-        return self._llm
+        """Deprecated: Use get_llm_for_user. Defaults to free tier logic."""
+        return self.get_llm_for_user("free")
     
     async def stream_analysis(
         self,

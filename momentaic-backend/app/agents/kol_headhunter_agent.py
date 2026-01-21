@@ -85,86 +85,138 @@ class KOLHeadhunterAgent:
         """Create headhunter-specific tools."""
         
         @tool
-        def search_youtube_creators(
+        async def search_youtube_creators(
             keywords: str,
             region: str,
             max_results: int = 50
         ) -> List[Dict]:
             """
             Search YouTube for relevant content creators.
-            
-            Args:
-                keywords: Search terms related to our niche
-                region: Target region (US, LatAm, Europe, Asia)
-                max_results: Maximum number of results to return
-            
-            Returns:
-                List of creator profiles with channel stats
             """
-            # In production, this connects to YouTube Data API
-            # For now, return structured placeholder for LLM to process
-            return {
-                "action": "youtube_search",
-                "keywords": keywords,
-                "region": region,
-                "status": "Requires YouTube Data API integration",
-                "mock_data": [
+            from app.agents.browser_agent import browser_agent
+            
+            # [REALITY UPGRADE] Real scraping via Google
+            query = f"site:youtube.com/c/ OR site:youtube.com/@ {keywords} {region} \"subscribers\""
+            logger.info("KOL Headhunter: Searching YouTube (Real)", query=query)
+            
+            results = await browser_agent.search_google(query)
+            
+            creators = []
+            for r in results:
+                title = r.get('title', '').replace(" - YouTube", "")
+                link = r.get('link', '')
+                snippet = r.get('snippet', '')
+                
+                # Basic parsing attempt
+                if "/watch" in link: continue # Skip videos, want channels
+                
+                creators.append({
+                    "channel_name": title,
+                    "link": link,
+                    "description": snippet,
+                    "subscribers": "Unknown (Visit profile to see)",
+                    "avg_views": "Unknown",
+                    "source": "Real Google Search"
+                })
+            
+            # [RESILIENT FALLBACK] If scraping is blocked (common in cloud IPs), return demo data
+            if not creators:
+                 logger.warning("KOL Headhunter: Scraping blocked/empty. Reverting to DEMO data.")
+                 return [
                     {
-                        "channel_name": f"AI Entrepreneur {region}",
-                        "subscribers": 45000,
-                        "avg_views": 5000,
-                        "topics": ["AI", "automation", "business"]
+                        "channel_name": f"AI Entrepreneur {region} (Demo)",
+                        "link": "https://youtube.com/demo",
+                        "description": "Scraping connection failed. This is a placeholder.",
+                        "subscribers": "50k",
+                        "avg_views": "10k",
+                        "source": "Demo Fallback"
                     }
-                ]
-            }
+                 ]
+                
+            return creators[:max_results]
         
         @tool
-        def search_twitter_creators(
+        async def search_twitter_creators(
             keywords: str,
             region: str,
             max_results: int = 50
         ) -> List[Dict]:
             """
-            Search Twitter/X for relevant creators and thought leaders.
-            
-            Args:
-                keywords: Hashtags and terms to search
-                region: Target region
-                max_results: Maximum results
-            
-            Returns:
-                List of Twitter profiles with engagement metrics
+            Search Twitter/X for relevant creators.
             """
-            return {
-                "action": "twitter_search",
-                "keywords": keywords,
-                "region": region,
-                "status": "Requires Twitter API v2 integration"
-            }
+            from app.agents.browser_agent import browser_agent
+            
+            query = f"site:twitter.com OR site:x.com {keywords} {region} \"followers\""
+            logger.info("KOL Headhunter: Searching Twitter (Real)", query=query)
+            
+            results = await browser_agent.search_google(query)
+            
+            creators = []
+            for r in results:
+                title = r.get('title', '').replace(" on X", "").replace(" | Twitter", "")
+                link = r.get('link', '')
+                snippet = r.get('snippet', '')
+                
+                if "/status/" in link: continue # Skip individual tweets
+                
+                creators.append({
+                    "handle": title.split("(")[0].strip(),
+                    "link": link,
+                    "bio": snippet,
+                    "source": "Real Google Search"
+                })
+                
+            if not creators:
+                 logger.warning("KOL Headhunter: Scraping blocked/empty. Reverting to DEMO data.")
+                 return [
+                    {
+                        "handle": "SaaS_Founder_Demo",
+                        "link": "https://twitter.com/demo",
+                        "bio": "Scraping connection failed. Placeholder profile.",
+                        "source": "Demo Fallback"
+                    }
+                 ]
+            
+            return creators[:max_results]
         
         @tool
-        def search_linkedin_creators(
+        async def search_linkedin_creators(
             keywords: str,
             region: str,
             max_results: int = 50
         ) -> List[Dict]:
             """
-            Search LinkedIn for B2B influencers and thought leaders.
-            
-            Args:
-                keywords: Professional topics to search
-                region: Target region
-                max_results: Maximum results
-            
-            Returns:
-                List of LinkedIn profiles
+            Search LinkedIn for B2B influencers.
             """
-            return {
-                "action": "linkedin_search",
-                "keywords": keywords,
-                "region": region,
-                "status": "Requires LinkedIn Sales Navigator or Phantombuster"
-            }
+            from app.agents.browser_agent import browser_agent
+            
+            query = f"site:linkedin.com/in/ {keywords} {region}"
+            logger.info("KOL Headhunter: Searching LinkedIn (Real)", query=query)
+            
+            results = await browser_agent.search_google(query)
+            
+            creators = []
+            for r in results:
+                title = r.get('title', '').split("|")[0].split("-")[0].strip()
+                link = r.get('link', '')
+                snippet = r.get('snippet', '')
+                
+                creators.append({
+                    "name": title,
+                    "link": link,
+                    "headline": snippet,
+                    "source": "Real Google Search"
+                })
+            
+            if not creators:
+                 return [{
+                    "name": "LinkedIn User (Demo)",
+                    "link": "https://linkedin.com/in/demo",
+                    "headline": "Scraping connection failed.",
+                    "source": "Demo Fallback"
+                 }]
+            
+            return creators[:max_results]
         
         @tool
         def generate_outreach_script(
@@ -175,24 +227,15 @@ class KOLHeadhunterAgent:
         ) -> str:
             """
             Generate a personalized outreach script for a KOL.
-            
-            Args:
-                creator_name: Name of the creator
-                platform: Their primary platform
-                recent_content: Summaries of their last 3 posts
-                region: Their geographic region
-            
-            Returns:
-                Personalized DM/email script
             """
             # LLM will craft this based on context
             return f"""
             Personalized outreach for {creator_name}:
             
-            Reference their recent content: {recent_content[0] if recent_content else 'their work'}
+            Observation: I noticed your recent work: {recent_content[0] if recent_content else 'your content'}
             
-            Template:
-            "Hey {creator_name}! I've been following your content on {platform} and loved your recent post about [TOPIC].
+            Script:
+            "Hey {creator_name}! I've been following your content on {platform} and loved your insights.
             
             I'm building MomentAIc - the AI operating system for entrepreneurs. We're looking for partners like you to get exclusive early access + 40% lifetime commissions.
             
@@ -208,15 +251,6 @@ class KOLHeadhunterAgent:
         ) -> float:
             """
             Calculate priority score for a KOL target.
-            
-            Args:
-                followers: Number of followers
-                engagement_rate: Engagement rate (0-1)
-                content_relevance: How relevant their content is (0-1)
-                region_priority: Region priority (high/medium/low)
-            
-            Returns:
-                Priority score (0-100)
             """
             region_multiplier = {"high": 1.5, "medium": 1.0, "low": 0.7}
             
@@ -227,7 +261,7 @@ class KOLHeadhunterAgent:
             
             base_score = follower_score + engagement_score + relevance_score
             return base_score * region_multiplier.get(region_priority, 1.0)
-        
+            
         return [
             search_youtube_creators,
             search_twitter_creators,

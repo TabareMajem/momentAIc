@@ -122,6 +122,29 @@ async def create_startup(
     db.add(startup)
     await db.flush()
     
+    # === WOW ONBOARDING: PERSIST MEMORY ===
+    if startup_data.initial_analysis:
+        try:
+            from app.models.conversation import AgentMemory, AgentType
+            import json
+            
+            # Save the full report as context for the Supervisor/General agent
+            memory = AgentMemory(
+                startup_id=startup.id,
+                agent_type=AgentType.GENERAL,
+                memory_type="context",
+                content=json.dumps(startup_data.initial_analysis),
+                importance=10, # Critical context
+                source_conversation_id=None
+            )
+            db.add(memory)
+            await db.flush()
+            logger.info("Persisted initial analysis to AgentMemory", startup_id=startup.id)
+            
+        except Exception as e:
+            logger.error(f"Failed to persist initial analysis: {e}")
+    # ======================================
+
     # === WOW ONBOARDING: TRIGGER DAILY DRIVER IMMEDIATELY ===
     # This pre-seeds the dashboard with an action plan and "activity"
     try:
@@ -286,9 +309,84 @@ async def get_dashboard(
     )
     content_scheduled = result.scalar() or 0
     
-    # Recent activity (simplified)
+    # Recent activity (REAL)
+    activities = []
+    
+    # 1. New Leads (Last 5)
+    recent_leads = await db.execute(
+        select(Lead)
+        .where(Lead.startup_id == startup_id)
+        .order_by(Lead.created_at.desc())
+        .limit(5)
+    )
+    for lead in recent_leads.scalars():
+        activities.append({
+            "type": "lead_acquired",
+            "message": f"New lead identified: {lead.company_name}",
+            "timestamp": lead.created_at,
+            "agent": "Sales Hunter",
+            "status": "success"
+        })
+
+    # 2. Content Updates (Last 5)
+    recent_content = await db.execute(
+        select(ContentItem)
+        .where(ContentItem.startup_id == startup_id)
+        .order_by(ContentItem.updated_at.desc())
+        .limit(5)
+    )
+    for content in recent_content.scalars():
+        action = "drafted"
+        if content.status == ContentStatus.SCHEDULED: action = "scheduled"
+        elif content.status == ContentStatus.PUBLISHED: action = "published"
+        
+        activities.append({
+            "type": f"content_{action}",
+            "message": f"Content '{content.title[:30]}...' {action}",
+            "timestamp": content.updated_at,
+            "agent": "Content Strategist",
+            "status": "success"
+        })
+
+    # 3. Agent Workflow Logs (Last 10)
+    # We join with WorkflowRun and Workflow to ensure it belongs to this startup
+    from app.models.workflow import WorkflowLog, WorkflowRun, Workflow, LogLevel
+    
+    recent_logs = await db.execute(
+        select(WorkflowLog, Workflow.name)
+        .join(WorkflowRun, WorkflowLog.run_id == WorkflowRun.id)
+        .join(Workflow, WorkflowRun.workflow_id == Workflow.id)
+        .where(Workflow.startup_id == startup_id, WorkflowLog.level == LogLevel.SUCCESS)
+        .order_by(WorkflowLog.timestamp.desc())
+        .limit(10)
+    )
+    
+    for log, wf_name in recent_logs:
+        activities.append({
+            "type": "agent_action",
+            "message": f"{wf_name}: {log.message}",
+            "timestamp": log.timestamp,
+            "agent": "Workflow Agent", # Could be more specific if we had agent name in log
+            "status": "success"
+        })
+        
+    # 4. Startup Creation (Always include if recent)
+    activities.append({
+        "type": "startup_created", 
+        "message": f"Startup '{startup.name}' initialized", 
+        "timestamp": startup.created_at,
+        "agent": "System",
+        "status": "success"
+    })
+    
+    # Sort by timestamp desc and take top 10
+    activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    activities = activities[:10]
+    
+    # Convert timestamps to string for JSON
     recent_activity = [
-        {"type": "startup_created", "message": f"Startup '{startup.name}' created", "timestamp": startup.created_at.isoformat()},
+        {**a, "timestamp": a["timestamp"].isoformat()} 
+        for a in activities
     ]
     
     from app.schemas.startup import SignalResponse, SprintResponse
@@ -465,10 +563,45 @@ async def create_standup(
         mood=standup_data.mood,
     )
     
-    # TODO: Use LLM to calculate alignment score
-    # Compare standup.today with sprint.goal
-    standup.alignment_score = 0.75  # Placeholder
-    standup.ai_feedback = "Good progress on the sprint goal!"
+    # [PHASE 25 FIX] Calculate alignment using LLM
+    from app.agents.base import get_llm
+    
+    llm = get_llm("gemini-flash", temperature=0.3)
+    alignment_score = 0.5
+    feedback = "Keep pushing!"
+    
+    if llm:
+        try:
+            prompt = f"""Evaluate daily standup alignment with sprint goal.
+            Sprint Goal: {sprint.goal}
+            
+            Standup:
+            - Yesterday: {standup_data.yesterday}
+            - Today: {standup_data.today}
+            - Blockers: {standup_data.blockers}
+            
+            Return strictly JSON:
+            {{
+                "score": <float 0.0-1.0>,
+                "feedback": "<short constructive feedback>"
+            }}"""
+            
+            response = await llm.ainvoke(prompt)
+            import json
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+                
+            data = json.loads(content)
+            alignment_score = float(data.get("score", 0.5))
+            feedback = data.get("feedback", "Good update.")
+        except Exception as e:
+            logger.warning("Failed to calculate alignment", error=str(e))
+            
+    standup.alignment_score = alignment_score
+    standup.ai_feedback = feedback
     
     db.add(standup)
     await db.flush()

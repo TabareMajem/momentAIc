@@ -1,43 +1,48 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Rocket, Upload, Link as LinkIcon, FileText, Check, Loader2 } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
-
-const PROJECTS = [
-    "BondQuests.com",
-    "Agentforgeai.com",
-    "Symbiotask.com",
-    "Yokaizen.com",
-    "otaku.yokaizen.com",
-    "MomentAic.com"
-];
+import { api } from '../lib/api';
 
 export default function Campaigns() {
     const { toast } = useToast();
-    const [selectedProject, setSelectedProject] = useState(PROJECTS[0]);
+    const [startups, setStartups] = useState<any[]>([]);
+    const [selectedProject, setSelectedProject] = useState('');
     const [strategyLink, setStrategyLink] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
+    useEffect(() => {
+        const loadStartups = async () => {
+            try {
+                const data = await api.getStartups();
+                setStartups(data);
+                if (data.length > 0) setSelectedProject(data[0].name);
+            } catch (e) {
+                console.error("Failed to load startups", e);
+            }
+        };
+        loadStartups();
+    }, []);
+
     const handleExecute = async () => {
-        if (!strategyLink) return;
+        if (!strategyLink || !selectedProject) return;
 
         setIsUploading(true);
-
-        // Simulate API call for now (until backend is ready)
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // [REALITY UPGRADE] Trigger Deep Research Agent
+            await api.triggerDeepResearch(`Analyze strategy for ${selectedProject}: ${strategyLink}`);
 
             toast({
                 type: 'success',
                 title: 'Campaign Initiated',
-                message: `Analyzing strategy for ${selectedProject}... check your dashboard shortly.`
+                message: `Deep Research Agent deployed for ${selectedProject}. Check "Innovator Lab" for results.`
             });
 
             setStrategyLink('');
         } catch (e) {
-            toast({ type: 'error', title: 'Error', message: 'Failed to launch campaign' });
+            toast({ type: 'error', title: 'Error', message: 'Failed to launch agent.' });
         } finally {
             setIsUploading(false);
         }
@@ -63,18 +68,20 @@ export default function Campaigns() {
                     <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-400 mb-2">Target Project</label>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {PROJECTS.map(p => (
+                            {startups.length > 0 ? startups.map(p => (
                                 <button
-                                    key={p}
-                                    onClick={() => setSelectedProject(p)}
-                                    className={`p-3 rounded-lg border text-sm font-mono transition-all text-left ${selectedProject === p
-                                            ? 'bg-brand-purple/20 border-brand-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.3)]'
-                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                    key={p.id}
+                                    onClick={() => setSelectedProject(p.name)}
+                                    className={`p-3 rounded-lg border text-sm font-mono transition-all text-left ${selectedProject === p.name
+                                        ? 'bg-brand-purple/20 border-brand-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.3)]'
+                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                                         }`}
                                 >
-                                    {p}
+                                    {p.name}
                                 </button>
-                            ))}
+                            )) : (
+                                <div className="text-gray-500 italic text-sm p-3">No active projects found.</div>
+                            )}
                         </div>
                     </div>
 

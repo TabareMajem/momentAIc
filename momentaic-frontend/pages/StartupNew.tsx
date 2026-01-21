@@ -23,7 +23,7 @@ interface AnalysisReport {
     follow_up_question: string | null;
 }
 
-type AnalysisPhase = 'input' | 'analyzing' | 'complete';
+type AnalysisPhase = 'input' | 'analyzing' | 'complete' | 'assembly';
 
 export default function StartupNew() {
     const navigate = useNavigate();
@@ -41,30 +41,36 @@ export default function StartupNew() {
     const [importMode, setImportMode] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
 
-    const handleGithubImport = async (e: React.FormEvent) => {
+    const handleImport = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!repoUrl.trim()) return;
 
         setPhase('analyzing');
         setProgress(10);
-        setProgressMessage('🚀 Fetching repository metadata...');
+        setProgressMessage('🚀 Analyzing source availability...');
         setCompetitors([]);
         setReport(null);
 
         try {
+            // Auto-detect source type
+            const isGithub = repoUrl.includes('github.com');
+            const sourceType = isGithub ? 'github' : 'web';
+
+            setProgressMessage(isGithub ? '📦 Fetching repository context...' : '🌍 Scraping website content...');
+
             // Simulated progress while waiting
             const interval = setInterval(() => {
                 setProgress(prev => Math.min(prev + 5, 90));
             }, 800);
 
-            const data = await api.importAppFromGithub(repoUrl);
+            const data = await api.importFromSource(repoUrl, sourceType);
             clearInterval(interval);
 
             // Map Response to Report
             const strategy = data.strategy;
             setReport({
-                industry: "Open Source / DevTools",
-                stage: "Codebase (MVP)",
+                industry: "Auto-Detected Strategy",
+                stage: "Execution Ready",
                 summary: `${strategy.value_prop}\n\nProblem: ${strategy.pain_point}`,
                 insight: strategy.viral_post_hook,
                 competitors: [],
@@ -76,7 +82,7 @@ export default function StartupNew() {
 
         } catch (error: any) {
             console.error(error);
-            toast({ type: 'error', title: 'Import Failed', message: error.response?.data?.detail || 'Could not analyze repo.' });
+            toast({ type: 'error', title: 'Import Failed', message: error.response?.data?.detail || 'Could not analyze source.' });
             setPhase('input');
         }
     };
@@ -124,6 +130,14 @@ export default function StartupNew() {
         });
     };
 
+    // ... (keep imports)
+
+    // New State for Team Assembly
+    const [assemblyStep, setAssemblyStep] = useState(0);
+    const [recruitedAgents, setRecruitedAgents] = useState<string[]>([]);
+
+    // ... (keep existing handleImport and handleAnalyze)
+
     const handleCreate = async () => {
         if (!report) return;
 
@@ -139,25 +153,49 @@ export default function StartupNew() {
             };
 
             const newStartup = await api.createStartup(payload);
-            toast({ type: 'success', title: 'Startup Created!', message: 'Redirecting to your dashboard...' });
 
-            setTimeout(() => {
-                navigate(`/startups/${newStartup.id}`);
-            }, 1000);
+            // START CINEMATIC SEQUENCE INSTEAD OF DIRECT REDIRECT
+            setPhase('assembly');
+            runAssemblySequence(newStartup.id);
+
         } catch (error: any) {
             toast({ type: 'error', title: 'Creation Failed', message: error.message });
-        } finally {
             setIsCreating(false);
         }
     };
 
+    const runAssemblySequence = (startupId: string) => {
+        const sequence = [
+            { agent: 'Orchestrator', role: 'Chief Executive AI', color: 'text-purple-400' },
+            { agent: 'Tech Lead', role: 'CTO / Architect', color: 'text-cyan-400' },
+            { agent: 'Growth Hacker', role: 'Head of Growth', color: 'text-green-400' },
+            { agent: 'Legal Eagle', role: 'General Counsel', color: 'text-slate-400' },
+        ];
+
+        let delay = 0;
+        sequence.forEach((item, index) => {
+            delay += 1200; // 1.2s per agent
+            setTimeout(() => {
+                setRecruitedAgents(prev => [...prev, item.agent]);
+                setAssemblyStep(index + 1);
+            }, delay);
+        });
+
+        // Final Redirect
+        setTimeout(() => {
+            navigate(`/startups/${startupId}`);
+        }, delay + 2000);
+    };
+
     return (
         <div className="max-w-3xl mx-auto py-8 px-4">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6 pl-0 text-gray-500 hover:text-white">
+            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6 pl-0 text-gray-500 hover:text-white" disabled={phase === 'assembly'}>
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
 
             <AnimatePresence mode="wait">
+                {/* ... (keep input and analyzing phases) ... */}
+
                 {/* PHASE 1: INPUT */}
                 {phase === 'input' && (
                     <motion.div
@@ -196,7 +234,7 @@ export default function StartupNew() {
                                 </Button>
                             </div>
 
-                            <form onSubmit={importMode ? handleGithubImport : handleAnalyze} className="space-y-6">
+                            <form onSubmit={importMode ? handleImport : handleAnalyze} className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Startup Name (optional)
@@ -311,12 +349,14 @@ export default function StartupNew() {
                     </motion.div>
                 )}
 
+
                 {/* PHASE 3: COMPLETE (AI CEO Report) */}
                 {phase === 'complete' && report && (
                     <motion.div
                         key="complete"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
                     >
                         <Card className="p-8 bg-[#0a0a0a] border-white/10">
                             {/* Header */}
@@ -414,12 +454,12 @@ export default function StartupNew() {
                                     {isCreating ? (
                                         <>
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Creating...
+                                            Initializing...
                                         </>
                                     ) : (
                                         <>
                                             <Rocket className="w-4 h-4 mr-2" />
-                                            Create Startup
+                                            Assemble Team & Launch
                                         </>
                                     )}
                                 </Button>
@@ -427,6 +467,69 @@ export default function StartupNew() {
                         </Card>
                     </motion.div>
                 )}
+
+                {/* PHASE 4: TEAM ASSEMBLY (CINEMATIC) */}
+                {phase === 'assembly' && (
+                    <motion.div
+                        key="assembly"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="fixed inset-0 bg-[#020202] z-50 flex flex-col items-center justify-center p-4"
+                    >
+                        {/* Matrix Background */}
+                        <div className="absolute inset-0 bg-cyber-grid opacity-20 bg-[length:30px_30px] animate-[pulse_4s_infinite]"></div>
+
+                        <div className="relative z-10 w-full max-w-2xl text-center space-y-12">
+
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="space-y-4"
+                            >
+                                <h2 className="text-4xl font-black text-white tracking-tighter uppercase glitch-text">
+                                    Recruiting Your AI Executive Team
+                                </h2>
+                                <p className="text-[#00f0ff] font-mono animate-pulse">
+                                    &gt; SCANNING GLOBAL TALENT POOL...
+                                </p>
+                            </motion.div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {recruitedAgents.map((agent, i) => (
+                                    <motion.div
+                                        key={agent}
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="bg-[#0a0a0a] border border-white/20 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-white/5 animate-[ping_1s_ease-out_once]"></div>
+                                        <div className="p-3 bg-white/10 rounded-lg">
+                                            <Bot className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-bold text-white text-lg">{agent}</div>
+                                            <div className="text-xs text-green-400 font-mono flex items-center gap-1">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                ONLINE
+                                            </div>
+                                        </div>
+                                        <Check className="ml-auto text-green-500 w-6 h-6" />
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            <motion.div
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="text-gray-500 font-mono text-sm mt-8"
+                            >
+                                Initializing Neural Links... {Math.min(recruitedAgents.length * 25, 100)}%
+                            </motion.div>
+
+                        </div>
+                    </motion.div>
+                )}
+
             </AnimatePresence>
         </div>
     );

@@ -152,6 +152,7 @@ async def get_tiers():
 @router.get("/credits", response_model=CreditBalanceResponse)
 async def get_credits(
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get current credit balance.
@@ -162,11 +163,29 @@ async def get_credits(
         UserTier.GOD_MODE: settings.default_god_mode_credits,
     }
     
+    
+    # [PHASE 25 FIX] Calculate actual usage this month
+    from sqlalchemy import func
+    from datetime import datetime, timedelta
+    
+    first_day_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    result = await db.execute(
+        select(func.sum(CreditTransaction.amount))
+        .where(
+            CreditTransaction.user_id == current_user.id,
+            CreditTransaction.amount < 0, # Debits are usage
+            CreditTransaction.created_at >= first_day_of_month
+        )
+    )
+    usage = result.scalar() or 0
+    usage_this_month = abs(usage)
+    
     return CreditBalanceResponse(
         balance=current_user.credits_balance,
         tier=current_user.tier,
         tier_monthly_credits=tier_credits.get(current_user.tier, 50),
-        usage_this_month=0,  # TODO: Calculate from transactions
+        usage_this_month=usage_this_month,
     )
 
 

@@ -136,6 +136,21 @@ export default function IntegrationsPage() {
         }
     };
 
+    const connectSocialOAuth = async (platform: 'twitter' | 'linkedin') => {
+        if (!selectedStartupId) {
+            alert("Please select a startup first.");
+            return;
+        }
+        try {
+            const response = await api.connectSocial(platform, selectedStartupId);
+            if (response.auth_url) {
+                window.location.href = response.auth_url;
+            }
+        } catch (error) {
+            console.error('OAuth Init Failed:', error);
+        }
+    };
+
     const submitTool = async () => {
         if (!submitForm.name || !submitForm.mcp_url) return;
         try {
@@ -253,6 +268,63 @@ export default function IntegrationsPage() {
 
                 {/* TAB: MARKETPLACE */}
                 <TabsContent value="marketplace">
+                    {/* SOCIAL CHANNELS (Phase 7 Update) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <Card className="bg-black border border-white/10 hover:border-[#1DA1F2]/50 transition group overflow-hidden relative">
+                            <div className="absolute inset-0 bg-[#1DA1F2]/5 opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                            <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-2">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 bg-[#1DA1F2]/20 rounded-lg">
+                                            <svg className="w-5 h-5 text-[#1DA1F2]" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.84 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
+                                        </div>
+                                        <CardTitle className="text-lg font-black italic uppercase">Twitter X</CardTitle>
+                                    </div>
+                                    <CardDescription className="text-xs font-mono">Auto-post & Engagement</CardDescription>
+                                </div>
+                                {integrations.find(i => i.provider === 'twitter') ? (
+                                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">CONNECTED</Badge>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-[#1DA1F2]/30 text-[#1DA1F2] hover:bg-[#1DA1F2]/10"
+                                        onClick={() => connectSocialOAuth('twitter')}
+                                    >
+                                        CONNECT
+                                    </Button>
+                                )}
+                            </CardHeader>
+                        </Card>
+
+                        <Card className="bg-black border border-white/10 hover:border-[#0077b5]/50 transition group overflow-hidden relative">
+                            <div className="absolute inset-0 bg-[#0077b5]/5 opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                            <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-2">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 bg-[#0077b5]/20 rounded-lg">
+                                            <Briefcase className="w-5 h-5 text-[#0077b5]" />
+                                        </div>
+                                        <CardTitle className="text-lg font-black italic uppercase">LinkedIn</CardTitle>
+                                    </div>
+                                    <CardDescription className="text-xs font-mono">Professional Network Growth</CardDescription>
+                                </div>
+                                {integrations.find(i => i.provider === 'linkedin') ? (
+                                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">CONNECTED</Badge>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-[#0077b5]/30 text-[#0077b5] hover:bg-[#0077b5]/10"
+                                        onClick={() => connectSocialOAuth('linkedin')}
+                                    >
+                                        CONNECT
+                                    </Button>
+                                )}
+                            </CardHeader>
+                        </Card>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                         {/* Categories Sidebar */}
                         <div className="md:col-span-1 space-y-2">

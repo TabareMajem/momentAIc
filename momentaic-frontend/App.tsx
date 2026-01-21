@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { useAuthStore } from './stores/auth-store';
 import { ToastProvider } from './components/ui/Toast';
@@ -33,13 +33,18 @@ import Campaigns from './pages/Campaigns';
 import AmbassadorDashboard from './pages/AmbassadorDashboard';
 import OnboardingWizard from './pages/OnboardingWizard';
 import RegionFomoPage from './pages/RegionFomoPage';
-import WarRoomDashboard from './pages/WarRoomDashboard';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+// import WarRoomDashboard from './pages/WarRoomDashboard'; // Removed to fix duplicate
 import AutoPilotOnboarding from './pages/AutoPilotOnboarding';
+
 import TheVault from './pages/TheVault';
 import IntegrationBuilder from './pages/IntegrationBuilder';
 import PowerPlays from './pages/PowerPlays';
 import ExecutorPage from './pages/ExecutorPage';
 import InnovatorLab from './pages/InnovatorLab';
+import GeniusOnboarding from './pages/GeniusOnboarding';
+import EmpireBuilder from './pages/EmpireBuilder';
+import WarRoomDashboard from './pages/WarRoomDashboard';
 
 import { OnboardingTour } from './components/OnboardingTour';
 
@@ -90,6 +95,7 @@ export default function App() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/join" element={<RegionFomoPage />} />
           <Route path="/start" element={<AutoPilotOnboarding />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -104,6 +110,8 @@ export default function App() {
 
             {/* Other Routes */}
             <Route path="/onboarding/wizard" element={<OnboardingWizard />} />
+            <Route path="/onboarding/genius" element={<GeniusOnboarding />} />
+            <Route path="/empire-builder" element={<EmpireBuilder />} />
             <Route path="/investment" element={<InvestmentDashboard />} />
 
             {/* Agent Routes */}
@@ -130,6 +138,7 @@ export default function App() {
             {/* Core Routes */}
             <Route path="/executor" element={<ExecutorPage />} />
             <Route path="/innovator" element={<InnovatorLab />} />
+            <Route path="/war-room" element={<WarRoomDashboard />} />
             <Route path="/vault" element={<TheVault />} />
             <Route path="/settings" element={<Settings />} />
 

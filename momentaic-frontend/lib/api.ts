@@ -140,8 +140,12 @@ class ApiClient {
     return data;
   }
 
-  async importAppFromGithub(repoUrl: string): Promise<any> {
-    const { data } = await this.client.post('/api/v1/startups/import/github', { repo_url: repoUrl });
+  async importFromSource(url: string, sourceType: 'github' | 'web' | 'doc' = 'github'): Promise<any> {
+    const { data } = await this.client.post('/api/v1/startups/import', {
+      url,
+      source_type: sourceType,
+      extra_data: {}
+    });
     return data;
   }
 
@@ -264,6 +268,11 @@ class ApiClient {
     return data;
   }
 
+  async getDashboard(startupId: string): Promise<any> {
+    const { data } = await this.client.get(`/api/v1/startups/${startupId}/dashboard`);
+    return data;
+  }
+
   // === SIGNALS ===
   async getSignalScores(startupId: string): Promise<SignalScores> {
     const { data } = await this.client.get(`/api/v1/startups/${startupId}/signals`);
@@ -283,6 +292,21 @@ class ApiClient {
   // === AGENTS ===
   async chatWithAgent(request: AgentChatRequest): Promise<AgentChatResponse> {
     const { data } = await this.client.post('/api/v1/agents/chat', request);
+    return data;
+  }
+
+  async triggerCompetitorMonitor(startupId: string, knownCompetitors: string[] = []): Promise<any> {
+    const { data } = await this.client.post('/api/v1/agents/competitor/monitor', {
+      startup_id: startupId,
+      known_competitors: knownCompetitors
+    });
+    return data;
+  }
+
+  async triggerSalesHunt(startupId: string): Promise<any> {
+    const { data } = await this.client.post('/api/v1/agents/sales/hunt', {
+      startup_id: startupId
+    });
     return data;
   }
 
@@ -490,6 +514,94 @@ class ApiClient {
 
   async getReferralLeaderboard(limit = 10) {
     const { data } = await this.client.get('/api/v1/referrals/leaderboard', { params: { limit } });
+    return data;
+  }
+
+  // === SOCIAL & GENIUS ONBOARDING ===
+
+  // Social OAuth
+  async getOAuthStatus() {
+    const { data } = await this.client.get('/api/v1/auth/oauth/status');
+    return data;
+  }
+
+  async connectSocial(platform: 'twitter' | 'linkedin', startupId: string) {
+    const { data } = await this.client.get(`/api/v1/social/connect/${platform}?startup_id=${startupId}`);
+    return data; // Returns { auth_url: string }
+  }
+
+  // Genius Genius Agent
+  async startGeniusSession(url: string, startupId?: string) {
+    const { data } = await this.client.post('/api/v1/onboarding/genius/start', { url, startup_id: startupId });
+    return data;
+  }
+
+  async continueGeniusChat(message: string) {
+    const { data } = await this.client.post('/api/v1/onboarding/genius/chat', { message });
+    return data;
+  }
+
+  async executeGeniusPlan(startupId: string, plan: any) {
+    const { data } = await this.client.post('/api/v1/onboarding/genius/execute', { startup_id: startupId, plan });
+    return data;
+  }
+
+  // === GUERRILLA GROWTH ===
+  async scanOpportunities(platform: string, keywords: string) {
+    const { data } = await this.client.post('/api/v1/guerrilla/scan', { platform, keywords });
+    return data;
+  }
+
+  async scanReddit(keywords: string[]) {
+    const { data } = await this.client.post('/api/v1/guerrilla/scan', { platform: 'reddit', keywords: keywords.join(',') });
+    return data;
+  }
+
+  async interceptTwitter(competitors: string[]) {
+    const { data } = await this.client.post('/api/v1/guerrilla/scan', { platform: 'twitter', keywords: competitors.join(',') });
+    return data;
+  }
+
+  async surfTrends() {
+    const { data } = await this.client.post('/api/v1/guerrilla/scan', { platform: 'general', keywords: 'latest trends' });
+    return data;
+  }
+
+  // === GROWTH ENGINE ===
+  async generateOutreach(startupId: string, leadId: string) {
+    const { data } = await this.client.post(`/api/v1/growth/leads/${leadId}/generate-outreach?startup_id=${startupId}`, {});
+    return data;
+  }
+
+  async generateContent(payload: any) {
+    const { data } = await this.client.post('/api/v1/growth/content/generate', payload);
+    return data;
+  }
+
+  // === GROWTH ANALYTICS ===
+  async getEmpireStatus() {
+    const { data } = await this.client.get('/api/v1/growth-analytics/empire-status');
+    return data;
+  }
+
+  async updateEmpireStep(step: number, metadata: any = {}, complete: boolean = false) {
+    const { data } = await this.client.post('/api/v1/growth-analytics/empire-step', {
+      step,
+      metadata,
+      complete
+    });
+    return data;
+  }
+
+  // === INNOVATOR LAB ===
+  async triggerDeepResearch(topic: string, depth: number = 3) {
+    const { data } = await this.client.post('/api/v1/innovator/deep-research', { topic, depth });
+    return data;
+  }
+
+  // === AGENTFORGE INTEGRATION ===
+  async triggerVoiceAgent(text: string, action: string = "call_me") {
+    const { data } = await this.client.post('/api/v1/integrations/agentforge/trigger-voice', { text, action });
     return data;
   }
 }

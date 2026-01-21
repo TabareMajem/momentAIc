@@ -267,18 +267,50 @@ What would you like me to do?""",
             # Note: Selectors here are fragile and depend on Google's DOM. 
             # In a real app we'd maintain these selectors or use a SearXNG instance.
             encoded_query = requests.utils.quote(query)
-            url = f"https://www.google.com/search?q={encoded_query}&hl=en"
+            # Use en-US to standardize interface
+            url = f"https://www.google.com/search?q={encoded_query}&hl=en&gl=us"
             
             await self._page.goto(url, wait_until="domcontentloaded")
             
+            # [REALITY FIX] Handle Google Consent Popup ("Before you continue")
+            title = await self._page.title()
+            if "Before you continue" in title or "Sign in" in title:
+                logger.info("Browser Agent: Handling Google Consent Popup")
+                # Try common accept buttons
+                try:
+                    # Look for buttons with text "Accept all", "I agree", "Reject all" (sometimes easier to find)
+                    # We use a broad selector to find the button
+                    button = self._page.get_by_role("button", name="Accept all").first
+                    if await button.is_visible():
+                        await button.click()
+                        await self._page.wait_for_load_state("networkidle")
+                    else:
+                         # Fallback for "I agree"
+                         button = self._page.get_by_role("button", name="I agree").first
+                         if await button.is_visible():
+                             await button.click()
+                             await self._page.wait_for_load_state("networkidle")
+                except Exception as e:
+                    logger.warning("Failed to click consent button", error=str(e))
+            
             # Simple extraction strategy
+            # Updated selectors for 2025 Google DOM (often changes, but .g is usually safe wrapper, look for h3)
+            # We also wait for selector to ensure results loaded
+            try:
+                await self._page.wait_for_selector('div.g', timeout=5000)
+            except:
+                pass # Proceed anyway to try extraction
+            
             results = await self._page.evaluate("""
                 () => {
                     const items = Array.from(document.querySelectorAll('div.g'));
                     return items.map(item => {
                         const titleEl = item.querySelector('h3');
                         const linkEl = item.querySelector('a');
-                        const snippetEl = item.querySelector('div.VwiC3b');
+                        // Snippet selector varies, try common ones
+                        const snippetEl = item.querySelector('div.VwiC3b') || 
+                                          item.querySelector('div.ITZIwc') || 
+                                          item.querySelector('div.yXK7lf');
                         
                         if (!titleEl || !linkEl) return null;
                         
@@ -291,11 +323,38 @@ What would you like me to do?""",
                 }
             """)
             
-            return results[:5]
-            
         except Exception as e:
             logger.error("Google search failed", error=str(e))
-            return [{"title": "Error", "link": "", "snippet": str(e)}]
+            results = []
+        
+        # Fallback to DuckDuckGo HTML (No JS, very reliable for scraping)
+        if not results:
+             try:
+                logger.info("Falling back to DuckDuckGo HTML search")
+                ddg_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+                await self._page.goto(ddg_url, wait_until="domcontentloaded")
+                
+                results = await self._page.evaluate("""
+                    () => {
+                        const items = Array.from(document.querySelectorAll('.result'));
+                        return items.map(item => {
+                            const titleEl = item.querySelector('.result__title a');
+                            const snippetEl = item.querySelector('.result__snippet');
+                            
+                            if (!titleEl) return null;
+                            
+                            return {
+                                title: titleEl.innerText.trim(),
+                                link: titleEl.href,
+                                snippet: snippetEl ? snippetEl.innerText.trim() : ''
+                            };
+                        }).filter(x => x);
+                    }
+                """)
+             except Exception as e:
+                 logger.error("DuckDuckGo fallback failed", error=str(e))
+        
+        return results[:5]
     
     
     async def close(self):

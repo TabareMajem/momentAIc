@@ -159,33 +159,121 @@ class GitHubIntegration(BaseIntegration):
             return []
     
     async def _get_commit_stats(self, repos: List[Dict]) -> Dict[str, Any]:
-        """Get commit statistics"""
+        """[PHASE 25 FIX] Get real commit statistics from GitHub API"""
         total_commits_week = 0
         total_commits_month = 0
+        top_contributor = "unknown"
         
-        # In production, would iterate repos
-        # For now, return mock data
+        # Get stats from the first 3 active repos
+        for repo in repos[:3]:
+            try:
+                # Get commit activity
+                response = await self.http_client.get(
+                    f"{self.base_url}/repos/{repo['full_name']}/stats/participation",
+                    headers={
+                        "Authorization": f"Bearer {self.credentials.access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("all"):
+                        total_commits_week += data["all"][-1] if data["all"] else 0
+                        total_commits_month += sum(data["all"][-4:]) if len(data["all"]) >= 4 else sum(data["all"])
+            except Exception as e:
+                logger.warning("Failed to get commit stats for repo", repo=repo.get("full_name"), error=str(e))
+        
+        days = 7 if total_commits_week > 0 else 1
         return {
-            "commits_this_week": 45,
-            "commits_this_month": 180,
-            "avg_per_day": 6.5,
-            "top_contributor": "founder",
+            "commits_this_week": total_commits_week,
+            "commits_this_month": total_commits_month,
+            "avg_per_day": round(total_commits_week / days, 1),
+            "top_contributor": top_contributor,
         }
     
     async def _get_pr_stats(self, repos: List[Dict]) -> Dict[str, Any]:
-        """Get PR statistics"""
+        """[PHASE 25 FIX] Get real PR statistics from GitHub API"""
+        open_prs = 0
+        merged_this_week = 0
+        
+        for repo in repos[:3]:
+            try:
+                # Get open PRs
+                response = await self.http_client.get(
+                    f"{self.base_url}/repos/{repo['full_name']}/pulls",
+                    params={"state": "open", "per_page": 100},
+                    headers={
+                        "Authorization": f"Bearer {self.credentials.access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                if response.status_code == 200:
+                    open_prs += len(response.json())
+                    
+                # Get recently merged
+                week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+                response = await self.http_client.get(
+                    f"{self.base_url}/repos/{repo['full_name']}/pulls",
+                    params={"state": "closed", "per_page": 50},
+                    headers={
+                        "Authorization": f"Bearer {self.credentials.access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                if response.status_code == 200:
+                    for pr in response.json():
+                        if pr.get("merged_at") and pr["merged_at"] > week_ago:
+                            merged_this_week += 1
+            except Exception as e:
+                logger.warning("Failed to get PR stats", repo=repo.get("full_name"), error=str(e))
+        
         return {
-            "open": 5,
-            "merged_this_week": 12,
-            "avg_time_to_merge": "4 hours",
+            "open": open_prs,
+            "merged_this_week": merged_this_week,
+            "avg_time_to_merge": "N/A",  # Would require more complex calculation
         }
     
     async def _get_issue_stats(self, repos: List[Dict]) -> Dict[str, Any]:
-        """Get issue statistics"""
+        """[PHASE 25 FIX] Get real issue statistics from GitHub API"""
+        open_issues = 0
+        closed_this_week = 0
+        
+        for repo in repos[:3]:
+            try:
+                # Get open issues
+                response = await self.http_client.get(
+                    f"{self.base_url}/repos/{repo['full_name']}/issues",
+                    params={"state": "open", "per_page": 100},
+                    headers={
+                        "Authorization": f"Bearer {self.credentials.access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                if response.status_code == 200:
+                    # Filter out PRs (they show up as issues too)
+                    issues = [i for i in response.json() if "pull_request" not in i]
+                    open_issues += len(issues)
+                    
+                # Get recently closed
+                week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+                response = await self.http_client.get(
+                    f"{self.base_url}/repos/{repo['full_name']}/issues",
+                    params={"state": "closed", "since": week_ago, "per_page": 50},
+                    headers={
+                        "Authorization": f"Bearer {self.credentials.access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                if response.status_code == 200:
+                    issues = [i for i in response.json() if "pull_request" not in i]
+                    closed_this_week += len(issues)
+            except Exception as e:
+                logger.warning("Failed to get issue stats", repo=repo.get("full_name"), error=str(e))
+        
         return {
-            "open": 23,
-            "closed_this_week": 8,
-            "avg_time_to_close": "2 days",
+            "open": open_issues,
+            "closed_this_week": closed_this_week,
+            "avg_time_to_close": "N/A",
         }
     
     async def _create_issue(self, params: Dict[str, Any]) -> Dict[str, Any]:

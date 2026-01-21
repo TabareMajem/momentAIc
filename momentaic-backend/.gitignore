@@ -67,6 +67,9 @@ dmypy.json
 .env.*.local
 .env.production
 .env.staging
+env.production.ready
+env.complete.production
+.env.production.ready
 
 # Logs
 logs/

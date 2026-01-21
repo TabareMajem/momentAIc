@@ -17,6 +17,8 @@ from app.api.v1.endpoints import (
     triggers,
     mcp_tools,
     import_flows,
+    social,
+    growth_analytics,
 )
 
 api_router = APIRouter()
@@ -263,4 +265,66 @@ api_router.include_router(
     content_loop.router,
     prefix="/admin/loops",
     tags=["Infinite Content Loop"],
+)
+
+# Native Social Scheduler (Buffer Killer)
+api_router.include_router(
+    social.router,
+    prefix="/social",
+    tags=["Social Scheduler"],
+)
+
+# Social OAuth (Connect Accounts)
+from app.api.v1.endpoints import social_oauth
+api_router.include_router(
+    social_oauth.router,
+    prefix="/social",
+    tags=["Social OAuth"],
+)
+
+# Guerrilla Growth (Phase 11)
+from app.api.v1.endpoints import guerrilla
+api_router.include_router(
+    guerrilla.router,
+    prefix="/guerrilla",
+    tags=["Guerrilla Growth"],
+)
+
+# Growth Analytics (Phase 12)
+api_router.include_router(
+    growth_analytics.router,
+    prefix="/growth-analytics",
+    tags=["Growth Analytics"],
+)
+
+# AgentForge Integration (Deep Dive)
+from app.api.v1.endpoints import agentforge
+api_router.include_router(
+    agentforge.router,
+    prefix="/integrations/agentforge",
+    tags=["AgentForge Integration"],
+)
+
+# Admin God Mode (Empire Console)
+from app.api.v1.endpoints import admin_god_mode
+from app.api.v1.endpoints import swarm  # Add swarm import
+
+api_router.include_router(
+    admin_god_mode.router,
+    prefix="/admin/god-mode",
+    tags=["Admin Ecosystem"],
+)
+
+api_router.include_router(
+    swarm.router,
+    prefix="/admin/swarm",
+    tags=["Admin Swarm"],
+)
+
+# Nexus Synergy
+from app.api.v1.endpoints import nexus
+api_router.include_router(
+    nexus.router,
+    prefix="/admin/synergy",
+    tags=["Admin Synergy"],
 )

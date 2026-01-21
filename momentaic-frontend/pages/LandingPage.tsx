@@ -264,25 +264,25 @@ export default function LandingPage() {
                         </div>
 
                         <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black leading-[0.9] tracking-tighter uppercase relative animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                            <span className="block text-white relative z-10">BUILD YOUR</span>
+                            <span className="block text-white relative z-10">GET YOUR</span>
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#a855f7] via-[#e11d48] to-[#00f0ff] relative z-10 py-2">
-                                EMPIRE
+                                AI STRATEGY
                             </span>
                         </h1>
 
                         <p className="text-lg text-gray-400 font-mono max-w-xl leading-relaxed mx-auto lg:mx-0 tracking-tight border-l-2 border-purple-500/30 pl-4 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-                            <ElegantText text="16 AI Co-Founders. One Operating System. Infinite Potential. The platform for the next generation of entrepreneurs." delay={800} />
+                            <ElegantText text="16 AI Co-Founders. One Operating System. Chat with your AI Strategist now—no signup required." delay={800} />
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-                            <Link to="/signup" className="w-full sm:w-auto">
+                            <Link to="/onboarding/genius" className="w-full sm:w-auto">
                                 <Button size="lg" variant="cyber" className="w-full sm:w-auto h-14 text-sm px-10 shadow-[0_0_40px_rgba(168,85,247,0.4)] border-[#a855f7]/50">
-                                    🚀 START BUILDING <ArrowRight className="ml-2 w-4 h-4" />
+                                    🚀 GET FREE STRATEGY <ArrowRight className="ml-2 w-4 h-4" />
                                 </Button>
                             </Link>
-                            <Link to="/mission" className="w-full sm:w-auto">
+                            <Link to="/signup" className="w-full sm:w-auto">
                                 <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 text-sm px-8 border-green-500/30 hover:bg-green-500/10 text-green-400 font-mono tracking-widest">
-                                    💻 JOIN THE MISSION
+                                    💻 START FREE TRIAL
                                 </Button>
                             </Link>
                         </div>
@@ -753,7 +753,7 @@ export default function LandingPage() {
                     <div className="tracking-widest uppercase">© 2024 MOMENTUM SYSTEMS</div>
                     <div className="flex gap-8">
                         <a href="#" onClick={handleFooterLink} className="hover:text-white transition-colors">STATUS</a>
-                        <a href="#" onClick={handleFooterLink} className="hover:text-white transition-colors">LEGAL</a>
+                        <Link to="/privacy" className="hover:text-white transition-colors uppercase tracking-widest">LEGAL</Link>
                         <a href="#" onClick={handleFooterLink} className="hover:text-white transition-colors">DOCS</a>
                     </div>
                 </div>

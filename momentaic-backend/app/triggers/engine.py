@@ -289,9 +289,40 @@ class TriggerEngine:
             # 3. Internal Agents (Fallback or specific)
             elif agent_type:
                  # In production, route via Swarm Router or direct Agent call
-                 # For now, if not ecosystem, we assume internal execution (mocked here or via swarm)
-                 logger.info("Executing internal trigger action", agent=agent_type, task=task)
-                 result = {"success": True, "source": "internal", "message": "Internal execution placeholder"}
+                # [PHASE 25 FIX] Real execution logic
+                from app.agents.swarm_router import SwarmRouter
+                router = SwarmRouter()
+                
+                action_type = action.get("type") # e.g., "agent_task", "notification"
+                action_data = action.get("data", {})
+                context_data = context or {}
+                
+                # If it's an agent task, route it
+                if action_type == "agent_task":
+                    task_prompt = action_data.get("prompt", "")
+                    # Execute via swarm
+                    response = await router.route_task(
+                        task=task_prompt,
+                        context={"startup_id": str(rule.startup_id), "trigger_context": context_data}
+                    )
+                    log.agent_response = response
+                    # Set result to indicate an action was taken, for the 'if result:' block
+                    result = {"success": response.get("success", True), "source": "swarm_router"}
+                elif action_type == "notification":
+                    # Send notification
+                    from app.tasks.tasks import send_email
+                    user_email = context_data.get("user_email")
+                    if user_email:
+                        send_email(
+                            to_email=user_email,
+                            subject=f"Trigger Alert: {rule.name}",
+                            body=action_data.get("message", "Trigger fired")
+                        )
+                    log.agent_response = {"status": "sent", "type": "notification"}
+                    result = {"success": True, "source": "notification"}
+                else:
+                    log.agent_response = {"result": "Unknown action type", "mock": False, "success": False, "source": "internal", "message": "Unknown action type"}
+                    result = None # No specific agent result to process further
             
             if result:
                 log.agent_response = {

@@ -368,8 +368,20 @@ async def approve_trigger(
     
     if decision.approved:
         log.status = TriggerLogStatus.APPROVED
-        # TODO: Execute the trigger action
-        logger.info("Trigger approved", log_id=str(log_id))
+        # [PHASE 25 FIX] Execute the trigger action
+        from app.triggers.engine import TriggerEngine
+        from sqlalchemy import select
+        from app.models.trigger import TriggerRule
+        
+        # We need the rule to execute
+        rule_res = await db.execute(select(TriggerRule).where(TriggerRule.id == log.rule_id))
+        rule = rule_res.scalar_one()
+        
+        engine = TriggerEngine(db)
+        # Execute action (using internal method for now, or we could expose it)
+        await engine._execute_action(rule, log, log.trigger_context)
+        
+        logger.info("Trigger approved and executed", log_id=str(log_id))
     else:
         log.status = TriggerLogStatus.REJECTED
         logger.info("Trigger rejected", log_id=str(log_id))

@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Zap, CheckCircle, Clock, Loader, Pause, Play,
-  FileText, Users, TrendingUp, Send, Bot, Eye,
-  BarChart2, Shield, ChevronDown, ChevronUp, Film, Image as ImageIcon, PlayCircle
+  FileText, Users, TrendingUp, Send, Bot, Eye, Rocket, ArrowRight,
+  BarChart2, Shield, ChevronDown, ChevronUp, Film, Image as ImageIcon, PlayCircle,
+  Zap, Loader, CheckCircle, Clock, Pause, Play, Sparkles
 } from 'lucide-react';
+import { api } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import ActivityFeed from '../components/ActivityFeed';
 import { MorningBriefWidget } from '../components/dashboard/MorningBriefWidget';
+import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidget';
 import { useAuthStore } from '../stores/auth-store';
 
 // ============ TYPES ============
@@ -180,10 +183,29 @@ function AdminAgentWidget() {
   const [showConnect, setShowConnect] = useState<string | null>(null);
   const [connectEmail, setConnectEmail] = useState('');
   const [loopLoading, setLoopLoading] = useState<string | null>(null);
+  const [activeRuns, setActiveRuns] = useState<any[]>([]);
 
   useEffect(() => {
     fetchConnections();
+    // Poll for active runs every 5 seconds
+    const interval = setInterval(fetchActiveRuns, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchActiveRuns = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/v1/integrations/agentforge/active', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveRuns(data.runs || []);
+      }
+    } catch (e) {
+      console.error('Failed to poll runs', e);
+    }
+  };
 
   const fetchConnections = async () => {
     try {
@@ -415,7 +437,94 @@ function AdminAgentWidget() {
           )}
         </div>
       </div>
+
+      {/* Active Runs Display */}
+      {activeRuns.length > 0 && (
+        <div className="mt-6 space-y-3">
+          <div className="text-xs text-slate-500 font-bold uppercase tracking-widest">Live Agent Activity</div>
+          {activeRuns.map(run => (
+            <div key={run.run_id} className="bg-slate-950 border border-slate-800 p-3 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div>
+                  <div className="text-sm font-bold text-white uppercase">{run.workflow_id}</div>
+                  <div className="text-xs text-slate-400 font-mono">NODE: {run.current_node}</div>
+                </div>
+              </div>
+              <div className="text-xs text-emerald-400 font-mono animate-pulse">EXECUTING...</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function EmpireProgressWidget() {
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await api.getEmpireStatus();
+        setStatus(res);
+      } catch (e) {
+        console.error('Failed to fetch empire status:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  if (loading) return <div className="animate-pulse bg-slate-900 h-24 rounded-xl border border-white/5 mb-8" />;
+  if (!status || status.completed_at) return null;
+
+  const stepsCount = 5;
+  const percent = Math.min(((status.current_step) / stepsCount) * 100, 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-xl p-5 mb-8 relative overflow-hidden group"
+    >
+      <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+        <Rocket className="w-16 h-16 rotate-12" />
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-purple-500/20 rounded-full">
+            <Zap className="w-6 h-6 text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="text-[#00f0ff] uppercase tracking-tighter">Unfinished Business</span>
+              <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white rounded-full font-mono uppercase">Step {status.current_step + 1} of 5</span>
+            </h3>
+            <p className="text-sm text-slate-300 mt-1">
+              Your Empire is {percent}% complete. Finish the protocol to unlock God Mode.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="w-32 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 hidden sm:block">
+            <motion.div
+              className="h-full bg-gradient-to-r from-purple-500 to-cyan-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${percent}%` }}
+            />
+          </div>
+          <Button variant="cyber" size="sm" onClick={() => navigate('/empire-builder')}>
+            RESUME PROTOCOL <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -428,64 +537,48 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Demo activities - in production, connect to WebSocket
-    const demoActivities: AgentActivity[] = [
-      {
-        id: '1',
-        agent: 'ContentAgent',
-        task: 'Drafting LinkedIn post about product launch',
-        status: 'running',
-        progress: 65,
-        message: 'Writing hook... optimizing for engagement...',
-        started_at: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        agent: 'LeadResearcherAgent',
-        task: 'Enriching lead: John Smith (TechCorp)',
-        status: 'complete',
-        progress: 100,
-        message: 'Complete',
-        result: 'CTO at TechCorp, 5k LinkedIn followers, recently posted about AI',
-        started_at: new Date().toISOString(),
-      },
-      {
-        id: '3',
-        agent: 'CompetitorIntelAgent',
-        task: 'Analyzing competitor pricing changes',
-        status: 'running',
-        progress: 40,
-        message: 'Scraping 3 competitor websites...',
-        started_at: new Date().toISOString(),
-      },
-    ];
+    const loadRealData = async () => {
+      try {
+        // 1. Get User's Startup
+        const startups = await api.getStartups();
+        if (!startups || startups.length === 0) {
+          setLoading(false);
+          return;
+        }
+        const startup = startups[0];
 
-    const pendingActivities: AgentActivity[] = [
-      {
-        id: '4',
-        agent: 'GrowthHackerAgent',
-        task: 'Generate weekly growth report',
-        status: 'pending',
-        progress: 0,
-        message: 'Queued',
-        started_at: new Date().toISOString(),
-      },
-      {
-        id: '5',
-        agent: 'SDRAgent',
-        task: 'Draft outreach for 5 new leads',
-        status: 'pending',
-        progress: 0,
-        message: 'Queued',
-        started_at: new Date().toISOString(),
-      },
-    ];
+        // 2. Get Dashboard Data with Real Activity
+        const dashboard = await api.getDashboard(startup.id);
 
-    setTimeout(() => {
-      setActivities([...demoActivities, ...pendingActivities]);
-      setLoading(false);
-    }, 500);
-  }, []);
+        // 3. Map to Frontend Model
+        const realActivities: AgentActivity[] = dashboard.recent_activity.map((a: any, idx: number) => ({
+          id: `act-${idx}`, // Generate ID since backend aggregation doesn't providing unique stable ID yet
+          agent: a.agent || 'System',
+          task: a.type === 'content_drafted' ? 'Drafting Content' :
+            a.type === 'lead_acquired' ? 'Hunting Leads' :
+              a.message.split(':')[0] || 'Processing',
+          status: 'complete', // Most stored logs are "success"
+          progress: 100,
+          message: a.message,
+          started_at: a.timestamp
+        }));
+
+        // Add some "Running" fake agents if empty, to show life? 
+        // OR strictly stick to real data? 
+        // Strict Real Data is the goal of Phase 21.
+
+        setActivities(realActivities);
+      } catch (e) {
+        console.error("Failed to load dashboard:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      loadRealData();
+    }
+  }, [user]);
 
   const activeCount = activities.filter(a => a.status === 'running').length;
   const pendingCount = activities.filter(a => a.status === 'pending').length;
@@ -539,9 +632,15 @@ export default function Dashboard() {
       {/* Admin Specialized Agents */}
       {
         user?.is_superuser && (
-          <AdminAgentWidget />
+          <div className="space-y-8">
+            <AdminEcosystemWidget />
+            <AdminAgentWidget />
+          </div>
         )
       }
+
+      {/* Empire Progress Widget */}
+      <EmpireProgressWidget />
 
       {/* Morning Brief Widget - The "AI CEO" Report */}
       <div className="mb-8">

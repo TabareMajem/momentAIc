@@ -45,6 +45,7 @@ class IntegrationProvider(str, enum.Enum):
     # Social
     LINKEDIN = "linkedin"
     TWITTER = "twitter"
+    BUFFER = "buffer"
     
     # Productivity
     NOTION = "notion"

@@ -91,6 +91,13 @@ class ContentAgent:
         """
         Generate content for a specific platform
         """
+        if isinstance(platform, str):
+            try:
+                platform = ContentPlatform(platform.lower())
+            except ValueError:
+                logger.warning(f"Invalid platform '{platform}', defaulting to LinkedIn")
+                platform = ContentPlatform.LINKEDIN
+
         logger.info(
             "Content Agent: Generating content",
             platform=platform.value,
@@ -105,9 +112,10 @@ class ContentAgent:
         trends = []
         if trend_based:
             industry = startup_context.get("industry", "tech")
-            trends = get_trending_topics.invoke(industry, platform.value)
+            trends = await get_trending_topics.ainvoke({"industry": industry, "platform": platform.value})
         
         # Step 2: Generate content
+        # ... check self.llm ...
         if not self.llm:
             return {
                 "success": False,
@@ -137,7 +145,7 @@ class ContentAgent:
             content = self._parse_response(response.content, platform)
             
             # Step 3: Generate hashtags
-            hashtags = generate_hashtags.invoke(topic, platform.value)
+            hashtags = await generate_hashtags.ainvoke({"topic": topic, "platform": platform.value})
             content["hashtags"] = hashtags[:constraints.get("hashtag_limit", 5)]
             
             # Step 4: Validate and optimize
@@ -289,7 +297,7 @@ CTA: [call to action]"""
         """Generate content ideas based on startup context"""
         
         industry = startup_context.get("industry", "tech")
-        trends = get_trending_topics.invoke(industry, "linkedin")
+        trends = await get_trending_topics.ainvoke({"industry": industry, "platform": "linkedin"})
         
         if not self.llm:
              return []

@@ -346,5 +346,30 @@ class CampaignRun(Base):
     )
 
 
+class EmpireProgress(Base):
+    """Tracks a user's progress through the Empire Builder steps"""
+    __tablename__ = "empire_progress"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    
+    current_step: Mapped[int] = mapped_column(Integer, default=0)  # 0 to 4
+    step_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_empire_progress_user", "user_id"),
+    )
+
+
 # Forward reference
 from app.models.startup import Startup

@@ -52,19 +52,28 @@ async def get_investment_dashboard(
 
     dashboard_items = []
     for startup in startups:
-        # TODO: Get actual signal scores from signals service
-        # For now, return placeholder scores
+        # [PHASE 25 FIX] Get actual signal scores
+        from app.models.startup import Signal
+        
+        signal_res = await db.execute(
+            select(Signal)
+            .where(Signal.startup_id == startup.id)
+            .order_by(Signal.calculated_at.desc())
+            .limit(1)
+        )
+        signal = signal_res.scalar_one_or_none()
+        
         item = InvestmentDashboardItem(
             startup_id=str(startup.id),
             startup_name=startup.name,
             stage=startup.stage.value if hasattr(startup.stage, 'value') else str(startup.stage),
-            composite_score=75.0,  # Placeholder
-            technical_velocity_score=80.0,
-            pmf_score=70.0,
-            capital_efficiency_score=75.0,
-            founder_performance_score=78.0,
+            composite_score=signal.overall_score if signal else 0.0,
+            technical_velocity_score=signal.tech_velocity if signal else 0.0,
+            pmf_score=signal.pmf_score if signal else 0.0,
+            capital_efficiency_score=signal.runway_health if signal else 0.0, # Map runway to efficiency
+            founder_performance_score=signal.growth_momentum if signal else 0.0, # Map growth to performance
             investment_status="tracking",
-            investment_eligible=True,
+            investment_eligible=True if signal and signal.overall_score > 70 else False,
             last_updated=startup.updated_at.isoformat() if startup.updated_at else None,
         )
         dashboard_items.append(item)

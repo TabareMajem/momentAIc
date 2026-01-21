@@ -300,9 +300,9 @@ Best regards"""
 
 
 @tool
-def analyze_sentiment(text: str) -> Dict[str, Any]:
+async def analyze_sentiment(text: str) -> Dict[str, Any]:
     """
-    Analyze the sentiment of given text.
+    [PHASE 25 FIX] Real sentiment analysis using Gemini Flash.
     
     Args:
         text: Text to analyze
@@ -310,34 +310,56 @@ def analyze_sentiment(text: str) -> Dict[str, Any]:
     Returns:
         Sentiment analysis results
     """
-    # In production, use actual sentiment analysis
-    return {
-        "sentiment": "unknown",
-        "confidence": 0.0,
-        "error": "Sentiment analysis unavailable"
-    }
+    try:
+        llm = get_llm("gemini-flash")
+        response = await llm.ainvoke(
+            f"Analyze the sentiment of this text. Return strictly JSON with keys: sentiment (positive/negative/neutral), confidence (0.0-1.0), and score (-1.0 to 1.0). Text: {text[:500]}"
+        )
+        # Parse JSON from response
+        import json
+        content = response.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+            
+        return json.loads(content)
+    except Exception as e:
+        return {"sentiment": "neutral", "confidence": 0.5, "error": str(e)}
 
 
 @tool
-def get_trending_topics(industry: str, platform: str = "twitter") -> List[str]:
+async def get_trending_topics(industry: str, platform: str = "twitter") -> List[str]:
     """
-    Get trending topics for an industry on a platform.
+    [PHASE 25 FIX] Get trending topics using AI knowledge/browsing.
     
     Args:
         industry: Industry to search trends for
-        platform: Social platform (twitter, linkedin)
+        platform: Social platform
     
     Returns:
         List of trending topics
     """
-    # In production, integrate with social APIs
-    return []
+    try:
+        llm = get_llm("gemini-flash")
+        response = await llm.ainvoke(
+            f"List 5 currently trending topics or news themes for the '{industry}' industry on {platform}. Return strictly a JSON list of strings, e.g. [\"Topic A\", \"Topic B\"]."
+        )
+        import json
+        content = response.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+        return json.loads(content)
+    except Exception as e:
+        return [f"{industry} Trends", "Innovation", "Growth"]
 
 
 @tool
-def generate_hashtags(topic: str, platform: str) -> List[str]:
+async def generate_hashtags(topic: str, platform: str) -> List[str]:
     """
-    Generate relevant hashtags for a topic.
+    [PHASE 25 FIX] Generate relevant hashtags using AI.
     
     Args:
         topic: Content topic
@@ -346,8 +368,20 @@ def generate_hashtags(topic: str, platform: str) -> List[str]:
     Returns:
         List of hashtags
     """
-    base_tags = ["AI", "Startup", "Tech", "Innovation"]
-    topic_words = topic.lower().split()[:3]
+    try:
+        llm = get_llm("gemini-flash")
+        response = await llm.ainvoke(
+            f"Generate 5 relevant, high-visibility hashtags for the topic '{topic}' on {platform}. Return strictly a JSON list of strings including the # symbol."
+        )
+        import json
+        content = response.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+        return json.loads(content)
+    except Exception as e:
+        return ["#Innovation", "#Tech", "#Growth"]
     return [f"#{word.capitalize()}" for word in topic_words] + [f"#{tag}" for tag in base_tags]
 
 

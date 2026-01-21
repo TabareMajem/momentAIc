@@ -25,6 +25,12 @@ from app.models.action_item import (
 )
 
 
+from app.models.social import (
+    SocialPost,
+    PostStatus,
+    SocialPlatform,
+)
+
 from app.models.growth import (
     Lead,
     LeadStatus,
@@ -35,6 +41,7 @@ from app.models.growth import (
     ContentStatus,
     AcquisitionChannel,
     ChannelMetric,
+    EmpireProgress,
 )
 
 from app.models.ambassador import (
@@ -104,6 +111,7 @@ __all__ = [
     "ContentItem",
     "ContentPlatform",
     "ContentStatus",
+    "EmpireProgress",
     # Workflow
     "Workflow",
     "WorkflowStatus",

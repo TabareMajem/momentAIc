@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     linkedin_client_secret: Optional[str] = None
     twitter_client_id: Optional[str] = None
     twitter_client_secret: Optional[str] = None
+    
+    # Buffer Integration
+    buffer_client_id: Optional[str] = None
+    buffer_client_secret: Optional[str] = None
+    buffer_redirect_uri: Optional[str] = "https://api.momentaic.com/api/v1/integrations/buffer/callback"
 
     # Credits Configuration (monthly limits per tier)
     default_starter_credits: int = 100      # $9/mo - Starter tier

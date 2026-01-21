@@ -245,3 +245,32 @@ export interface Lead {
   ai_notes?: string;
   probability: number;
 }
+
+// --- AMBASSADOR & REFERRAL ---
+export interface AmbassadorProfileResponse {
+  is_ambassador: boolean;
+  profile?: {
+    id: string;
+    user_id: string;
+    referral_code: string;
+    total_earnings: number;
+    unpaid_earnings: number;
+    status: 'pending' | 'approved' | 'rejected';
+  };
+  stripe_connected: boolean;
+}
+
+export interface ReferralStatsResponse {
+  total_referrals: number;
+  active_referrals: number;
+  total_earnings: number;
+  referral_code: string;
+  links: string[];
+}
+
+// --- GROWTH ANALYTICS (Phase 12) ---
+export interface EmpireStatus {
+  current_step: number;
+  step_data: Record<string, any>;
+  completed_at?: string;
+}

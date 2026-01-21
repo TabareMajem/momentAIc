@@ -178,9 +178,14 @@ What's YOUR anime trauma? 👉 https://yokaizen.app/soul
 
 #AnimeTrauma #SoulCard #Yokaizen"""
         
-        # TODO: Generate actual card image using DesignAgent when available
-        card_image_url = None
-        qr_code_url = None
+        # [PHASE 25 FIX] Generate actual card image
+        from app.agents.design_agent import design_agent
+        card_image_url = await design_agent.generate_card_image(
+            archetype_name=archetype.archetype_name,
+            anime_style=archetype.anime_reference,
+            description=archetype.description
+        )
+        qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://yokaizen.app/soul/share/{user_display}"
         
         return SoulCardResponse(
             archetype=archetype,

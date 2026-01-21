@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional, List
 import structlog
 from app.agents.base import get_llm, get_agent_config
+from app.models.conversation import AgentType
 from app.core.events import publish_event
 import datetime
 
@@ -13,15 +14,14 @@ class MarketingAgent:
     """
     
     def __init__(self):
+        self.config = get_agent_config(AgentType.MARKETING)
         self._llm = None
-        
+
     @property
     def llm(self):
         if self._llm is None:
-            try:
-                self._llm = get_llm("gemini-2.0-flash")
-            except Exception as e:
-                logger.error("MarketingAgent: LLM initialization failed", error=str(e))
+            # Use gemini-flash for speed and reliability
+            self._llm = get_llm("gemini-flash", temperature=0.7)
         return self._llm
 
     async def create_social_post(self, context: str, platform: str) -> str:
@@ -40,26 +40,71 @@ class MarketingAgent:
         # ... logic ...
         return "Draft post..."
 
-    async def cross_post_to_socials(self, content: str, platforms: List[str]) -> Dict[str, Any]:
+    async def cross_post_to_socials(self, content: str, platforms: List[str], startup_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Post content to multiple platforms via CrossPost.app API
         Requires CROSSPOST_API_KEY in environment
         """
         import httpx
         from app.core.config import settings
+        from app.core.database import async_session_maker
+        from app.models.growth import ContentItem, ContentStatus, ContentPlatform
+        from uuid import UUID
         
         crosspost_key = getattr(settings, "crosspost_api_key", None)
         
-        # [REALITY UPGRADE] If no API key, generate actionable Intent Links instead of mocking success.
+        # [REALITY UPGRADE] If no API key, save to DB as SCHEDULED/DRAFT ("Real" persistence)
         if not crosspost_key:
-            logger.warning("MarketingAgent: No API Key. Generating Intent Links.")
+            logger.warning("MarketingAgent: No API Key. Persisting to Content Studio.")
             
+            created_items = []
+            
+            if startup_id:
+                try:
+                    async with async_session_maker() as db:
+                        for platform in platforms:
+                            # Map string to enum if possible, else default
+                            try:
+                                platform_enum = ContentPlatform(platform.lower())
+                            except ValueError:
+                                platform_enum = ContentPlatform.LINKEDIN # Default/Fallback
+                                
+                            item = ContentItem(
+                                startup_id=UUID(startup_id) if isinstance(startup_id, str) else startup_id,
+                                title=f"Auto-generated Post ({platform})",
+                                body=content,
+                                platform=platform_enum,
+                                content_type="post",
+                                status=ContentStatus.DRAFTING, # Draft for review
+                                scheduled_for=datetime.datetime.utcnow(),
+                                ai_generated=True,
+                                generation_context={"source": "MarketingAgent", "mode": "fallback_persistence"}
+                            )
+                            db.add(item)
+                            
+                            # Need to commit to generate IDs and save
+                            await db.commit()
+                            await db.refresh(item)
+                            created_items.append(str(item.id))
+                        
+                    return {
+                        "success": True, 
+                        "mode": "persistence",
+                        "message": f"API Key missing. Saved {len(created_items)} posts to Content Studio for manual review.",
+                        "content_ids": created_items,
+                        "provider": "Momentaic Content Studio"
+                    }
+                except Exception as e:
+                    logger.error("MarketingAgent: DB Persistence failed", error=str(e))
+                    # Fallthrough to Intent Links if DB fails
+            
+            # Legacy Intent Link Fallback (if no startup_id or DB error)
             import urllib.parse
             encoded_content = urllib.parse.quote(content)
             
             intent_links = {
                 "twitter": f"https://twitter.com/intent/tweet?text={encoded_content}",
-                "linkedin": f"https://www.linkedin.com/sharing/share-offsite/?url={encoded_content}", # LinkedIn share is URL based usually, but text intent exists via APIs or just text copy
+                "linkedin": f"https://www.linkedin.com/sharing/share-offsite/?url={encoded_content}",
                 "email": f"mailto:?subject=New Post&body={encoded_content}"
             }
             
@@ -259,7 +304,6 @@ class MarketingAgent:
                 content = match.group(0)
                 
             return json.loads(content)
-            return json.loads(content)
         except Exception as e:
             logger.error("Campaign generation failed", error=str(e))
             return {"error": str(e)}
@@ -306,5 +350,67 @@ class MarketingAgent:
             "draft_preview": draft[0] if draft else "Error generating draft",
             "full_draft": draft
         }
+    
+    async def scan_opportunities(self, platform: str, keywords: str) -> List[Dict[str, Any]]:
+        """
+        Scan specific platforms for guerrilla marketing opportunities.
+        Uses sophisticated search operators to find high-intent discussions.
+        """
+        logger.info(f"MarketingAgent: Scanning {platform} for '{keywords}'")
+        from app.agents.base import web_search
+        
+        results = []
+        
+        try:
+            # tailored queries
+            if platform == 'reddit':
+                query = f"site:reddit.com {keywords} \"looking for\" OR \"recommend\" OR \"alternative to\" after:2024-01-01"
+            elif platform == 'twitter':
+                query = f"site:twitter.com OR site:x.com {keywords} \"hate\" OR \"broken\" OR \"wish\" -filter:replies"
+            else:
+                query = f"{keywords} news trends analysis"
+                
+            search_data = await web_search.ainvoke(query)
+            
+            # Use LLM to parse raw text into structured opportunities
+            # This turns the "search blob" into the nice cards we see in the UI
+            prompt = f"""
+            Analyze these {platform} search results and extract 3 high-intent marketing opportunities.
+            
+            Search Results:
+            {search_data}
+            
+            Return a JSON array of objects with this EXACT schema:
+            [
+              {{
+                "platform": "{platform}",
+                "type": "comment" (for reddit) or "reply" (for twitter) or "trend_jack",
+                "title": "Post title or Tweet context",
+                "url": "URL if available, else null",
+                "insight": "Why is this an opportunity? (e.g. 'User hates Competitor X')",
+                "draft": "A witty, helpful response promoting our solution (don't sound like a bot)",
+                "timestamp": "ISO timestamp (approximate)"
+              }}
+            ]
+            """
+            
+            from langchain_core.messages import HumanMessage, SystemMessage
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a guerrilla marketing expert. You find leads and draft killer replies."),
+                HumanMessage(content=prompt)
+            ])
+            
+            import json
+            import re
+            
+            content = response.content
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                results = json.loads(match.group(0))
+                
+        except Exception as e:
+            logger.error(f"Scan failed for {platform}", error=str(e))
+            
+        return results
 
 marketing_agent = MarketingAgent()

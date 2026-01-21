@@ -35,6 +35,7 @@ export function Sidebar() {
     { name: 'Innovator Lab', href: '/innovator', icon: FlaskConical },
     { name: 'Agent Forge', href: '/agent-forge', icon: Network },
     { name: 'Vision Portal', href: '/vision-portal', icon: Eye },
+    { name: 'War Room', href: '/war-room', icon: Shield },
   ];
 
   const isPro = user?.subscription_tier === 'growth' || user?.subscription_tier === 'god_mode' || user?.role === 'admin';
