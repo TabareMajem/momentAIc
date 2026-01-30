@@ -77,6 +77,10 @@ export default function IntegrationsPage() {
                 setSelectedStartupId(sid);
                 const results = await api.getIntegrations(sid);
                 setIntegrations(results);
+            } else {
+                setIntegrations([]);
+                // Optional: Trigger a notification or UI state to create a startup
+                console.log("No startups found. Please create one to manage integrations.");
             }
         } catch (error) {
             console.error('Failed to load data:', error);

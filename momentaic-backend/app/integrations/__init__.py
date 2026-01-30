@@ -13,6 +13,11 @@ from app.integrations.slack import SlackIntegration
 from app.integrations.hubspot import HubSpotIntegration
 from app.integrations.notion import NotionIntegration
 from app.integrations.mcp import MCPIntegration
+from app.integrations.openclaw import OpenClawIntegration
+from app.integrations.clay import ClayIntegration
+from app.integrations.attio import AttioIntegration
+from app.integrations.instantly import InstantlyIntegration
+from app.integrations.typefully import TypefullyIntegration
 
 # Payments
 from app.integrations.payments import (
@@ -174,6 +179,11 @@ INTEGRATION_REGISTRY = {
     # Accounting
     "quickbooks": QuickBooksIntegration,
     "xero": XeroIntegration,
+    "openclaw": OpenClawIntegration,
+    "clay": ClayIntegration,
+    "attio": AttioIntegration,
+    "instantly": InstantlyIntegration,
+    "typefully": TypefullyIntegration,
 }
 
 
@@ -212,5 +222,6 @@ __all__ = [
     "SlackIntegration",
     "HubSpotIntegration",
     "NotionIntegration",
+    "OpenClawIntegration",
     # All 42 integrations...
 ]

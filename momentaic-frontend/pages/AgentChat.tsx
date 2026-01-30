@@ -8,24 +8,85 @@ import { AgentType, Startup, SubscriptionTier } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
+// ... imports
+import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2 } from 'lucide-react';
 
-const AGENTS: { id: AgentType, name: string, tier: SubscriptionTier }[] = [
-  { id: 'orchestrator', name: 'Orchestrator', tier: 'starter' },
-  { id: 'technical_copilot', name: 'Technical Co-Pilot', tier: 'starter' },
-  { id: 'business_copilot', name: 'Business Strategist', tier: 'growth' },
-  { id: 'sales_agent', name: 'Sales Rep', tier: 'growth' },
-  { id: 'fundraising_coach', name: 'Fundraising Coach', tier: 'god_mode' },
-  { id: 'legal_agent', name: 'Legal Counsel', tier: 'god_mode' },
-  { id: 'elon_musk', name: 'Elon (Hardcore Mode)', tier: 'god_mode' },
-  { id: 'paul_graham', name: 'PG (Startups)', tier: 'god_mode' },
-  { id: 'onboarding_coach', name: 'Onboarding Coach', tier: 'starter' },
-  { id: 'competitor_intel', name: 'Competitor Intel', tier: 'growth' },
-];
+// ... inside AgentChat component
+// ...
 
-export default function AgentChat() {
+function PlayVoiceButton({ text }: { text: string }) {
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const handlePlay = async () => {
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const url = await api.speak(text);
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play();
+        setIsPlaying(true);
+        audioRef.current.onended = () => setIsPlaying(false);
+      } else {
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.play();
+        setIsPlaying(true);
+        audio.onended = () => setIsPlaying(false);
+      }
+    } catch (e) {
+      console.error("Failed to play voice", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePlay}
+      className="absolute top-2 right-2 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-[#00f0ff] transition-colors"
+      title="Play Voice"
+    >
+      {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className={`w-3 h-3 ${isPlaying ? 'text-[#00f0ff] animate-pulse' : ''}`} />}
+    </button>
+  );
+}
+
+// ... inside map loop
+<div className={cn(
+  "p-4 rounded-xl text-sm whitespace-pre-wrap font-mono relative max-w-[80%] group", // Added group for hover visibility
+  msg.role === 'user'
+    ? "bg-[#2563eb] text-white rounded-tr-none border border-[#2563eb] shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+    : "bg-[#0a0a0a] text-gray-300 rounded-tl-none border border-white/10 shadow-lg pr-8" // Added PR-8
+)}>
+  {msg.role === 'assistant' && !msg.isStreaming && (
+    <PlayVoiceButton text={msg.content} />
+  )}
+// ...
+  import {cn} from '../lib/utils';
+  import {useToast} from '../components/ui/Toast';
+
+  const AGENTS: {id: AgentType, name: string, tier: SubscriptionTier }[] = [
+  {id: 'orchestrator', name: 'Orchestrator', tier: 'starter' },
+  {id: 'technical_copilot', name: 'Technical Co-Pilot', tier: 'starter' },
+  {id: 'business_copilot', name: 'Business Strategist', tier: 'growth' },
+  {id: 'sales_agent', name: 'Sales Rep', tier: 'growth' },
+  {id: 'fundraising_coach', name: 'Fundraising Coach', tier: 'god_mode' },
+  {id: 'legal_agent', name: 'Legal Counsel', tier: 'god_mode' },
+  {id: 'elon_musk', name: 'Elon (Hardcore Mode)', tier: 'god_mode' },
+  {id: 'paul_graham', name: 'PG (Startups)', tier: 'god_mode' },
+  {id: 'onboarding_coach', name: 'Onboarding Coach', tier: 'starter' },
+  {id: 'competitor_intel', name: 'Competitor Intel', tier: 'growth' },
+  ];
+
+  export default function AgentChat() {
   const [searchParams] = useSearchParams();
   const startupIdParam = searchParams.get('startup');
   const agentParam = searchParams.get('agent');
@@ -40,32 +101,32 @@ export default function AgentChat() {
     clearChat
   } = useChatStore();
 
-  const { user, deductCredits } = useAuthStore();
-  const { toast } = useToast();
+  const {user, deductCredits} = useAuthStore();
+  const {toast} = useToast();
 
   const [input, setInput] = React.useState('');
   const [startups, setStartups] = React.useState<Startup[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api.getStartups().then(setStartups).catch(console.error);
+      api.getStartups().then(setStartups).catch(console.error);
     if (startupIdParam) setCurrentStartupId(startupIdParam);
     if (agentParam) setCurrentAgent(agentParam as AgentType);
   }, [startupIdParam, agentParam, setCurrentStartupId, setCurrentAgent]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+      e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     // Credit Check
     const COST_PER_MSG = 1;
     if (!deductCredits(COST_PER_MSG)) {
       toast({ type: 'error', title: 'Insufficient Credits', message: 'Recharge your credits to continue operations.' });
-      return;
+    return;
     }
 
     const msg = input;
@@ -74,10 +135,10 @@ export default function AgentChat() {
   };
 
   const selectedAgentInfo = AGENTS.find(a => a.id === currentAgent);
-  const isAgentLocked = (user?.subscription_tier === 'starter' && selectedAgentInfo?.tier !== 'starter') ||
+    const isAgentLocked = (user?.subscription_tier === 'starter' && selectedAgentInfo?.tier !== 'starter') ||
     (user?.subscription_tier === 'growth' && selectedAgentInfo?.tier === 'god_mode');
 
-  return (
+    return (
     <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 p-4 bg-[#0a0a0a] border border-white/10 rounded-xl">
@@ -246,5 +307,5 @@ export default function AgentChat() {
         </div>
       </div>
     </div>
-  );
+    );
 }

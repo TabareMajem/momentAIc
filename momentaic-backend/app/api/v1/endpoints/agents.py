@@ -31,6 +31,7 @@ from app.schemas.agent import (
     ConversationListResponse, MessageCreate, MessageResponse,
     AgentChatRequest, AgentChatResponse, AgentInfoResponse, AvailableAgentsResponse,
     VisionPortalRequest, VisionPortalResponse, VisionPortalStatusResponse,
+    BuilderChatRequest,
 )
 
 router = APIRouter()

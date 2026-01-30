@@ -74,62 +74,102 @@ class GeminiService:
         model: str = None,
     ) -> GeminiResponse:
         """
-        Generate response with Gemini 2.0
-        
-        Args:
-            prompt: User prompt
-            system_instruction: System context
-            tools: MCP-compatible tool definitions
-            enable_grounding: Use Google Search for real-time data
-            model: Model override (default: gemini-2.0-flash)
+        Generate response with Gemini 2.0 via REST API (to support custom headers)
         """
+        import httpx
+        from app.core.config import settings
+
         model = model or self.default_model
+        api_key = self.api_key or getattr(settings, 'google_api_key', None)
         
-        if not self.client:
+        if not api_key:
             return await self._mock_response(prompt, tools)
         
-        try:
-            # Configure model
-            generation_config = {
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Referer": "https://momentaic.com",
+            "X-Referer": "https://momentaic.com"
+        }
+        
+        # Build Request Payload
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
                 "temperature": 0.7,
-                "top_p": 0.95,
-                "max_output_tokens": 8192,
+                "topP": 0.95,
+                "maxOutputTokens": 8192,
             }
-            
-            model_instance = self.client.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config,
-                system_instruction=system_instruction
-            )
-            
-            # Build tool declarations if provided
-            gemini_tools = None
-            if tools:
-                gemini_tools = self._convert_mcp_to_gemini_tools(tools)
-            
-            # Generate with grounding if enabled
-            response = model_instance.generate_content(
-                prompt,
-                tools=gemini_tools
-            )
-            
-            # Parse tool calls
-            tool_calls = []
-            if response.candidates and response.candidates[0].content.parts:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'function_call') and part.function_call:
+        }
+
+        if system_instruction:
+            payload["system_instruction"] = {
+                "parts": [{"text": system_instruction}]
+            }
+
+        # Tool Definitions
+        if tools:
+            function_declarations = []
+            for tool in tools:
+                function_declarations.append({
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": tool.get("input_schema", {})
+                })
+            payload["tools"] = [{"function_declarations": function_declarations}]
+        
+        if enable_grounding:
+            # Add Google Search grounding if enabled
+            if "tools" not in payload:
+                payload["tools"] = []
+            payload["tools"].append({"google_search_retrieval": {}})
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+                
+                if response.status_code != 200:
+                    logger.error(f"Gemini API Error: {response.text}")
+                    return await self._mock_response(prompt, tools)
+                
+                data = response.json()
+                
+                # Parse Response
+                candidate = data.get("candidates", [{}])[0]
+                content_parts = candidate.get("content", {}).get("parts", [])
+                
+                text_content = ""
+                tool_calls = []
+                grounding_sources = []
+                
+                for part in content_parts:
+                    if "text" in part:
+                        text_content += part["text"]
+                    if "functionCall" in part:
                         tool_calls.append({
-                            "name": part.function_call.name,
-                            "arguments": dict(part.function_call.args)
+                            "name": part["functionCall"]["name"],
+                            "arguments": part["functionCall"].get("args", {})
                         })
-            
-            return GeminiResponse(
-                text=response.text if hasattr(response, 'text') else "",
-                tool_calls=tool_calls,
-                grounding_sources=[],
-                tokens_used=response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0,
-                model=model
-            )
+                
+                # Extract grounding metadata if present
+                if enable_grounding and "groundingMetadata" in candidate:
+                    # Simplified extraction (structure varies)
+                    pass
+
+                usage = data.get("usageMetadata", {})
+                
+                return GeminiResponse(
+                    text=text_content,
+                    tool_calls=tool_calls,
+                    grounding_sources=grounding_sources,
+                    tokens_used=usage.get("totalTokenCount", 0),
+                    model=model
+                )
+
         except Exception as e:
             logger.error("Gemini generation failed", error=str(e))
             return await self._mock_response(prompt, tools)

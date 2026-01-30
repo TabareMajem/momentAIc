@@ -165,6 +165,16 @@ async def create_startup(
         print(f"Failed to trigger initial daily driver: {e}")
     # ========================================================
     
+    # === PROJECT PHOENIX: AUTO-CREATE DEFAULT TRIGGERS ===
+    try:
+        from app.triggers.default_triggers import create_default_triggers
+        await create_default_triggers(db, startup.id, current_user.id)
+    except Exception as e:
+        print(f"Failed to create default triggers: {e}")
+    # =====================================================
+    
+    await db.commit()
+    
     return StartupResponse.model_validate(startup)
 
 

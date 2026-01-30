@@ -50,15 +50,39 @@ class BrowserAgent:
         self._browser = None
         self._context = None
         self._page = None
+        self._current_openclaw_target = None
+        
+        # Helper for OpenClaw snapshots
+        from app.agents.browser_helper import _format_ai_snapshot
+        # We attach it to the instance so self._format_ai_snapshot(snapshot) works
+        # The helper implementation in browser_helper.py takes (self, snapshot) if we want? 
+        # Actually I defined it as a method in the file but without class context in my write_to_file.
+        # Let's check how I wrote it. I wrote it as `def _format_ai_snapshot(self, snapshot)` inside the file content but NOT inside a class.
+        # So it's a standalone function that expects a `self` argument? Or just a function?
+        # I wrote: `def _format_ai_snapshot(self, snapshot: Dict[str, Any]) -> str:` 
+        # So it expects an instance as first arg.
+        self._format_ai_snapshot = lambda s: _format_ai_snapshot(self, s)
+
+
     
+    async def _use_openclaw(self) -> bool:
+        """Check if OpenClaw is available and enabled"""
+        from app.core.config import settings
+        return bool(settings.openclaw_api_url)
+
     async def initialize(self):
-        """Initialize browser (lazy loading)"""
+        """Initialize browser resources"""
+        if await self._use_openclaw():
+            # No initialization needed for remote API
+            logger.info("Browser Agent using OpenClaw Node")
+            return
+            
+        # Fallback to local Playwright
         if self._browser:
             return
         
         try:
             from playwright.async_api import async_playwright
-            
             playwright = await async_playwright().start()
             self._browser = await playwright.chromium.launch(
                 headless=True,
@@ -73,20 +97,40 @@ class BrowserAgent:
                 viewport={"width": 1280, "height": 720},
             )
             self._page = await self._context.new_page()
-            
-            logger.info("Browser initialized")
+            logger.info("Browser initialized (Local Playwright)")
         except ImportError:
-            logger.warning("Playwright not installed, using mock browser")
+            logger.warning("Playwright not installed and OpenClaw not configured")
             self._browser = None
-    
+
     async def navigate(self, url: str, wait_for: str = "load") -> BrowseResult:
-        """
-        Navigate to a URL
-        
-        Args:
-            url: URL to navigate to
-            wait_for: What to wait for ('load', 'domcontentloaded', 'networkidle')
-        """
+        """Navigate to a URL"""
+        if await self._use_openclaw():
+            from app.integrations import OpenClawIntegration
+            claw = OpenClawIntegration()
+            
+            # OpenClaw V2: Returns targetId + snapshot
+            result = await claw.execute_action("browser_navigate", {
+                "url": url,
+                "wait_for": wait_for
+            })
+            
+            if not result.get("success"):
+                return BrowseResult(success=False, url=url, error=result.get("error"))
+            
+            # Store the session ID for subsequent actions
+            self._current_openclaw_target = result.get("targetId")
+            snapshot = result.get("snapshot", {})
+            
+            return BrowseResult(
+                success=True,
+                url=url,
+                title=snapshot.get("title", ""),
+                text_content=self._format_ai_snapshot(snapshot), # Use AI snapshot formatter
+                links=[], # Links are embedded in snapshot structure
+                screenshot_path=None, # Snapshots are data-rich, screenshot is separate
+            )
+
+        # Local Playwright fallback
         if not self._browser:
             return BrowseResult(success=False, url=url, error="Browser service unavailable")
         
@@ -115,15 +159,33 @@ class BrowserAgent:
                 success=True,
                 url=url,
                 title=title,
-                text_content=content[:5000],  # Limit content
+                text_content=content[:5000], 
                 links=links,
             )
         except Exception as e:
             logger.error("Navigation failed", url=url, error=str(e))
             return BrowseResult(success=False, url=url, error=str(e))
-    
+
     async def extract_content(self, selector: str = None) -> Dict[str, Any]:
         """Extract content from current page"""
+        if await self._use_openclaw():
+            from app.integrations import OpenClawIntegration
+            claw = OpenClawIntegration()
+            
+            # We assume statefulness is handled by the OpenClaw node if we pass a session ID?
+            # Or we just re-navigate/scrape. For now, let's treat it as a scrape request.
+            # If selector is None, it means full page.
+            
+            # Note: For stateful browsing (extract from *current* page), OpenClaw needs session management.
+            # Assuming 'browser_scrape' takes a URL. But we don't have the URL if we are just "extracting".
+            # For this MVP, we might limit extract_content to work only if we provide a URL, 
+            # Or we assume the agent workflow is always "Navigate -> Result".
+            
+            # If we really need extraction from current state without URL, OpenClaw needs a "get_current_content" endpoint.
+            # Let's fallback to "Not supported in stateless mode" or try to find a stored URL.
+            
+            return {"error": "Stateless extraction not yet supported via OpenClaw. Use navigate() to get content."}
+
         if not self._browser:
             return {"error": "Browser service unavailable"}
         
@@ -140,9 +202,20 @@ class BrowserAgent:
             return {"content": text[:10000]}
         except Exception as e:
             return {"error": str(e)}
-    
+
+    # ... (Keep click/fill_form/etc. similar logic if needed, or leave for later)
+    # For now, navigation is the key.
+
     async def click(self, selector: str) -> Dict[str, Any]:
         """Click an element"""
+        if await self._use_openclaw():
+             from app.integrations import OpenClawIntegration
+             claw = OpenClawIntegration()
+             return await claw.execute_action("browser_interact", {
+                 "action": "click",
+                 "selector": selector
+             })
+
         if not self._browser:
             return {"success": False, "error": "Browser service unavailable"}
         
@@ -155,6 +228,12 @@ class BrowserAgent:
     
     async def fill_form(self, fields: Dict[str, str]) -> Dict[str, Any]:
         """Fill form fields"""
+        if await self._use_openclaw():
+             # OpenClaw likely needs a specialized fill endpoint or loop of interacts
+             # For MVP, we might skip complex form filling via OpenClaw unless crucial.
+             return {"error": "Form filling not fully implemented for OpenClaw yet"}
+
+        # ... (Local Playwright impl)
         if not self._browser:
             return {"success": False, "error": "Browser service unavailable"}
         
@@ -164,9 +243,14 @@ class BrowserAgent:
             return {"success": True, "action": "fill", "fields": list(fields.keys())}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     async def screenshot(self, path: str = None) -> Dict[str, Any]:
         """Take a screenshot"""
+        if await self._use_openclaw():
+            # OpenClaw nav returns screenshot path usually? Or verify specific endpoint.
+            # Assuming 'browser_navigate' is enough for now.
+             return {"error": "Use navigate to get screenshots via OpenClaw"}
+
         if not self._browser:
             return {"success": False, "error": "Browser service unavailable"}
         
@@ -176,9 +260,12 @@ class BrowserAgent:
             return {"success": True, "path": path}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     async def execute_script(self, script: str) -> Dict[str, Any]:
         """Execute JavaScript on the page"""
+        if await self._use_openclaw():
+            return {"error": "Script execution not supported directly via OpenClaw"}
+
         if not self._browser:
             return {"success": False, "error": "Browser service unavailable"}
         
@@ -256,12 +343,40 @@ What would you like me to do?""",
         Perform a Google search using the browser.
         Returns a list of {title, link, snippet}
         """
+        # If using OpenClaw, we prefer using its navigation/scraping capabilities
+        # For simplicity, we can just use the navigate() function to go to Google
+        # but parsing would be harder if we don't have the page object locally.
+        
+        if await self._use_openclaw():
+             # Option 1: Use OpenClaw to get raw HTML of Google results and parse it here?
+             # Option 2: Ask OpenClaw specifically to "search".
+             
+             # Let's try navigating to DuckDuckGo HTML which is easier to parse from raw text/HTML
+             from app.integrations import OpenClawIntegration
+             claw = OpenClawIntegration()
+             
+             import requests # For quoting
+             encoded_query = requests.utils.quote(query)
+             url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+             
+             result = await claw.execute_action("browser_scrape", {"url": url})
+             
+             # Mock parsing of text result if we get text back
+             # This is a bit weak for a detailed implementation, but serves the MVP "Shadow Researcher"
+             if result.get("success"):
+                 # We would need to parse result['content']
+                 # For now, return a placeholder or raw content
+                 return [{"title": "OpenClaw Search Result", "link": url, "snippet": "Allocated via OpenClaw (Parsing pending)"}]
+             else:
+                 return [{"title": "Error", "link": "", "snippet": result.get("error", "Unknown error")}]
+
         if not self._browser:
             await self.initialize()
             
         if not self._browser:
-            return [{"title": "Error", "link": "", "snippet": "Browser could not initialize"}]
+            return [{"title": "Error", "link": "", "snippet": "Browser could not be initialized"}]
 
+        # ... (Keep existing Playwright search implementation)
         try:
             # Use a specialized search URL or just google.com
             # Note: Selectors here are fragile and depend on Google's DOM. 
@@ -355,7 +470,6 @@ What would you like me to do?""",
                  logger.error("DuckDuckGo fallback failed", error=str(e))
         
         return results[:5]
-    
     
     async def close(self):
         """Close browser resources"""

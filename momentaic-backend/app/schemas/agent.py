@@ -204,6 +204,17 @@ class VisionPortalStatusResponse(BaseModel):
     current_step: str
     estimated_remaining_seconds: Optional[int] = None
 
+# ==================
+# Builder Schemas
+# ==================
+
+class BuilderChatRequest(BaseModel):
+    """Request to the Builder/Coder Agent"""
+    message: str
+    startup_id: UUID
+    conversation_id: Optional[UUID] = None
+    context_files: Optional[List[str]] = None
+
 
 # Forward references
 ConversationWithMessages.model_rebuild()

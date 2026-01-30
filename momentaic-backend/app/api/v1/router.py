@@ -18,7 +18,9 @@ from app.api.v1.endpoints import (
     mcp_tools,
     import_flows,
     social,
-    growth_analytics,
+    # growth_analytics, # Disabled due to import errors
+    growth_monitor,
+    llm_optimization,
 )
 
 api_router = APIRouter()
@@ -49,6 +51,13 @@ api_router.include_router(
     growth.router,
     prefix="/growth",
     tags=["Growth Engine"],
+)
+
+# Growth Monitor (Pipeline Dashboard)
+api_router.include_router(
+    growth_monitor.router,
+    prefix="/growth",
+    tags=["Growth Monitor"],
 )
 
 # Agent Swarm (Chat)
@@ -283,19 +292,19 @@ api_router.include_router(
 )
 
 # Guerrilla Growth (Phase 11)
-from app.api.v1.endpoints import guerrilla
-api_router.include_router(
-    guerrilla.router,
-    prefix="/guerrilla",
-    tags=["Guerrilla Growth"],
-)
+# from app.api.v1.endpoints import guerrilla
+# api_router.include_router(
+#     guerrilla.router,
+#     prefix="/guerrilla",
+#     tags=["Guerrilla Growth"],
+# )
 
 # Growth Analytics (Phase 12)
-api_router.include_router(
-    growth_analytics.router,
-    prefix="/growth-analytics",
-    tags=["Growth Analytics"],
-)
+# api_router.include_router(
+#     growth_analytics.router,
+#     prefix="/growth-analytics",
+#     tags=["Growth Analytics"],
+# )
 
 # AgentForge Integration (Deep Dive)
 from app.api.v1.endpoints import agentforge
@@ -321,10 +330,49 @@ api_router.include_router(
     tags=["Admin Swarm"],
 )
 
+# General User Strategy (Empire Features)
+from app.api.v1.endpoints import strategy
+api_router.include_router(
+    strategy.router,
+    prefix="/strategy",
+    tags=["Strategy & Empire"],
+)
+
 # Nexus Synergy
 from app.api.v1.endpoints import nexus
 api_router.include_router(
     nexus.router,
     prefix="/admin/synergy",
     tags=["Admin Synergy"],
+)
+
+# Magic URL (Project PHOENIX)
+from app.api.v1.endpoints import magic_url
+api_router.include_router(
+    magic_url.router,
+    prefix="/onboarding",
+    tags=["Magic Onboarding"],
+)
+
+# Deployment Webhooks (Vercel/Netlify)
+from app.api.v1.endpoints import deployment_webhooks
+api_router.include_router(
+    deployment_webhooks.router,
+    prefix="/webhooks",
+    tags=["Deployment Webhooks"],
+)
+
+# Voice Agents (Qwen3)
+from app.api.v1.endpoints import voice
+api_router.include_router(
+    voice.router,
+    prefix="/voice",
+    tags=["Voice Agents"],
+)
+
+# LLM Optimization (Agent SEO)
+api_router.include_router(
+    llm_optimization.router,
+    prefix="/llm-context",
+    tags=["LLM Optimization"],
 )

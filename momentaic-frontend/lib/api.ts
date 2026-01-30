@@ -604,6 +604,19 @@ class ApiClient {
     const { data } = await this.client.post('/api/v1/integrations/agentforge/trigger-voice', { text, action });
     return data;
   }
+
+  // === QWEN-TTS VOICE ===
+  /**
+   * Synthesize text to speech
+   * Returns a Blob url that can be played by Audio element
+   */
+  async speak(text: string, voiceId?: string): Promise<string> {
+    const response = await this.client.post('/api/v1/voice/speak',
+      { text, voice_id: voiceId },
+      { responseType: 'blob' }
+    );
+    return URL.createObjectURL(response.data);
+  }
 }
 
 export const api = new ApiClient();

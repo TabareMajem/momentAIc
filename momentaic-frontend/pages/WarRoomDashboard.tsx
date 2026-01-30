@@ -64,8 +64,14 @@ const OppCard = ({ item }: { item: Opportunity }) => {
                     </button>
                 </div>
                 <div className="mt-3 flex justify-end">
-                    <Button size="sm" variant="outline" className="h-7 text-xs border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white">
-                        ENGAGE
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white"
+                        onClick={() => item.url ? window.open(item.url, '_blank') : null}
+                        disabled={!item.url}
+                    >
+                        {item.url ? 'ENGAGE' : 'NO LINK'} <ExternalLink className="w-3 h-3 ml-2" />
                     </Button>
                 </div>
             </CardContent>

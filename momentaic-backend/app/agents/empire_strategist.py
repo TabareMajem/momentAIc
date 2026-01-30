@@ -22,16 +22,30 @@ class EmpireStrategistAgent:
             {"name": "MomentAIc.com", "desc": "The AI Operating System (This Platform)"}
         ]
 
-    async def generate_nano_bananas_content(self, product_name: str) -> Dict[str, Any]:
+    async def generate_nano_bananas_content(self, product_name: str, startup_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Generates AAA 'Nano Bananas' style content.
         Style: High-Octane, Vibrant, Gamified, 'Reality Distortion'.
+        
+        Args:
+            product_name: Name of the product
+            startup_context: Optional dictionary with 'name' and 'description' (for general users)
         """
         llm = get_llm("gemini-2.0-flash", temperature=0.9) # High creativity
         if not llm:
             return {"error": "LLM not available"}
 
+        # 1. Try to find in Admin Ecoystem first (legacy support)
         product = next((p for p in self.products if p["name"].lower() == product_name.lower()), None)
+        
+        # 2. If not found, use provided context (General User)
+        if not product and startup_context:
+            product = {
+                "name": startup_context.get("name", product_name),
+                "desc": startup_context.get("description", "A revolutionary startup")
+            }
+            
+        # 3. Fallback
         if not product:
             product = {"name": product_name, "desc": "An ecosystem product"}
 
@@ -67,15 +81,25 @@ class EmpireStrategistAgent:
             logger.error("Nano Bananas generation failed", error=str(e))
             return {"error": str(e)}
 
-    async def surprise_me_strategy(self) -> Dict[str, Any]:
+    async def surprise_me_strategy(self, products_context: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Generates a synergistic GTM strategy connecting multiple products.
+        
+        Args:
+             products_context: Optional list of dicts [{"name": "...", "desc": "..."}] for general users.
+                               If None, defaults to Admin's ecosystem.
         """
         llm = get_llm("gemini-2.0-flash", temperature=0.8)
         if not llm:
             return {"error": "LLM not available"}
 
-        products_str = "\\n".join([f"- {p['name']}: {p['desc']}" for p in self.products])
+        # Use provided context or default to Admin Ecosystem
+        target_products = products_context if products_context else self.products
+        
+        if not target_products:
+             return {"error": "No products available for strategy generation."}
+
+        products_str = "\\n".join([f"- {p['name']}: {p['desc']}" for p in target_products])
 
         prompt = f"""
         ACT AS: The Empire Strategist.

@@ -2,8 +2,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.api.deps import get_db, get_current_user
-from app.models.user import User
+from app.core.database import get_db
+from app.core.security import get_current_active_user as get_current_user
 from app.models.growth import EmpireProgress
 from app.schemas.growth import EmpireStatus, EmpireStepUpdate
 

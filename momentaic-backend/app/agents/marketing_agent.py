@@ -413,4 +413,82 @@ class MarketingAgent:
             
         return results
 
+    async def find_lookalikes(self, seed_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        [Hunter 2.0] Infinite Expansion Loop
+        Given a seed profile (e.g. 'Bilawal Sidhu'), finds 5 similar profiles
+        to auto-expand the pipeline without user input.
+        """
+        logger.info(f"HunterAgent: Finding lookalikes for {seed_profile.get('name', 'Unknown')}")
+        from app.agents.base import web_search
+
+        # 1. Construct Search Query
+        name = seed_profile.get('name', '')
+        industry = seed_profile.get('industry', 'Tech')
+        query = f"people similar to {name} {industry} influencers list"
+        
+        try:
+            search_data = await web_search.ainvoke(query)
+
+            # 2. Extract New Targets via LLM
+            prompt = f"""
+            I have a high-value lead: {name} ({industry}).
+            Based on these search results, identify 3 OTHER specific people who are similar profiles (influencers/creators in the same niche).
+            
+            Search Results:
+            {search_data}
+
+            Return valid JSON array:
+            [
+                {{
+                    "name": "Name",
+                    "title": "Title",
+                    "company": "Company/Channel Name",
+                    "reason": "Why they are similar"
+                }}
+            ]
+            """
+            
+            from langchain.schema import HumanMessage, SystemMessage
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a Talent Scout. Find specific people."),
+                HumanMessage(content=prompt)
+            ])
+            
+            import json
+            import re
+            content = response.content
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+            return []
+
+        except Exception as e:
+            logger.error("Lookalike search failed", error=str(e))
+            return []
+
+    async def execute_outreach(self, lead: Dict[str, Any], campaign_subject: str, email_body: str) -> Dict[str, Any]:
+        """
+        [REAL ACTION] Sends the drafted campaign email via Gmail integration.
+        """
+        email_address = lead.get("email") or lead.get("contact_email")
+        if not email_address:
+             return {"success": False, "error": "No email address found for lead."}
+             
+        logger.info(f"HunterAgent: SENDING REAL EMAIL to {email_address}...")
+        
+        from app.integrations.gmail import gmail_integration
+        
+        try:
+            result = await gmail_integration.execute_action("send_email", {
+                "to": email_address,
+                "subject": campaign_subject,
+                "body": email_body,
+                "sender_email": None # Uses env default
+            })
+            return result
+        except Exception as e:
+            logger.error("HunterAgent: Send Failed", error=str(e))
+            return {"success": False, "error": str(e)}
+
 marketing_agent = MarketingAgent()

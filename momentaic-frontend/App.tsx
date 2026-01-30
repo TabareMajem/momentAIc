@@ -47,6 +47,9 @@ import EmpireBuilder from './pages/EmpireBuilder';
 import WarRoomDashboard from './pages/WarRoomDashboard';
 
 import { OnboardingTour } from './components/OnboardingTour';
+import FromLovable from './pages/FromLovable';
+import FromBolt from './pages/FromBolt';
+import LiveAgentView from './pages/LiveAgentView';
 
 const ProtectedLayout = () => {
   return (
@@ -96,6 +99,9 @@ export default function App() {
           <Route path="/join" element={<RegionFomoPage />} />
           <Route path="/start" element={<AutoPilotOnboarding />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/from-lovable" element={<FromLovable />} />
+          <Route path="/from-bolt" element={<FromBolt />} />
+          <Route path="/genius" element={<GeniusOnboarding />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -141,6 +147,7 @@ export default function App() {
             <Route path="/war-room" element={<WarRoomDashboard />} />
             <Route path="/vault" element={<TheVault />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/live" element={<LiveAgentView />} />
 
             {/* Legacy Routes (kept for backward compat) */}
             <Route path="/power-plays" element={<PowerPlays />} />

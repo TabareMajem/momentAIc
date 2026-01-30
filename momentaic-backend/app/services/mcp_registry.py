@@ -162,6 +162,58 @@ class MCPToolRegistry:
                 "project": {"type": "string"},
                 "branch": {"type": "string", "default": "main"}
             }),
+            ("browser_navigate", "Navigate remote browser (OpenClaw)", {
+                "url": {"type": "string"},
+                "wait_for": {"type": "string", "description": "Selector to wait for"}
+            }),
+            ("browser_scrape", "Scrape page content (OpenClaw)", {
+                "url": {"type": "string"},
+                "selector": {"type": "string", "description": "CSS selector to scrape"}
+            }),
+            ("browser_interact", "Interact with page (OpenClaw)", {
+                "action": {"type": "string", "description": "Legacy alias for kind", "enum": ["click", "type", "scroll"]},
+                "kind": {"type": "string", "enum": ["click", "type", "scroll", "fill"], "description": "Action type"},
+                "ref": {"type": "integer", "description": "Element ref ID from snapshot (Preferred)"},
+                "selector": {"type": "string", "description": "CSS selector (Fallback)"},
+                "text": {"type": "string", "description": "Text to type"},
+                "value": {"type": "string", "description": "Value to set"},
+                "wait_for": {"type": "string", "description": "Wait for selector after action"}
+            }),
+
+            ("system_command", "Run system command (OpenClaw - Restricted)", {
+                "command": {"type": "string"},
+                "cwd": {"type": "string"}
+            }),
+            ("enrich_company", "Enrich company data (Clay)", {
+                "domain": {"type": "string", "description": "Company domain (e.g. stripe.com)"}
+            }),
+            ("find_people", "Find people by role (Clay)", {
+                "company_domain": {"type": "string"},
+                "job_title_keyword": {"type": "string", "description": "Role keyword (e.g. Marketing, Founder)"}
+            }),
+            ("sync_crm_person", "Sync person to Attio CRM", {
+                "email": {"type": "string"},
+                "first_name": {"type": "string"},
+                "last_name": {"type": "string"},
+                "company_name": {"type": "string"}
+            }),
+            ("sync_crm_company", "Sync company to Attio CRM", {
+                "name": {"type": "string"},
+                "domain": {"type": "string"}
+            }),
+            ("add_lead_to_campaign", "Add lead to Instantly campaign", {
+                "campaign_id": {"type": "string"},
+                "email": {"type": "string"},
+                "first_name": {"type": "string"},
+                "variables": {"type": "object"}
+            }),
+            ("check_email_replies", "Check Instantly for replies", {
+                "campaign_id": {"type": "string"}
+            }),
+            ("schedule_social_thread", "Schedule a Twitter thread via Typefully", {
+                "content": {"type": "string", "description": "Full thread content"},
+                "date": {"type": "string", "description": "ISO 8601 date, optional"}
+            }),
         ]
         
         for action_id, description, properties in actions:
@@ -263,6 +315,39 @@ class MCPToolRegistry:
     
     def _create_direct_action_handler(self, action_id: str):
         async def handler(params: Dict[str, Any]):
+            # Check if this is an OpenClaw action
+            if action_id in ["browser_navigate", "browser_scrape", "browser_interact", "system_command"]:
+                from app.integrations import OpenClawIntegration
+                claw = OpenClawIntegration()
+                return await claw.execute_action(action_id, params)
+
+            if action_id in ["enrich_company", "find_people"]:
+                from app.integrations import ClayIntegration
+                clay = ClayIntegration()
+                return await clay.execute_action(action_id, params)
+
+            # Attio CRM actions
+            if action_id in ["sync_crm_person", "sync_crm_company"]:
+                from app.integrations import AttioIntegration
+                attio = AttioIntegration()
+                # Map action to Attio method
+                attio_action = "sync_person" if action_id == "sync_crm_person" else "sync_company"
+                return await attio.execute_action(attio_action, params)
+
+            # Instantly email actions
+            if action_id in ["add_lead_to_campaign", "check_email_replies"]:
+                from app.integrations import InstantlyIntegration
+                instantly = InstantlyIntegration()
+                instantly_action = "add_lead_to_campaign" if action_id == "add_lead_to_campaign" else "check_replies"
+                return await instantly.execute_action(instantly_action, params)
+
+            # Typefully actions
+            if action_id == "schedule_social_thread":
+                from app.integrations import TypefullyIntegration
+                typefully = TypefullyIntegration()
+                action = "schedule_thread" if params.get("date") else "create_draft"
+                return await typefully.execute_action(action, params)
+
             # Direct action execution
             # In production, would need approval workflow for sensitive actions
             return {"executed": action_id, "params": params, "status": "pending_approval"}

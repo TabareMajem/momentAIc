@@ -331,7 +331,24 @@ async def root():
         "message": f"Welcome to {settings.app_name} API",
         "docs": f"{settings.api_v1_prefix}/docs",
         "health": f"{settings.api_v1_prefix}/health",
+        "llms": "/llms.txt",
     }
+
+@app.get("/llms.txt", include_in_schema=False)
+async def root_llms_txt():
+    """Serve llms.txt at root"""
+    from fastapi import Response
+    from app.services.llm_context import llm_context_service
+    content = llm_context_service.generate_llms_txt()
+    return Response(content=content, media_type="text/plain")
+
+@app.get("/llms-full.txt", include_in_schema=False)
+async def root_llms_full_txt():
+    """Serve llms-full.txt at root"""
+    from fastapi import Response
+    from app.services.llm_context import llm_context_service
+    content = llm_context_service.generate_llms_full_txt()
+    return Response(content=content, media_type="text/plain")
 
 
 if __name__ == "__main__":

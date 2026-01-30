@@ -63,6 +63,18 @@ class Settings(BaseSettings):
     agentforge_api_key: Optional[str] = None
     yokaizen_api_url: str = "https://api.yokaizen.com"
     yokaizen_api_key: Optional[str] = None
+    
+    # Data Enrichment (Clay)
+    clay_api_key: Optional[str] = None
+    
+    # CRM (Attio)
+    attio_api_key: Optional[str] = None
+    
+    # Cold Email (Instantly.ai)
+    instantly_api_key: Optional[str] = None
+    
+    # Social (Typefully)
+    typefully_api_key: Optional[str] = None
 
     # Stripe
     stripe_secret_key: Optional[str] = None
@@ -117,6 +129,11 @@ class Settings(BaseSettings):
     credit_cost_outreach_gen: int = 2
     credit_cost_vision_portal: int = 20
     credit_cost_forge_run: int = 10
+    credit_cost_competitor_monitor: int = 5
+    credit_cost_sales_hunt: int = 10
+    
+    # CrossPost Integration
+    crosspost_api_key: Optional[str] = None
 
     # CORS
     cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
@@ -131,6 +148,9 @@ class Settings(BaseSettings):
                 return [origin.strip() for origin in v.split(",")]
         return v
 
+    # Voice / TTS (Qwen3)
+    DASHSCOPE_API_KEY: str = "sk-10431e0bd8034ef5b4c0687bc121d0f5"
+    
     # Sentry
     sentry_dsn: Optional[str] = None
 
@@ -145,6 +165,10 @@ class Settings(BaseSettings):
     agentforge_base_url: str = "https://api.agentforgeai.com/api/v1"
     agentforge_voice_url: str = "https://vibevoice-gpu-507305692088.us-central1.run.app"
     agentforge_api_key: Optional[str] = "af_live_99d3e8774c1b8f2a5678api2026"
+    
+    # OpenClaw Integration (The "Hands")
+    openclaw_api_url: Optional[str] = "http://localhost:8888"
+    openclaw_api_key: Optional[str] = None
     
     # Yokaizen Config
     momentaic_master_key: Optional[str] = "mk_live_1f45e6f3b16d3dece67b1a0e1a0339bd8e2707ae376073fcf38714ac93519cc4"

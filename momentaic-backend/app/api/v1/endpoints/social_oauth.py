@@ -8,10 +8,12 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+import json
 import structlog
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
+from app.core.redis_client import redis_client
 from app.models.user import User
 from app.models.integration import Integration, IntegrationProvider, IntegrationStatus
 from app.services.social.twitter import twitter_service
@@ -19,9 +21,6 @@ from app.services.social.linkedin import linkedin_service
 
 logger = structlog.get_logger()
 router = APIRouter()
-
-# In-memory store for OAuth state (in production, use Redis)
-oauth_state_store = {}
 
 # ================
 # TWITTER
@@ -38,13 +37,18 @@ async def connect_twitter(
     """
     auth_data = twitter_service.generate_auth_url()
     
-    # Store state -> code_verifier mapping (needed for PKCE)
-    oauth_state_store[auth_data["state"]] = {
+    # Store state -> code_verifier mapping in Redis (TTL 10 mins)
+    state_data = {
         "code_verifier": auth_data["code_verifier"],
         "user_id": str(current_user.id),
         "startup_id": startup_id,
         "platform": "twitter"
     }
+    await redis_client.setex(
+        f"oauth:{auth_data['state']}",
+        600,
+        json.dumps(state_data)
+    )
     
     return {"auth_url": auth_data["auth_url"]}
 
@@ -58,10 +62,14 @@ async def twitter_callback(
     """
     Twitter OAuth callback. Exchanges code for tokens and stores them.
     """
-    # Retrieve state data
-    state_data = oauth_state_store.pop(state, None)
-    if not state_data:
+    # Retrieve state data from Redis
+    state_json = await redis_client.get(f"oauth:{state}")
+    if not state_json:
         raise HTTPException(status_code=400, detail="Invalid or expired state")
+    
+    state_data = json.loads(state_json)
+    # Cleanup state
+    await redis_client.delete(f"oauth:{state}")
     
     code_verifier = state_data["code_verifier"]
     user_id = state_data["user_id"]
@@ -74,18 +82,34 @@ async def twitter_callback(
         raise HTTPException(status_code=400, detail=tokens["error"])
     
     # Store in database
-    integration = Integration(
-        user_id=user_id,
-        startup_id=startup_id,
-        provider=IntegrationProvider.TWITTER,
-        name="Twitter",
-        access_token=tokens["access_token"],
-        refresh_token=tokens.get("refresh_token"),
-        status=IntegrationStatus.ACTIVE,
-        scopes=tokens.get("scope", "").split(" "),
+    existing = await db.execute(
+        select(Integration).where(
+            Integration.startup_id == startup_id,
+            Integration.provider == IntegrationProvider.TWITTER
+        )
     )
+    integration = existing.scalar_one_or_none()
     
-    db.add(integration)
+    if integration:
+        # Update existing
+        integration.access_token = tokens["access_token"]
+        integration.refresh_token = tokens.get("refresh_token")
+        integration.status = IntegrationStatus.ACTIVE
+        integration.scopes = tokens.get("scope", "").split(" ")
+    else:
+        # Create new
+        integration = Integration(
+            user_id=user_id,
+            startup_id=startup_id,
+            provider=IntegrationProvider.TWITTER,
+            name="Twitter",
+            access_token=tokens["access_token"],
+            refresh_token=tokens.get("refresh_token"),
+            status=IntegrationStatus.ACTIVE,
+            scopes=tokens.get("scope", "").split(" "),
+        )
+        db.add(integration)
+    
     await db.commit()
     
     logger.info("Twitter connected successfully", user_id=user_id)
@@ -108,11 +132,16 @@ async def connect_linkedin(
     """
     auth_data = linkedin_service.generate_auth_url()
     
-    oauth_state_store[auth_data["state"]] = {
+    state_data = {
         "user_id": str(current_user.id),
         "startup_id": startup_id,
         "platform": "linkedin"
     }
+    await redis_client.setex(
+        f"oauth:{auth_data['state']}",
+        600,
+        json.dumps(state_data)
+    )
     
     return {"auth_url": auth_data["auth_url"]}
 
@@ -126,9 +155,12 @@ async def linkedin_callback(
     """
     LinkedIn OAuth callback.
     """
-    state_data = oauth_state_store.pop(state, None)
-    if not state_data:
+    state_json = await redis_client.get(f"oauth:{state}")
+    if not state_json:
         raise HTTPException(status_code=400, detail="Invalid or expired state")
+    
+    state_data = json.loads(state_json)
+    await redis_client.delete(f"oauth:{state}")
     
     user_id = state_data["user_id"]
     startup_id = state_data["startup_id"]
@@ -143,17 +175,30 @@ async def linkedin_callback(
     profile = await linkedin_service.get_user_profile(tokens["access_token"])
     user_urn = f"urn:li:person:{profile.get('sub', 'unknown')}"
     
-    integration = Integration(
-        user_id=user_id,
-        startup_id=startup_id,
-        provider=IntegrationProvider.LINKEDIN,
-        name="LinkedIn",
-        access_token=tokens["access_token"],
-        status=IntegrationStatus.ACTIVE,
-        config={"user_urn": user_urn},
+    existing = await db.execute(
+        select(Integration).where(
+            Integration.startup_id == startup_id,
+            Integration.provider == IntegrationProvider.LINKEDIN
+        )
     )
+    integration = existing.scalar_one_or_none()
     
-    db.add(integration)
+    if integration:
+        integration.access_token = tokens["access_token"]
+        integration.status = IntegrationStatus.ACTIVE
+        integration.config = {"user_urn": user_urn}
+    else:
+        integration = Integration(
+            user_id=user_id,
+            startup_id=startup_id,
+            provider=IntegrationProvider.LINKEDIN,
+            name="LinkedIn",
+            access_token=tokens["access_token"],
+            status=IntegrationStatus.ACTIVE,
+            config={"user_urn": user_urn},
+        )
+        db.add(integration)
+
     await db.commit()
     
     logger.info("LinkedIn connected successfully", user_id=user_id)

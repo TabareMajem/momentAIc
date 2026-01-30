@@ -9,6 +9,7 @@ from datetime import datetime
 import structlog
 
 from app.agents.base import get_llm, get_agent_config, web_search, company_research
+from app.agents.browser_agent import browser_agent
 from app.models.conversation import AgentType
 
 logger = structlog.get_logger()
@@ -42,12 +43,72 @@ class LeadResearcherAgent:
         
         try:
             # Gather information from multiple sources
+            # Gather information from multiple sources - Async parallel execution would be better but sequential is fine for now
             research_data = {
-                "company_info": company_research.invoke(company_name),
-                "recent_news": web_search.invoke(f"{company_name} news 2024"),
-                "job_postings": web_search.invoke(f"{company_name} hiring jobs"),
-                "reviews": web_search.invoke(f"{company_name} employee reviews glassdoor"),
+                "company_info": await company_research.ainvoke(company_name),
+                "recent_news": await web_search.ainvoke(f"{company_name} news 2024"),
+                "job_postings": await web_search.ainvoke(f"{company_name} hiring jobs"),
+                "reviews": await web_search.ainvoke(f"{company_name} employee reviews glassdoor"),
             }
+            
+            # 1. Clay Enrichment (Data Intelligence)
+            # Try to infer domain if not provided, or skip
+            lookup_domain = company_website
+            if not lookup_domain and "http" in str(research_data["company_info"]):
+                 # Simple extraction fallback
+                 pass 
+
+            if lookup_domain:
+                from app.integrations import ClayIntegration
+                clay = ClayIntegration()
+                # Clean domain
+                clean_domain = lookup_domain.replace("https://", "").replace("http://", "").split("/")[0]
+                enrichment = await clay.enrich_company(clean_domain)
+                if enrichment.get("success"):
+                    research_data["clay_enrichment"] = enrichment.get("data")
+                    logger.info("Lead Researcher: Clay enrichment successful")
+                    
+                    # 1.5 Sync to Attio CRM (Growth Engine)
+                    try:
+                        from app.integrations import AttioIntegration
+                        attio = AttioIntegration()
+                        
+                        # Sync Company
+                        company_data = enrichment.get("data", {})
+                        await attio.sync_company({
+                            "name": company_data.get("name") or company_name,
+                            "domain": company_data.get("domain") or clean_domain,
+                            "additional_data": company_data
+                        })
+                        
+                        # Sync People (if found in enrichment)
+                        for person in company_data.get("contacts", []):
+                            await attio.sync_person({
+                                "email": person.get("email"),
+                                "first_name": person.get("first_name"),
+                                "last_name": person.get("last_name"),
+                                "company_name": company_name,
+                                "title": person.get("title")
+                            })
+                            
+                        logger.info("Lead Researcher: Synced data to Attio CRM")
+                    except Exception as e:
+                        logger.error("Lead Researcher: Attio sync failed", error=str(e))
+                        
+                else:
+                    logger.warning("Lead Researcher: Clay enrichment failed/skipped")
+            
+            
+            # Shadow Researcher (Multi-step Deep Dive)
+            shadow_insights = {}
+            if company_website:
+                try:
+                    shadow_insights = await self.shadow_research(company_website)
+                    research_data["sw_insights"] = shadow_insights.get("summary", "No deep insights found.")
+                except Exception as e:
+                    logger.warning("Shadow research failed", error=str(e))
+                    research_data["sw_error"] = str(e)
+            
             
             if not self.llm:
                 return {
@@ -65,6 +126,9 @@ Industry: {industry or "Unknown"}
 
 Research Data:
 {research_data}
+
+Shadow Researcher Findings:
+{shadow_insights.get('full_text', 'N/A')}
 
 Provide a detailed analysis:
 
@@ -114,6 +178,60 @@ Format each section clearly with bullet points."""
                 "error": str(e),
                 "company": company_name,
             }
+
+    async def shadow_research(self, url: str) -> Dict[str, Any]:
+        """
+        Shadow Researcher: Multi-step browser investigation.
+        1. Visits Homepage -> extracts value prop.
+        2. Finds 'Pricing' or 'Team' links -> visits them.
+        3. Aggregates findings.
+        """
+        logger.info("Shadow Researcher: Starting investigation", url=url)
+        insights = {"pages_visited": [], "full_text": ""}
+        
+        # 1. Homepage
+        home_result = await browser_agent.navigate(url)
+        if not home_result.success:
+            return {"error": f"Failed to access homepage: {home_result.error}"}
+            
+        insights["pages_visited"].append(url)
+        insights["full_text"] += f"\n--- HOMEPAGE ({url}) ---\n{home_result.text_content[:4000]}\n"
+        
+        # 2. Key Page Discovery (Pricing, Team, About)
+        # We look for links in the text content or use the AI snapshot if available
+        # Simple heuristic: Look for keywords in the AI snapshot text which usually labels links
+        # e.g. "[link] Pricing" or similar.
+        
+        # For this MVP, we'll try to guess standard URLs if we can't parse links easily yet
+        # (Since our AI snapshot format is text, we can regex it, or just try common paths)
+        
+        targets = ["pricing", "about", "team", "careers"]
+        found_links = []
+        
+        # Try to find these links (OpenClaw V2 could theoretically return clickable refs)
+        # For now, let's try appending paths as a fallback strategy if we can't scrape links perfectly
+        import re
+        base_domain = url.rstrip("/")
+        
+        for target in targets:
+            # Try to find a link in the snapshot text
+            # This is a bit loose but effective for text-based agents
+            if re.search(f"\b{target}\b", home_result.text_content, re.IGNORECASE):
+                # Construct likely URL
+                target_url = f"{base_domain}/{target}"
+                found_links.append((target, target_url))
+        
+        # Limit to 2 extra pages to save time/resources
+        for page_name, page_url in found_links[:2]:
+            logger.info("Shadow Researcher: Digging deeper", page=page_name)
+            sub_result = await browser_agent.navigate(page_url)
+            if sub_result.success:
+                insights["pages_visited"].append(page_url)
+                insights["full_text"] += f"\n--- {page_name.upper()} PAGE ---\n{sub_result.text_content[:2000]}\n"
+        
+        insights["summary"] = f"Visited {len(insights['pages_visited'])} pages: {', '.join(insights['pages_visited'])}"
+        return insights
+
     
     async def research_contact(
         self,
@@ -132,7 +250,7 @@ Format each section clearly with bullet points."""
         
         try:
             # Search for contact information
-            search_results = web_search.invoke(
+            search_results = await web_search.ainvoke(
                 f'"{contact_name}" "{company_name}" linkedin OR twitter OR blog'
             )
             

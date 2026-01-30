@@ -41,6 +41,26 @@ rsync -av \
     --exclude='venv' \
     "$SOURCE_DIR/" "$DEST_DIR/"
 
+echo "✅ Backend code synced."
+
+# 3b. Sync Frontend
+FRONT_SOURCE="/root/momentaic/momentaic-frontend"
+FRONT_DEST="/opt/momentaic/momentaic-frontend"
+
+if [ -d "$FRONT_SOURCE" ]; then
+    echo "[3b/4] Syncing frontend code..."
+    mkdir -p "$FRONT_DEST"
+    rsync -av \
+        --exclude='.git' \
+        --exclude='node_modules' \
+        --exclude='dist' \
+        --exclude='coverage' \
+        "$FRONT_SOURCE/" "$FRONT_DEST/"
+    echo "✅ Frontend code synced."
+else
+    echo "⚠️ Frontend source not found at $FRONT_SOURCE. Skipping."
+fi
+
 echo "✅ Code synced (including docker-compose.yml)."
 
 # 4. Restart
@@ -49,7 +69,11 @@ echo "[4/4] Restarting Services..."
 cd /opt/momentaic/momentaic-backend
 if command -v pm2 &> /dev/null; then
     pm2 restart momentaic-backend
-    echo "✅ PM2 Restarted."
+    if pm2 list | grep -q "momentaic-frontend"; then
+        pm2 restart momentaic-frontend
+        echo "✅ PM2 Frontend Restarted."
+    fi
+    echo "✅ PM2 Backend Restarted."
 else
     echo "⚠️ PM2 not found in path. Rebuilding and restarting all Docker containers..."
     docker compose up -d --build
