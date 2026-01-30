@@ -4,12 +4,13 @@ import { useAuthStore } from '../stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import {
     Send, Sparkles, Zap, Bot, ArrowRight, CheckCircle2,
-    AlertCircle, Terminal, Cpu, Loader2, Play, Lock
+    AlertCircle, Terminal, Cpu, Loader2, Play, Lock, Rocket, Target, TrendingUp
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Dialog } from '../components/ui/Dialog';
 import { Card } from '../components/ui/Card';
+import { TypingText, ConfettiBurst } from '../components/ui/AnimatedEffects';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -39,6 +40,8 @@ export default function GeniusOnboarding() {
     const [isExecuting, setIsExecuting] = useState(false);
     const [startupId, setStartupId] = useState<string | null>(null);
     const [showPaywall, setShowPaywall] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1); // 1: URL, 2: Analysis, 3: Strategy
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +70,7 @@ export default function GeniusOnboarding() {
         try {
             // First message? Start session.
             if (messages.length === 1) {
+                setCurrentStep(2); // Move to Analysis step
                 const response = await api.startGeniusSession(userMsg, startupId || undefined);
                 setMessages(prev => [...prev, { role: 'assistant', content: response.message }]);
             } else {
@@ -82,6 +86,9 @@ export default function GeniusOnboarding() {
                             const parsedPlan = JSON.parse(jsonMatch[0]);
                             if (parsedPlan.social_posts) {
                                 setPlan(parsedPlan);
+                                setShowConfetti(true);
+                                setCurrentStep(3);
+                                setTimeout(() => setShowConfetti(false), 3000);
                             }
                         }
                     } catch (e) {
@@ -131,6 +138,35 @@ export default function GeniusOnboarding() {
 
     return (
         <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans selection:bg-[#00f0ff] selection:text-black">
+            {/* Confetti Burst */}
+            <ConfettiBurst trigger={showConfetti} />
+
+            {/* Progress Stepper */}
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center gap-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-full px-6 py-3">
+                {[
+                    { step: 1, label: "Drop URL", icon: <Target className="w-4 h-4" /> },
+                    { step: 2, label: "AI Analysis", icon: <Cpu className="w-4 h-4" /> },
+                    { step: 3, label: "Get Strategy", icon: <Rocket className="w-4 h-4" /> },
+                ].map((item, idx) => (
+                    <React.Fragment key={item.step}>
+                        <div className={`flex items-center gap-2 transition-all duration-300 ${currentStep >= item.step ? 'text-[#00f0ff]' : 'text-gray-600'
+                            }`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${currentStep > item.step
+                                ? 'bg-[#00f0ff] border-[#00f0ff] text-black'
+                                : currentStep === item.step
+                                    ? 'border-[#00f0ff] text-[#00f0ff]'
+                                    : 'border-gray-600'
+                                }`}>
+                                {currentStep > item.step ? <CheckCircle2 className="w-4 h-4" /> : item.icon}
+                            </div>
+                            <span className="text-xs font-mono uppercase tracking-wider">{item.label}</span>
+                        </div>
+                        {idx < 2 && <div className={`w-12 h-0.5 transition-all duration-300 ${currentStep > item.step ? 'bg-[#00f0ff]' : 'bg-gray-700'
+                            }`} />}
+                    </React.Fragment>
+                ))}
+            </div>
+
             {/* Header */}
             <header className="p-6 border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-20">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
@@ -142,7 +178,7 @@ export default function GeniusOnboarding() {
                             <h1 className="text-xl font-black italic tracking-tighter uppercase">Genius Mode</h1>
                             <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                ONLINE // 100 ELON MUSKS ACTIVATED
+                                LIVE // STRATEGY IN 60 SECONDS
                             </div>
                         </div>
                     </div>

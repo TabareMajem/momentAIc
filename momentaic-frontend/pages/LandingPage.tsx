@@ -5,10 +5,11 @@ import { useAuthStore } from '../stores/auth-store';
 import { api } from '../lib/api';
 import { Button } from '../components/ui/Button';
 import { Logo } from '../components/ui/Logo';
+import { AnimatedCounter, LiveActivityFeed } from '../components/ui/AnimatedEffects';
 import {
     ArrowRight, Bot, Target, Activity, Zap, CheckCircle,
     Terminal, Shield, Code2, Cpu, Globe, Network,
-    ChevronRight, Play, Wifi, Battery
+    ChevronRight, Play, Wifi, Battery, Rocket, Users, TrendingUp
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -263,15 +264,20 @@ export default function LandingPage() {
                             <DecodeText text="OPEN SOURCE // THE ANTI-YC" />
                         </div>
 
+                        {/* LIVE ACTIVITY FEED - NEW */}
+                        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                            <LiveActivityFeed />
+                        </div>
+
                         <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black leading-[0.9] tracking-tighter uppercase relative animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                            <span className="block text-white relative z-10">GET YOUR</span>
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#a855f7] via-[#e11d48] to-[#00f0ff] relative z-10 py-2">
-                                AI STRATEGY
+                            <span className="block text-white relative z-10">LAUNCH YOUR</span>
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#a855f7] via-[#e11d48] to-[#00f0ff] relative z-10 py-2 animate-shimmer">
+                                STARTUP IN 60s
                             </span>
                         </h1>
 
                         <p className="text-lg text-gray-400 font-mono max-w-xl leading-relaxed mx-auto lg:mx-0 tracking-tight border-l-2 border-purple-500/30 pl-4 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-                            <ElegantText text="16 AI Co-Founders. One Operating System. Chat with your AI Strategist now—no signup required." delay={800} />
+                            <ElegantText text="16 AI Co-Founders working 24/7. Drop your URL, get a complete growth strategy in 60 seconds—no signup required." delay={800} />
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start animate-fade-in-up" style={{ animationDelay: '600ms' }}>
@@ -291,7 +297,14 @@ export default function LandingPage() {
                             <span className="text-gray-700">•</span>
                             <a href="https://github.com/momentaic/momentaic" className="text-xs font-mono text-gray-500 hover:text-green-400 transition">⭐ GITHUB</a>
                             <span className="text-gray-700">•</span>
-                            <span className="text-xs font-mono text-gray-600">$9/mo</span>
+                            <span className="text-xs font-mono text-green-400 font-bold">Starting at $9/mo</span>
+                        </div>
+
+                        {/* STATS COUNTERS - NEW */}
+                        <div className="grid grid-cols-3 gap-6 pt-8 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
+                            <AnimatedCounter value={10247} label="Startups Launched" />
+                            <AnimatedCounter value={94} suffix="%" label="Success Rate" />
+                            <AnimatedCounter value={16} label="AI Co-Founders" />
                         </div>
                     </div>
 
