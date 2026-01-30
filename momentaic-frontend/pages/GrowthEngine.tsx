@@ -229,200 +229,199 @@ function ContentMatrix({ startup, autopilot }: { startup: Startup, autopilot: bo
 
         setGenerating(true);
         try {
-            try {
-                // [REALITY UPGRADE] Use real AI generation
-                const result = await api.generateContent({
-                    platform: platform,
-                    topic: topic,
-                    content_type: 'post',
-                    tone: 'professional'
-                });
-                setContent(result.body || result.full_body || result.title || "Generated content is empty.");
-            } catch (e) {
-                setContent("Failed to connect to Neural Engine.");
-            } finally {
-                setGenerating(false);
-            }
-        };
+            // [REALITY UPGRADE] Use real AI generation
+            const result = await api.generateContent({
+                platform: platform,
+                topic: topic,
+                content_type: 'post',
+                tone: 'professional'
+            });
+            setContent(result.body || result.full_body || result.title || "Generated content is empty.");
+        } catch (e) {
+            setContent("Failed to connect to Neural Engine.");
+        } finally {
+            setGenerating(false);
+        }
+    };
 
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-                <div className="space-y-6">
-                    <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded-xl">
-                        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                            <PenTool className="w-4 h-4 text-purple-500" /> Content Parameters
-                        </h3>
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-xs text-gray-500 font-bold uppercase">Platform</label>
-                                <div className="flex gap-2">
-                                    {['LinkedIn', 'Twitter/X', 'Blog', 'Email'].map(p => (
-                                        <button
-                                            key={p}
-                                            onClick={() => setPlatform(p)}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded text-xs border transition-colors",
-                                                platform === p ? "bg-white text-black border-white" : "bg-black text-gray-400 border-white/20 hover:border-white/50"
-                                            )}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs text-gray-500 font-bold uppercase">Topic / Angle</label>
-                                <Textarea
-                                    placeholder="e.g. How AI is changing logistics..."
-                                    value={topic}
-                                    onChange={e => setTopic(e.target.value)}
-                                    className="h-32 bg-black border-white/20"
-                                />
-                            </div>
-                            <Button className="w-full" variant="cyber" onClick={handleGenerate} isLoading={generating} disabled={!topic}>
-                                NEURAL GENERATE ({AI_COST} CREDITS)
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded-xl flex flex-col h-full relative overflow-hidden">
-                    {autopilot && <div className="absolute inset-0 bg-cyber-grid opacity-10 pointer-events-none animate-grid-flow"></div>}
-
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2 justify-between relative z-10">
-                        <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#00f0ff]" /> Output</span>
-                        {content && (
-                            <Button size="sm" variant="ghost" className="h-6 px-2 text-gray-400 hover:text-white" onClick={() => navigator.clipboard.writeText(content)}>
-                                <Copy className="w-3 h-3" />
-                            </Button>
-                        )}
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+            <div className="space-y-6">
+                <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded-xl">
+                    <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                        <PenTool className="w-4 h-4 text-purple-500" /> Content Parameters
                     </h3>
-                    <div className="flex-1 bg-[#111] rounded border border-white/5 p-4 text-gray-300 font-mono text-sm whitespace-pre-wrap overflow-y-auto relative z-10">
-                        {content ? content : <span className="text-gray-600 italic">Waiting for input parameters...</span>}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // === MAIN PAGE ===
-
-    export default function GrowthEngine() {
-        const [startups, setStartups] = useState<Startup[]>([]);
-        const [selectedStartupId, setSelectedStartupId] = useState<string>('');
-        const [activeTab, setActiveTab] = useState<'crm' | 'content'>('crm');
-        const [autopilot, setAutopilot] = useState(false);
-        const [stats, setStats] = useState<any>(null); // AdminStats
-
-        useEffect(() => {
-            const init = async () => {
-                const [startupsData, statsData] = await Promise.all([
-                    api.getStartups(),
-                    api.getAdminStats().catch(() => null) // Fail gracefully if not admin
-                ]);
-
-                setStartups(startupsData);
-                if (startupsData.length > 0) setSelectedStartupId(startupsData[0].id);
-                setStats(statsData);
-            };
-            init();
-        }, []);
-
-        const selectedStartup = startups.find(s => s.id === selectedStartupId);
-
-        return (
-            <div className="h-[calc(100vh-6rem)] flex flex-col">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-end mb-4 border-b border-white/10 pb-4 gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black text-white tracking-tighter mb-2 flex items-center gap-3">
-                            GROWTH_ENGINE <span className="px-2 py-0.5 rounded text-[10px] bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20">BETA</span>
-                        </h1>
-                        <div className="flex gap-6 text-xs font-mono text-gray-500">
-                            {stats?.hunter_stats ? (
-                                <>
-                                    <span className="flex items-center gap-1 text-white">
-                                        <Target className="w-3 h-3 text-green-500" />
-                                        LEADS: {stats.hunter_stats.leads_generated}
-                                    </span>
-                                    <span className="flex items-center gap-1 text-white">
-                                        <Mail className="w-3 h-3 text-[#00f0ff]" />
-                                        SENT: {stats.hunter_stats.emails_sent}
-                                    </span>
-                                    <span className="flex items-center gap-1 text-white">
-                                        <Activity className="w-3 h-3 text-purple-500" />
-                                        ACTIVE: {stats.hunter_stats.campaigns_active}
-                                    </span>
-                                </>
-                            ) : (
-                                <span>AUTOMATED REVENUE PROTOCOL</span>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4">
-                        {/* Autopilot Toggle */}
-                        <Button
-                            onClick={() => setAutopilot(!autopilot)}
-                            className={cn(
-                                "h-9 px-4 text-xs font-mono font-bold tracking-wider transition-all duration-500",
-                                autopilot
-                                    ? "bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.4)]"
-                                    : "bg-black text-gray-500 border border-white/10 hover:border-white/30"
-                            )}
-                        >
-                            <Zap className={cn("w-3 h-3 mr-2", autopilot ? "fill-current" : "")} />
-                            AUTOPILOT: {autopilot ? 'ON' : 'OFF'}
-                        </Button>
-
-                        <div className="w-px h-8 bg-white/10 mx-2 hidden md:block"></div>
-
-                        <select
-                            className="bg-black border border-white/20 text-white text-sm rounded px-3 py-2 focus:border-[#00f0ff] focus:outline-none"
-                            value={selectedStartupId}
-                            onChange={e => setSelectedStartupId(e.target.value)}
-                        >
-                            {startups.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-
-                        <div className="flex bg-[#111] p-1 rounded-lg border border-white/10">
-                            <button
-                                onClick={() => setActiveTab('crm')}
-                                className={cn("px-4 py-1.5 rounded text-xs font-bold uppercase transition-all", activeTab === 'crm' ? "bg-white text-black shadow-lg" : "text-gray-500 hover:text-white")}
-                            >
-                                Pipeline
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('content')}
-                                className={cn("px-4 py-1.5 rounded text-xs font-bold uppercase transition-all", activeTab === 'content' ? "bg-white text-black shadow-lg" : "text-gray-500 hover:text-white")}
-                            >
-                                Content Studio
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-hidden relative">
-                    {autopilot && (
-                        <div className="absolute top-0 right-0 p-4 z-50">
-                            <div className="flex items-center gap-2 px-3 py-1 bg-[#00f0ff]/10 border border-[#00f0ff]/30 rounded-full">
-                                <Activity className="w-3 h-3 text-[#00f0ff] animate-pulse" />
-                                <span className="text-[10px] text-[#00f0ff] font-mono font-bold">AGENTS ACTIVE</span>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs text-gray-500 font-bold uppercase">Platform</label>
+                            <div className="flex gap-2">
+                                {['LinkedIn', 'Twitter/X', 'Blog', 'Email'].map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setPlatform(p)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded text-xs border transition-colors",
+                                            platform === p ? "bg-white text-black border-white" : "bg-black text-gray-400 border-white/20 hover:border-white/50"
+                                        )}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    )}
-
-                    {selectedStartup ? (
-                        activeTab === 'crm' ? (
-                            <CRMBoard startupId={selectedStartup.id} autopilot={autopilot} />
-                        ) : (
-                            <ContentMatrix startup={selectedStartup} autopilot={autopilot} />
-                        )
-                    ) : (
-                        <div className="text-center p-20 text-gray-500">Initialize a startup to access Growth Engine.</div>
-                    )}
+                        <div className="space-y-2">
+                            <label className="text-xs text-gray-500 font-bold uppercase">Topic / Angle</label>
+                            <Textarea
+                                placeholder="e.g. How AI is changing logistics..."
+                                value={topic}
+                                onChange={e => setTopic(e.target.value)}
+                                className="h-32 bg-black border-white/20"
+                            />
+                        </div>
+                        <Button className="w-full" variant="cyber" onClick={handleGenerate} isLoading={generating} disabled={!topic}>
+                            NEURAL GENERATE ({AI_COST} CREDITS)
+                        </Button>
+                    </div>
                 </div>
             </div>
-        );
-    }
+
+            <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded-xl flex flex-col h-full relative overflow-hidden">
+                {autopilot && <div className="absolute inset-0 bg-cyber-grid opacity-10 pointer-events-none animate-grid-flow"></div>}
+
+                <h3 className="text-white font-bold mb-4 flex items-center gap-2 justify-between relative z-10">
+                    <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#00f0ff]" /> Output</span>
+                    {content && (
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-gray-400 hover:text-white" onClick={() => navigator.clipboard.writeText(content)}>
+                            <Copy className="w-3 h-3" />
+                        </Button>
+                    )}
+                </h3>
+                <div className="flex-1 bg-[#111] rounded border border-white/5 p-4 text-gray-300 font-mono text-sm whitespace-pre-wrap overflow-y-auto relative z-10">
+                    {content ? content : <span className="text-gray-600 italic">Waiting for input parameters...</span>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// === MAIN PAGE ===
+
+export default function GrowthEngine() {
+    const [startups, setStartups] = useState<Startup[]>([]);
+    const [selectedStartupId, setSelectedStartupId] = useState<string>('');
+    const [activeTab, setActiveTab] = useState<'crm' | 'content'>('crm');
+    const [autopilot, setAutopilot] = useState(false);
+    const [stats, setStats] = useState<any>(null); // AdminStats
+
+    useEffect(() => {
+        const init = async () => {
+            const [startupsData, statsData] = await Promise.all([
+                api.getStartups(),
+                api.getAdminStats().catch(() => null) // Fail gracefully if not admin
+            ]);
+
+            setStartups(startupsData);
+            if (startupsData.length > 0) setSelectedStartupId(startupsData[0].id);
+            setStats(statsData);
+        };
+        init();
+    }, []);
+
+    const selectedStartup = startups.find(s => s.id === selectedStartupId);
+
+    return (
+        <div className="h-[calc(100vh-6rem)] flex flex-col">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 border-b border-white/10 pb-4 gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-white tracking-tighter mb-2 flex items-center gap-3">
+                        GROWTH_ENGINE <span className="px-2 py-0.5 rounded text-[10px] bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20">BETA</span>
+                    </h1>
+                    <div className="flex gap-6 text-xs font-mono text-gray-500">
+                        {stats?.hunter_stats ? (
+                            <>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Target className="w-3 h-3 text-green-500" />
+                                    LEADS: {stats.hunter_stats.leads_generated}
+                                </span>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Mail className="w-3 h-3 text-[#00f0ff]" />
+                                    SENT: {stats.hunter_stats.emails_sent}
+                                </span>
+                                <span className="flex items-center gap-1 text-white">
+                                    <Activity className="w-3 h-3 text-purple-500" />
+                                    ACTIVE: {stats.hunter_stats.campaigns_active}
+                                </span>
+                            </>
+                        ) : (
+                            <span>AUTOMATED REVENUE PROTOCOL</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Autopilot Toggle */}
+                    <Button
+                        onClick={() => setAutopilot(!autopilot)}
+                        className={cn(
+                            "h-9 px-4 text-xs font-mono font-bold tracking-wider transition-all duration-500",
+                            autopilot
+                                ? "bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.4)]"
+                                : "bg-black text-gray-500 border border-white/10 hover:border-white/30"
+                        )}
+                    >
+                        <Zap className={cn("w-3 h-3 mr-2", autopilot ? "fill-current" : "")} />
+                        AUTOPILOT: {autopilot ? 'ON' : 'OFF'}
+                    </Button>
+
+                    <div className="w-px h-8 bg-white/10 mx-2 hidden md:block"></div>
+
+                    <select
+                        className="bg-black border border-white/20 text-white text-sm rounded px-3 py-2 focus:border-[#00f0ff] focus:outline-none"
+                        value={selectedStartupId}
+                        onChange={e => setSelectedStartupId(e.target.value)}
+                    >
+                        {startups.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+
+                    <div className="flex bg-[#111] p-1 rounded-lg border border-white/10">
+                        <button
+                            onClick={() => setActiveTab('crm')}
+                            className={cn("px-4 py-1.5 rounded text-xs font-bold uppercase transition-all", activeTab === 'crm' ? "bg-white text-black shadow-lg" : "text-gray-500 hover:text-white")}
+                        >
+                            Pipeline
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('content')}
+                            className={cn("px-4 py-1.5 rounded text-xs font-bold uppercase transition-all", activeTab === 'content' ? "bg-white text-black shadow-lg" : "text-gray-500 hover:text-white")}
+                        >
+                            Content Studio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-hidden relative">
+                {autopilot && (
+                    <div className="absolute top-0 right-0 p-4 z-50">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-[#00f0ff]/10 border border-[#00f0ff]/30 rounded-full">
+                            <Activity className="w-3 h-3 text-[#00f0ff] animate-pulse" />
+                            <span className="text-[10px] text-[#00f0ff] font-mono font-bold">AGENTS ACTIVE</span>
+                        </div>
+                    </div>
+                )}
+
+                {selectedStartup ? (
+                    activeTab === 'crm' ? (
+                        <CRMBoard startupId={selectedStartup.id} autopilot={autopilot} />
+                    ) : (
+                        <ContentMatrix startup={selectedStartup} autopilot={autopilot} />
+                    )
+                ) : (
+                    <div className="text-center p-20 text-gray-500">Initialize a startup to access Growth Engine.</div>
+                )}
+            </div>
+        </div>
+    );
+}
