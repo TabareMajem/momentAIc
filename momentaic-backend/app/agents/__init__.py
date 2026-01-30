@@ -263,6 +263,72 @@ class _AgentsModule(sys.modules[__name__].__class__):
         from app.agents.launch_strategist_agent import launch_strategist_agent
         return launch_strategist_agent
 
+    # === NEW: Previously Unregistered Agents ===
+    @property
+    def competitor_intel_agent(self):
+        from app.agents.competitor_intel_agent import competitor_intel_agent
+        return competitor_intel_agent
+
+    @property
+    def onboarding_coach_agent(self):
+        from app.agents.onboarding_coach_agent import onboarding_coach_agent
+        return onboarding_coach_agent
+
+    @property
+    def fundraising_coach_agent(self):
+        from app.agents.fundraising_coach_agent import fundraising_coach_agent
+        return fundraising_coach_agent
+
+    @property
+    def ambassador_agent(self):
+        from app.agents.ambassador_agent import ambassador_agent
+        return ambassador_agent
+
+    @property
+    def acquisition_agent(self):
+        from app.agents.acquisition_agent import acquisition_agent
+        return acquisition_agent
+
+    @property
+    def dealmaker_agent(self):
+        from app.agents.dealmaker_agent import dealmaker_agent
+        return dealmaker_agent
+
+    @property
+    def deep_research_agent(self):
+        from app.agents.deep_research_agent import deep_research_agent
+        return deep_research_agent
+
+    @property
+    def empire_strategist(self):
+        from app.agents.empire_strategist import empire_strategist
+        return empire_strategist
+
+    @property
+    def kol_headhunter_agent(self):
+        from app.agents.kol_headhunter_agent import kol_headhunter_agent
+        return kol_headhunter_agent
+
+    @property
+    def launch_executor_agent(self):
+        from app.agents.launch_executor_agent import launch_executor_agent
+        return launch_executor_agent
+
+    @property
+    def localization_architect_agent(self):
+        from app.agents.localization_architect_agent import localization_architect_agent
+        return localization_architect_agent
+
+    @property
+    def war_gaming_agent(self):
+        from app.agents.war_gaming_agent import war_gaming_agent
+        return war_gaming_agent
+
+    @property
+    def integration_builder_agent(self):
+        from app.agents.integration_builder_agent import integration_builder_agent
+        return integration_builder_agent
+
 # Replace current module with the proxy one
 sys.modules[__name__].__class__ = _AgentsModule
 
@@ -309,5 +375,19 @@ __all__ = [
     "chain_executor",
     "success_protocol",
     "swarm_router",
+    # ==== NEW: Previously Unregistered Specialty Agents ====
+    "competitor_intel_agent",
+    "onboarding_coach_agent",
+    "fundraising_coach_agent",
+    "ambassador_agent",
+    "acquisition_agent",
+    "dealmaker_agent",
+    "deep_research_agent",
+    "empire_strategist",
+    "kol_headhunter_agent",
+    "launch_executor_agent",
+    "localization_architect_agent",
+    "war_gaming_agent",
+    "integration_builder_agent",
 ]
 

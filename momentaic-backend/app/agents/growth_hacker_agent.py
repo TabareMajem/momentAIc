@@ -492,7 +492,168 @@ Provide:
             logger.error("Social monitoring failed", error=str(e))
             return {"error": str(e)}
 
+    # ==== TWIN.SO KILLER: ANALYTICS FEATURES ====
+    
+    async def weekly_growth_report(
+        self,
+        startup_context: Dict[str, Any],
+        metrics: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate automated weekly growth insights.
+        Superior to twin.so: AI-powered actionable recommendations.
+        """
+        metrics = metrics or {}
+        
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        prompt = f"""Generate a weekly growth report for this startup:
 
+STARTUP: {startup_context.get('name', 'Unknown')}
+INDUSTRY: {startup_context.get('industry', 'Tech')}
+
+THIS WEEK'S METRICS:
+- Website Visitors: {metrics.get('visitors', 0)}
+- Signups: {metrics.get('signups', 0)}
+- Active Users: {metrics.get('dau', 0)}
+- Revenue: ${metrics.get('revenue', 0)}
+- Social Followers: {metrics.get('followers', 0)}
+
+LAST WEEK'S METRICS:
+- Visitors: {metrics.get('prev_visitors', 0)}
+- Signups: {metrics.get('prev_signups', 0)}
+
+Generate a report with:
+1. Week-over-Week Growth Summary
+2. Top 3 Wins This Week
+3. Top 3 Opportunities Missed
+4. Priority Actions for Next Week (be SPECIFIC)
+5. Growth Score (1-100)
+
+Format as JSON."""
+
+        try:
+            response = await self.llm.ainvoke([
+                SystemMessage(content=self.config["system_prompt"]),
+                HumanMessage(content=prompt),
+            ])
+            
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                report = json.loads(json_match.group())
+                return {
+                    "success": True,
+                    "report": report,
+                    "generated_at": datetime.now().isoformat(),
+                    "agent": AgentType.GROWTH_HACKER.value
+                }
+            return {"raw_report": response.content}
+        except Exception as e:
+            logger.error("Weekly report generation failed", error=str(e))
+            return {"error": str(e)}
+
+    async def audience_heatmap(
+        self,
+        past_engagement: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        Analyze best posting times based on past engagement.
+        Returns a heatmap of optimal posting hours by day.
+        """
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        # If no data, return defaults
+        if not past_engagement:
+            return {
+                "success": True,
+                "heatmap": {
+                    "monday": [9, 12, 17],
+                    "tuesday": [10, 14, 18],
+                    "wednesday": [9, 12, 17],
+                    "thursday": [10, 14, 18],
+                    "friday": [9, 12, 15],
+                    "saturday": [10, 14],
+                    "sunday": [11, 15],
+                },
+                "best_overall": "Tuesday 10am, Thursday 2pm",
+                "source": "industry_defaults"
+            }
+        
+        prompt = f"""Analyze this engagement data and find the best posting times:
+
+ENGAGEMENT DATA:
+{past_engagement[:50]}
+
+Return a JSON heatmap:
+{{
+    "heatmap": {{
+        "monday": [best_hours],
+        "tuesday": [best_hours],
+        ...
+    }},
+    "best_overall": "Day Time, Day Time",
+    "worst_times": "Day Time",
+    "insights": "..."
+}}"""
+
+        try:
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                return {"success": True, **json.loads(json_match.group())}
+            return {"raw": response.content}
+        except Exception as e:
+            return {"error": str(e)}
+
+    async def competitor_content_spy(
+        self,
+        competitor_handles: List[str],
+        platform: str = "linkedin",
+    ) -> Dict[str, Any]:
+        """
+        Spy on competitor content strategy.
+        Identifies what's working for them that you should steal.
+        """
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        try:
+            competitor_data = []
+            for handle in competitor_handles[:3]:
+                # Search for their recent posts
+                query = f"site:{platform}.com/in/{handle} OR site:{platform}.com/company/{handle}"
+                results = await web_search.ainvoke(query)
+                competitor_data.append({"handle": handle, "results": results})
+            
+            prompt = f"""Analyze these competitor social profiles:
+
+{competitor_data}
+
+Identify:
+1. Their top content themes
+2. Posting frequency
+3. Engagement tactics
+4. Hashtags they use
+5. What YOU should steal/adapt
+
+Format as JSON with 'steal_this' array."""
+
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                return {"success": True, **json.loads(json_match.group())}
+            return {"raw": response.content}
+        except Exception as e:
+            return {"error": str(e)}
+
+
+# Import datetime for reports
+from datetime import datetime
 
 # Singleton instance
 growth_hacker_agent = GrowthHackerAgent()

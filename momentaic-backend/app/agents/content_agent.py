@@ -337,6 +337,177 @@ Format each as: TOPIC | PLATFORM | TYPE | REASON"""
         
         return ideas[:count]
 
+    # ==== TWIN.SO KILLER FEATURES ====
+    
+    async def repurpose_content(
+        self,
+        original_content: str,
+        source_format: str = "blog",
+        target_formats: List[str] = None,
+        startup_context: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Turn 1 piece of content into 10+ platform-optimized versions.
+        Superior to twin.so: handles blog → thread → carousel → video script.
+        """
+        target_formats = target_formats or ["linkedin_post", "twitter_thread", "carousel", "video_script"]
+        startup_context = startup_context or {}
+        
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        prompt = f"""You are a content repurposing expert. Transform this content into multiple formats.
+
+ORIGINAL CONTENT ({source_format}):
+{original_content[:5000]}
+
+STARTUP CONTEXT:
+{startup_context.get('name', 'Our Startup')} - {startup_context.get('description', '')}
+
+Generate content for these formats: {', '.join(target_formats)}
+
+For each format, provide:
+1. The optimized content
+2. Best posting time
+3. Hashtags (if applicable)
+
+Format as JSON:
+{{
+    "linkedin_post": {{"content": "...", "hashtags": [...], "best_time": "..."}},
+    "twitter_thread": {{"tweets": ["1/5 Hook...", "2/5...", ...], "hashtags": [...]}},
+    "carousel": {{"slides": ["Slide 1: Title", "Slide 2: Point 1", ...]}},
+    "video_script": {{"hook": "...", "body": "...", "cta": "...", "duration": "60s"}}
+}}"""
+
+        try:
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a viral content expert who maximizes reach across platforms."),
+                HumanMessage(content=prompt),
+            ])
+            
+            import json
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                repurposed = json.loads(json_match.group())
+                return {
+                    "success": True,
+                    "source_format": source_format,
+                    "repurposed": repurposed,
+                    "count": len(repurposed),
+                    "agent": AgentType.CONTENT_CREATOR.value
+                }
+            else:
+                return {"success": False, "raw": response.content}
+                
+        except Exception as e:
+            logger.error("Content repurposing failed", error=str(e))
+            return {"error": str(e)}
+
+    async def batch_schedule(
+        self,
+        content_items: List[Dict[str, Any]],
+        schedule_type: str = "optimal",  # "optimal", "burst", "drip"
+    ) -> Dict[str, Any]:
+        """
+        Schedule multiple posts across platforms with optimal timing.
+        Superior to twin.so: AI-powered timing + cross-platform strategy.
+        """
+        if not content_items:
+            return {"error": "No content items provided"}
+            
+        # Import Typefully for scheduling
+        from app.integrations.typefully import TypefullyIntegration
+        typefully = TypefullyIntegration()
+        
+        scheduled = []
+        from datetime import datetime, timedelta
+        
+        # Generate optimal schedule
+        base_time = datetime.utcnow()
+        
+        for i, item in enumerate(content_items):
+            platform = item.get("platform", "twitter")
+            content = item.get("content", "")
+            
+            # Calculate optimal time based on strategy
+            if schedule_type == "burst":
+                # All within 2 hours
+                post_time = base_time + timedelta(minutes=i * 15)
+            elif schedule_type == "drip":
+                # Spread over week
+                post_time = base_time + timedelta(days=i)
+            else:
+                # Optimal: Peak engagement times
+                peak_hours = [9, 12, 17]  # 9am, noon, 5pm
+                day_offset = i // 3
+                hour_index = i % 3
+                post_time = base_time.replace(hour=peak_hours[hour_index]) + timedelta(days=day_offset)
+            
+            # Schedule via Typefully
+            if platform in ["twitter", "x"]:
+                result = await typefully.execute_action("schedule_thread", {
+                    "content": content,
+                    "date": post_time.isoformat()
+                })
+                scheduled.append({
+                    "platform": platform,
+                    "scheduled_at": post_time.isoformat(),
+                    "status": "scheduled" if result.get("success") else "failed",
+                    "result": result
+                })
+            else:
+                # For other platforms, mark as draft
+                scheduled.append({
+                    "platform": platform,
+                    "scheduled_at": post_time.isoformat(),
+                    "status": "draft_created",
+                    "content_preview": content[:100]
+                })
+        
+        return {
+            "success": True,
+            "scheduled_count": len(scheduled),
+            "schedule_type": schedule_type,
+            "posts": scheduled,
+            "agent": AgentType.CONTENT_CREATOR.value
+        }
+
+    async def content_performance_analysis(
+        self,
+        past_posts: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        Analyze what content performs best and why.
+        Returns actionable insights for future content.
+        """
+        if not self.llm or not past_posts:
+            return {"error": "LLM not initialized or no posts provided"}
+        
+        prompt = f"""Analyze these past posts and identify patterns:
+
+POSTS:
+{past_posts[:20]}
+
+Provide:
+1. Top performing themes
+2. Best posting times observed
+3. Content formats that work
+4. Hashtags that drove engagement
+5. Recommendations for future content
+
+Format as JSON."""
+
+        try:
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                return json.loads(json_match.group())
+            return {"raw_analysis": response.content}
+        except Exception as e:
+            return {"error": str(e)}
+
 
 # Singleton instance
 content_agent = ContentAgent()

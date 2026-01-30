@@ -491,4 +491,154 @@ class MarketingAgent:
             logger.error("HunterAgent: Send Failed", error=str(e))
             return {"success": False, "error": str(e)}
 
+    # ==== TWIN.SO KILLER: LEAD GENERATION TOOLS ====
+    
+    async def generate_lead_magnet(
+        self,
+        startup_context: Dict[str, Any],
+        magnet_type: str = "checklist",  # checklist, pdf_guide, template, cheat_sheet
+        target_audience: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Generate a lead magnet (PDF outline, checklist, etc).
+        Superior to twin.so: full content generation, not just ideas.
+        """
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        prompt = f"""Create a lead magnet for this startup:
+
+STARTUP: {startup_context.get('name', '')}
+INDUSTRY: {startup_context.get('industry', 'Tech')}
+DESCRIPTION: {startup_context.get('description', '')}
+TARGET AUDIENCE: {target_audience or 'Early-stage founders'}
+
+MAGNET TYPE: {magnet_type}
+
+Generate:
+1. Catchy Title (with number if checklist)
+2. Subtitle/Hook
+3. Full Content (10-15 items for checklist, 5 sections for guide)
+4. Lead capture CTA text
+5. Email follow-up sequence outline (3 emails)
+
+Format as JSON:
+{{
+    "title": "...",
+    "subtitle": "...",
+    "content": [...],
+    "cta": "...",
+    "email_sequence": [...]
+}}"""
+
+        try:
+            from langchain.schema import HumanMessage
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                magnet = json.loads(json_match.group())
+                return {
+                    "success": True,
+                    "magnet_type": magnet_type,
+                    "lead_magnet": magnet,
+                    "agent": "MarketingAgent"
+                }
+            return {"raw": response.content}
+        except Exception as e:
+            logger.error("Lead magnet generation failed", error=str(e))
+            return {"error": str(e)}
+
+    async def landing_page_copy(
+        self,
+        startup_context: Dict[str, Any],
+        page_type: str = "saas",  # saas, agency, ecommerce, waitlist
+        tone: str = "confident",
+    ) -> Dict[str, Any]:
+        """
+        Generate high-converting landing page copy.
+        Returns structured sections ready for implementation.
+        """
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        prompt = f"""Write landing page copy for:
+
+STARTUP: {startup_context.get('name', '')}
+DESCRIPTION: {startup_context.get('description', '')}
+PAGE TYPE: {page_type}
+TONE: {tone}
+
+Generate:
+1. Hero Section (headline, subheadline, CTA button text)
+2. Problem Section (3 pain points)
+3. Solution Section (3 benefits)
+4. Social Proof Placeholder (what to include)
+5. Features Section (5 features with icons)
+6. Pricing Teaser
+7. FAQ (5 questions)
+8. Final CTA
+
+Format as JSON with all sections."""
+
+        try:
+            from langchain.schema import HumanMessage
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            
+            import json, re
+            json_match = re.search(r'\{[\s\S]*\}', response.content)
+            if json_match:
+                return {
+                    "success": True,
+                    "page_type": page_type,
+                    "copy": json.loads(json_match.group()),
+                    "agent": "MarketingAgent"
+                }
+            return {"raw": response.content}
+        except Exception as e:
+            logger.error("Landing page copy failed", error=str(e))
+            return {"error": str(e)}
+
+    async def viral_hook_generator(
+        self,
+        topic: str,
+        platform: str = "linkedin",
+        count: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Generate viral content hooks that stop the scroll.
+        """
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        prompt = f"""Generate {count} viral hooks for {platform} about: {topic}
+
+Types to include:
+- Contrarian take
+- Personal story starter
+- Data/statistic lead
+- Question hook
+- "How I..." hook
+
+Each hook should be under 20 words and make people STOP scrolling.
+
+Format as JSON array: [{{\"hook\": \"...\", \"type\": \"...\"}}]"""
+
+        try:
+            from langchain.schema import HumanMessage
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            
+            import json, re
+            match = re.search(r'\[[\s\S]*\]', response.content)
+            if match:
+                return {
+                    "success": True,
+                    "hooks": json.loads(match.group()),
+                    "platform": platform
+                }
+            return {"raw": response.content}
+        except Exception as e:
+            return {"error": str(e)}
+
 marketing_agent = MarketingAgent()
