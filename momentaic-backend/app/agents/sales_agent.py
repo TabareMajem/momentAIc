@@ -275,20 +275,49 @@ Return as JSON with 'subject' and 'body' fields."""
     
     async def _execute_node(self, state: SalesAgentState) -> SalesAgentState:
         """
-        Node 5: Execute the outreach (send email)
+        Node 5: Execute the outreach (send email via Internal Engine)
         """
         logger.info("Sales Agent: Executing outreach")
         
         draft = state.get("draft_message", {})
         lead_info = state.get("lead_info", {})
+        startup_id = state.get("startup_id")
         
-        # In production, actually send the email via Gmail API / SendGrid
-        # For now, we mark it as sent
+        # Use Internal Instantly Integration
+        from app.integrations.instantly import InstantlyIntegration
+        outreach_engine = InstantlyIntegration()
         
-        state["final_response"] = f"Email sent to {lead_info.get('contact_email')}"
-        state["messages"].append(
-            AIMessage(content=f"✅ Outreach sent to {lead_info.get('contact_name')}")
-        )
+        try:
+            # Add to internal campaign (Queues OutreachMessage)
+            result = await outreach_engine.execute_action("add_lead_to_campaign", {
+                "email": lead_info.get("contact_email"),
+                "startup_id": startup_id,
+                "first_name": lead_info.get("contact_name", "").split(" ")[0],
+                "last_name": lead_info.get("contact_name", "").split(" ")[-1] if " " in lead_info.get("contact_name", "") else "",
+                "company_name": lead_info.get("company_name"),
+                "campaign_id": "sales_hunter_auto", # Default campaign
+                "variables": {
+                    "subject": draft.get("subject"),
+                    "body": draft.get("body"),
+                    "hook": state.get("outreach_strategy", {}).get("hook")
+                }
+            })
+            
+            if result.get("success"):
+                state["final_response"] = f"Email queued internally. ID: {result.get('message_id')}"
+                state["messages"].append(
+                    AIMessage(content=f"✅ Outreach queued in Internal Engine for {lead_info.get('contact_name')}")
+                )
+            else:
+                 state["final_response"] = f"Failed to queue email: {result.get('error')}"
+                 state["messages"].append(
+                    AIMessage(content=f"❌ Failed to queue outreach: {result.get('error')}")
+                )
+                
+        except Exception as e:
+            logger.error("Sales Agent: Outreach failed", error=str(e))
+            state["final_response"] = f"Error sending email: {str(e)}"
+            state["messages"].append(AIMessage(content=f"❌ Outreach error: {str(e)}"))
         
         return state
     

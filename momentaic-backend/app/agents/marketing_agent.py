@@ -42,101 +42,47 @@ class MarketingAgent:
 
     async def cross_post_to_socials(self, content: str, platforms: List[str], startup_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Post content to multiple platforms via CrossPost.app API
-        Requires CROSSPOST_API_KEY in environment
+        Post content to multiple platforms via Internal Social Engine.
         """
-        import httpx
-        from app.core.config import settings
-        from app.core.database import async_session_maker
-        from app.models.growth import ContentItem, ContentStatus, ContentPlatform
-        from uuid import UUID
+        from app.integrations.typefully import TypefullyIntegration
+        from app.models.social import SocialPlatform
         
-        crosspost_key = getattr(settings, "crosspost_api_key", None)
+        social_engine = TypefullyIntegration()
+        results = []
         
-        # [REALITY UPGRADE] If no API key, save to DB as SCHEDULED/DRAFT ("Real" persistence)
-        if not crosspost_key:
-            logger.warning("MarketingAgent: No API Key. Persisting to Content Studio.")
-            
-            created_items = []
-            
-            if startup_id:
-                try:
-                    async with async_session_maker() as db:
-                        for platform in platforms:
-                            # Map string to enum if possible, else default
-                            try:
-                                platform_enum = ContentPlatform(platform.lower())
-                            except ValueError:
-                                platform_enum = ContentPlatform.LINKEDIN # Default/Fallback
-                                
-                            item = ContentItem(
-                                startup_id=UUID(startup_id) if isinstance(startup_id, str) else startup_id,
-                                title=f"Auto-generated Post ({platform})",
-                                body=content,
-                                platform=platform_enum,
-                                content_type="post",
-                                status=ContentStatus.DRAFTING, # Draft for review
-                                scheduled_for=datetime.datetime.utcnow(),
-                                ai_generated=True,
-                                generation_context={"source": "MarketingAgent", "mode": "fallback_persistence"}
-                            )
-                            db.add(item)
-                            
-                            # Need to commit to generate IDs and save
-                            await db.commit()
-                            await db.refresh(item)
-                            created_items.append(str(item.id))
-                        
-                    return {
-                        "success": True, 
-                        "mode": "persistence",
-                        "message": f"API Key missing. Saved {len(created_items)} posts to Content Studio for manual review.",
-                        "content_ids": created_items,
-                        "provider": "Momentaic Content Studio"
-                    }
-                except Exception as e:
-                    logger.error("MarketingAgent: DB Persistence failed", error=str(e))
-                    # Fallthrough to Intent Links if DB fails
-            
-            # Legacy Intent Link Fallback (if no startup_id or DB error)
-            import urllib.parse
-            encoded_content = urllib.parse.quote(content)
-            
-            intent_links = {
-                "twitter": f"https://twitter.com/intent/tweet?text={encoded_content}",
-                "linkedin": f"https://www.linkedin.com/sharing/share-offsite/?url={encoded_content}",
-                "email": f"mailto:?subject=New Post&body={encoded_content}"
-            }
-            
-            return {
-                "success": True, 
-                "mode": "manual_intent",
-                "message": "API Key missing. Click links to post manually.",
-                "platforms": platforms,
-                "intent_links": intent_links,
-                "provider": "Manual"
-            }
-
-        try:
-            async with httpx.AsyncClient() as client:
-                # Based on typical CrossPost API patterns
-                response = await client.post(
-                    "https://www.crosspost.app/api/v1/posts",
-                    headers={"Authorization": f"Bearer {crosspost_key}"},
-                    json={
-                        "content": content,
-                        "platforms": platforms,
-                        "schedule_now": True
-                    }
-                )
+        # [REALITY UPGRADE] Use Internal Engine (SocialPost) for all
+        for platform in platforms:
+            try:
+                # Map platform string to SocialPlatform enum logic if needed, 
+                # but TypefullyIntegration handles logic. 
+                # We'll use schedule_thread which saves to DB.
                 
-                if response.status_code in [200, 201]:
-                    return {"success": True, "provider": "CrossPost", "data": response.json()}
-                else:
-                    return {"success": False, "error": response.text}
-        except Exception as e:
-            logger.error("MarketingAgent: CrossPost failed", error=str(e))
-            return {"success": False, "error": str(e)}
+                # Determine action based on platform. 
+                # For now, treat all as threads/posts.
+                
+                action_result = await social_engine.execute_action("schedule_thread", {
+                    "content": content,
+                    "date": datetime.datetime.utcnow().isoformat(), # Schedule immediately/now
+                    "startup_id": startup_id,
+                    "platform": platform
+                })
+                
+                results.append({
+                    "platform": platform,
+                    "success": action_result.get("success"),
+                    "id": action_result.get("thread_id"),
+                    "status": action_result.get("status")
+                })
+                
+            except Exception as e:
+                logger.error(f"MarketingAgent: Post to {platform} failed", error=str(e))
+                results.append({"platform": platform, "success": False, "error": str(e)})
+
+        return {
+            "success": any(r["success"] for r in results),
+            "provider": "Internal Social Engine",
+            "results": results
+        }
 
     async def generate_viral_thread(self, topic: str) -> List[str]:
         """Generate a high-engagement X/LinkedIn thread about a topic"""
