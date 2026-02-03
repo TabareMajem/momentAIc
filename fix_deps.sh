@@ -2,7 +2,7 @@
 # Update dependencies and rebuild
 # The VPS has an old requirements.txt, so the new AI libraries aren't installed!
 
-VPS_IP="62.72.56.216"
+VPS_IP="72.62.151.245"
 
 echo "1. Uploading updated requirements.txt..."
 scp /root/momentaic/momentaic-backend/requirements.txt root@$VPS_IP:/opt/momentaic/momentaic-backend/

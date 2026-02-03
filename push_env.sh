@@ -1,7 +1,7 @@
 #!/bin/bash
 # Force update .env on VPS
 ENV_FILE="/root/momentaic/momentaic-backend/env.complete.production"
-VPS_IP="62.72.56.216"
+VPS_IP="72.62.151.245"
 
 echo "Uploading production env file..."
 scp "$ENV_FILE" root@$VPS_IP:/opt/momentaic/momentaic-backend/.env

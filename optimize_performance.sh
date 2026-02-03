@@ -2,7 +2,7 @@
 
 # Configuration
 VPS_USER="root"
-VPS_HOST="62.72.56.216"
+VPS_HOST="72.62.151.245"
 VPS_DIR="/var/www/momentaic/momentaic-backend"
 LOCAL_DIR="/root/momentaic/momentaic-backend"
 

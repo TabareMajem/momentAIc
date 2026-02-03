@@ -1,5 +1,5 @@
 #!/bin/bash
-VPS_IP="62.72.56.216"
+VPS_IP="72.62.151.245"
 VPS_USER="root"
 REMOTE_DIR="/opt/momentaic/momentaic-backend"
 

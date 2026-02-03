@@ -2,7 +2,7 @@
 # Fix Nginx Proxy Config
 # Maps momentaic.com -> Frontend (2685) and /api -> Backend (8839)
 
-VPS_IP="62.72.56.216"
+VPS_IP="72.62.151.245"
 NGINX_CONF="/etc/nginx/sites-available/momentaic"
 
 echo "Creating correct Nginx configuration..."
