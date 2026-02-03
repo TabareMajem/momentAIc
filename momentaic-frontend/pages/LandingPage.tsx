@@ -15,6 +15,12 @@ import { cn } from '../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { useToast } from '../components/ui/Toast';
 
+// --- IMAGE ASSETS ---
+import heroImg from '/root/.gemini/antigravity/brain/ffd40e2c-57b3-4cfd-8eb2-314e12ced473/hero_command_center_1770142390177.png';
+import featureSwarm from '/root/.gemini/antigravity/brain/ffd40e2c-57b3-4cfd-8eb2-314e12ced473/feature_neural_swarm_1770142428844.png';
+import featureRadar from '/root/.gemini/antigravity/brain/ffd40e2c-57b3-4cfd-8eb2-314e12ced473/feature_signal_radar_1770142445020.png';
+import featureForge from '/root/.gemini/antigravity/brain/ffd40e2c-57b3-4cfd-8eb2-314e12ced473/feature_vision_forge_1770142459960.png';
+
 // --- VISUAL FX COMPONENTS ---
 
 // 1. Text Scramble Effect (For technical/terminal text)
@@ -159,6 +165,7 @@ export default function LandingPage() {
             title: 'NEURAL SWARM',
             icon: <Network className="w-5 h-5 text-[#00f0ff]" />,
             desc: 'Autonomous Agent Deployment',
+            image: featureSwarm,
             code: `> INIT_SWARM_PROTOCOL
 > DEPLOYING: SALES_BOT_V4 [ACTIVE]
 > DEPLOYING: DEV_OPS_CORE [ACTIVE]
@@ -172,6 +179,7 @@ export default function LandingPage() {
             title: 'SIGNAL RADAR',
             icon: <Activity className="w-5 h-5 text-[#a855f7]" />,
             desc: 'Predictive Velocity Analytics',
+            image: featureRadar,
             code: `> SCANNING_MARKET_VECTORS...
 > ANALYZING: PMF_SCORE [94.2/100]
 > DETECTED: VIRAL_COEFFICIENT_SPIKE
@@ -184,6 +192,7 @@ export default function LandingPage() {
             title: 'VISION FORGE',
             icon: <Cpu className="w-5 h-5 text-[#3b82f6]" />,
             desc: 'Text-to-Software Compiler',
+            image: featureForge,
             code: `> INPUT: "Build a CRM for dentists"
 > ARCHITECTING_DB_SCHEMA... [DONE]
 > GENERATING_REACT_COMPONENTS... [DONE]
@@ -575,30 +584,33 @@ export default function LandingPage() {
                             ))}
                         </div>
 
-                        {/* Right: Terminal Visualizer */}
-                        <div className="lg:col-span-8 bg-black relative min-h-[400px] flex flex-col font-mono text-sm">
+                        {/* Right: Feature Visualization */}
+                        <div className="lg:col-span-8 bg-black relative min-h-[400px] flex flex-col overflow-hidden">
                             {/* Window Controls */}
-                            <div className="h-10 border-b border-white/10 flex items-center px-4 gap-2 bg-[#0a0a0a]">
+                            <div className="h-10 border-b border-white/10 flex items-center px-4 gap-2 bg-[#0a0a0a] z-20 absolute top-0 w-full">
                                 <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
                                 <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
                                 <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
-                                <div className="ml-auto text-xs text-gray-600">bash --login</div>
+                                <div className="ml-auto text-xs text-gray-600 font-mono">visualizer --render</div>
                             </div>
 
-                            {/* Code Output */}
-                            <div className="p-8 text-gray-300 relative z-10">
-                                <div className="absolute top-4 right-4 text-[10px] text-[#00f0ff] animate-pulse">LIVE EXECUTION</div>
-                                <div className="space-y-1">
-                                    <div className="text-gray-500 mb-4"># Initializing module: {features[activeFeature].title}</div>
-                                    <pre className="whitespace-pre-wrap font-mono text-[#00f0ff] text-xs md:text-sm leading-relaxed">
+                            {/* Feature Image with Overlay */}
+                            <div className="relative h-full w-full">
+                                <img
+                                    src={features[activeFeature].image}
+                                    alt={features[activeFeature].title}
+                                    className="w-full h-full object-cover opacity-80"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+
+                                {/* Code Overlay */}
+                                <div className="absolute bottom-6 left-6 right-6 p-6 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl">
+                                    <div className="text-[10px] text-[#00f0ff] animate-pulse mb-2">LIVE OUTPUT STREAM</div>
+                                    <pre className="whitespace-pre-wrap font-mono text-[#00f0ff] text-xs leading-relaxed">
                                         <DecodeText text={features[activeFeature].code} delay={0} className="block" />
                                     </pre>
-                                    <div className="animate-pulse mt-2">_</div>
                                 </div>
                             </div>
-
-                            {/* Background Grid inside terminal */}
-                            <div className="absolute inset-0 bg-cyber-grid bg-[length:20px_20px] opacity-10 pointer-events-none"></div>
                         </div>
                     </div>
                 </div>
@@ -766,7 +778,8 @@ export default function LandingPage() {
                     <div className="tracking-widest uppercase">© 2024 MOMENTUM SYSTEMS</div>
                     <div className="flex gap-8">
                         <a href="#" onClick={handleFooterLink} className="hover:text-white transition-colors">STATUS</a>
-                        <Link to="/privacy" className="hover:text-white transition-colors uppercase tracking-widest">LEGAL</Link>
+                        <Link to="/privacy" className="hover:text-white transition-colors uppercase tracking-widest">PRIVACY</Link>
+                        <Link to="/terms" className="hover:text-white transition-colors uppercase tracking-widest">TERMS</Link>
                         <a href="#" onClick={handleFooterLink} className="hover:text-white transition-colors">DOCS</a>
                     </div>
                 </div>

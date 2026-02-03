@@ -52,25 +52,37 @@ async def lifespan(app: FastAPI):
     async def run_proactive_agent(agent_name: str, task_description: str, agent_func):
         """
         Wrapper to run a proactive agent task and report to Command Center.
+        Now with autonomy-level awareness.
         """
         from app.core.database import AsyncSessionLocal
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
         from app.models.startup import Startup
+        from app.models.autonomy import StartupAutonomySettings, AutonomyLevel
         
         # Report start
         activity_id = await activity_stream.report_start(agent_name, task_description)
         
         async with AsyncSessionLocal() as db:
             try:
-                # 1. Get relevant startups (Active & Growth/God Mode for heavy agents)
-                # For MVP, we run for all, but in prod we'd filter by tier
-                result = await db.execute(select(Startup).limit(100))
+                # Get startups with their autonomy settings (only non-paused)
+                result = await db.execute(
+                    select(Startup)
+                    .options(selectinload(Startup.autonomy_settings))
+                    .limit(100)
+                )
                 startups = result.scalars().all()
                 
                 await activity_stream.report_progress(activity_id, f"Targeting {len(startups)} startups...", 10)
                 
                 processed = 0
                 for i, startup in enumerate(startups):
+                    # Check autonomy settings - skip if paused or missing
+                    settings = startup.autonomy_settings
+                    if settings and settings.is_paused:
+                        logger.debug("Skipping paused startup", startup_id=str(startup.id))
+                        continue
+                    
                     # Update progress
                     progress = 10 + int((i / len(startups)) * 80)
                     await activity_stream.report_progress(
@@ -81,12 +93,14 @@ async def lifespan(app: FastAPI):
                     
                     # Execute Agent Logic
                     try:
-                        # Context construction
+                        # Context construction with autonomy level
+                        autonomy_level = settings.global_level if settings else 1  # Default to Advisor
                         context = {
                             "startup_id": str(startup.id),
                             "name": startup.name,
                             "description": startup.description,
-                            "industry": startup.industry
+                            "industry": startup.industry,
+                            "autonomy_level": autonomy_level,  # NEW: Pass autonomy level
                         }
                         
                         # Call the agent calculation

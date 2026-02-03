@@ -34,8 +34,8 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str
-    database_pool_size: int = 20
-    database_max_overflow: int = 10
+    database_pool_size: int = 50  # Increased for 1k concurrent users
+    database_max_overflow: int = 20
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
@@ -114,6 +114,12 @@ class Settings(BaseSettings):
     twitter_client_id: Optional[str] = None
     twitter_client_secret: Optional[str] = None
     
+    # Google OAuth (GA4, etc.)
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    backend_url: str = "http://localhost:8000"
+    frontend_url: str = "http://localhost:5173"
+    
     # Buffer Integration
     buffer_client_id: Optional[str] = None
     buffer_client_secret: Optional[str] = None
@@ -131,6 +137,11 @@ class Settings(BaseSettings):
     credit_cost_forge_run: int = 10
     credit_cost_competitor_monitor: int = 5
     credit_cost_sales_hunt: int = 10
+    credit_cost_image_gen: int = 5
+    credit_cost_video_gen: int = 25
+    
+    # PiAPI (Kling/Sora)
+    piapi_api_key: Optional[str] = "1a78bf48121261edfbe12611c5a67aa7963d607ffad1843edef129498dc59933"
     
     # CrossPost Integration
     crosspost_api_key: Optional[str] = None

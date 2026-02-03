@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 style="margin:0 0 24px 0;color:#1a202c;font-size:22px;font-weight:700;">Approval Required</h2>
+
+<p>Hi {{ name }},</p>
+
+<p>The workflow <strong>{{ workflow_name }}</strong> requires your approval at step: <strong>{{ node_label }}</strong>.
+</p>
+
+<div style="background-color:#ebf8ff;border:1px solid #bee3f8;border-radius:6px;padding:16px;margin:24px 0;">
+    <h3 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;color:#4299e1;letter-spacing:1px;">Context</h3>
+    <pre
+        style="white-space:pre-wrap;font-family:monospace;font-size:13px;color:#2c5282;margin:0;">{{ content | tojson(indent=2) }}</pre>
+</div>
+
+<div style="text-align:center;margin:32px 0;">
+    <a href="{{ approval_link }}" class="button" style="background-color:#4f46e5;">Review & Approve</a>
+</div>
+{% endblock %}

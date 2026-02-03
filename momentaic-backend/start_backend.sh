@@ -41,4 +41,4 @@ pip install -r requirements.txt --break-system-packages || pip install -r requir
 
 # Start Gunicorn
 echo "Starting Gunicorn..."
-exec python3 -m gunicorn app.main:app -w 1 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --timeout 120
+exec python3 -m gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --timeout 120

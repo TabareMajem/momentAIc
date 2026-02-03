@@ -376,3 +376,19 @@ api_router.include_router(
     prefix="/llm-context",
     tags=["LLM Optimization"],
 )
+
+# Autonomy Settings (Proactive Agent Control)
+from app.api.v1.endpoints import autonomy
+api_router.include_router(
+    autonomy.router,
+    prefix="/startups",
+    tags=["Autonomy Settings"],
+)
+
+# Google Analytics OAuth (Proactive Analytics)
+from app.api.v1.endpoints import google_analytics
+api_router.include_router(
+    google_analytics.router,
+    prefix="/integrations",
+    tags=["Google Analytics"],
+)

@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { Sidebar } from './components/layout/Sidebar';
 import { useAuthStore } from './stores/auth-store';
 import { ToastProvider } from './components/ui/Toast';
+import { analytics } from './lib/firebase';
+import { logEvent } from 'firebase/analytics';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -50,6 +52,7 @@ import { OnboardingTour } from './components/OnboardingTour';
 import FromLovable from './pages/FromLovable';
 import FromBolt from './pages/FromBolt';
 import LiveAgentView from './pages/LiveAgentView';
+import AutonomySettings from './pages/AutonomySettings';
 
 const ProtectedLayout = () => {
   return (
@@ -67,7 +70,20 @@ const ProtectedLayout = () => {
 
 const ProtectedRoute = () => {
   const { isAuthenticated, loadUser, isLoading } = useAuthStore();
-  useEffect(() => { loadUser(); }, []);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  // Track page views
+  useEffect(() => {
+    if (analytics) {
+      logEvent(analytics, 'page_view', {
+        page_location: window.location.href,
+        page_path: window.location.pathname
+      });
+    }
+  }, [window.location.pathname]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-[#00f0ff] font-mono">LOADING...</div>;
 
@@ -147,6 +163,7 @@ export default function App() {
             <Route path="/war-room" element={<WarRoomDashboard />} />
             <Route path="/vault" element={<TheVault />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/autonomy" element={<AutonomySettings />} />
             <Route path="/live" element={<LiveAgentView />} />
 
             {/* Legacy Routes (kept for backward compat) */}

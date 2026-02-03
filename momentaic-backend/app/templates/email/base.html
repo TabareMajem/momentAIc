@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>{{ subject|default("MomentAIc Notification") }}</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        table,
+        td,
+        div,
+        h1,
+        p {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f8;
+        }
+
+        .button {
+            background-color: #000000;
+            color: #ffffff;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f4f6f8;">
+    <div
+        style="width:100%;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin-top:40px;margin-bottom:40px;">
+
+        <!-- Header -->
+        <div style="padding:32px;text-align:center;border-bottom:1px solid #edf2f7;background-color:#ffffff;">
+            <!-- Improve: Use actual logo URL when available -->
+            <h1 style="margin:0;font-size:24px;color:#1a202c;letter-spacing:-0.5px;">Moment<span
+                    style="color:#4f46e5;">AI</span>c</h1>
+        </div>
+
+        <!-- Content -->
+        <div style="padding:40px 32px;color:#4a5568;line-height:1.6;font-size:16px;">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Footer -->
+        <div
+            style="padding:24px;background-color:#f8fafc;text-align:center;border-top:1px solid #edf2f7;font-size:12px;color:#718096;">
+            <p style="margin:0 0 8px 0;">&copy; {{ current_year|default(2026) }} MomentAIc. All rights reserved.</p>
+            <p style="margin:0;">
+                <a href="#" style="color:#718096;text-decoration:none;margin:0 8px;">Privacy Policy</a>
+                <a href="#" style="color:#718096;text-decoration:none;margin:0 8px;">Terms</a>
+                <a href="#" style="color:#718096;text-decoration:none;margin:0 8px;">Help Center</a>
+            </p>
+            <div style="margin-top:16px;color:#a0aec0;font-size:11px;">
+                You received this email because you are a user of MomentAIc.<br>
+                <a href="#" style="color:#a0aec0;text-decoration:underline;">Unsubscribe</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

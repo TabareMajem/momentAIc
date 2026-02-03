@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 style="margin:0 0 24px 0;color:#1a202c;font-size:22px;font-weight:700;">Payment Receipt</h2>
+
+<p>Hi {{ name }},</p>
+
+<p>This is a confirmation of your recent payment. Thank you for your business!</p>
+
+<div style="background-color:#f7fafc;border:1px solid #edf2f7;border-radius:8px;padding:24px;margin:24px 0;">
+    <table style="width:100%;border-collapse:collapse;">
+        <tr>
+            <td style="padding:8px 0;color:#718096;">Invoice ID</td>
+            <td style="padding:8px 0;text-align:right;font-weight:bold;">{{ invoice_id }}</td>
+        </tr>
+        <tr>
+            <td style="padding:8px 0;color:#718096;">Date</td>
+            <td style="padding:8px 0;text-align:right;font-weight:bold;">{{ date }}</td>
+        </tr>
+        <tr>
+            <td style="padding:8px 0;color:#718096;">Plan</td>
+            <td style="padding:8px 0;text-align:right;font-weight:bold;">{{ plan_name }}</td>
+        </tr>
+        <tr style="border-top:2px solid #e2e8f0;">
+            <td style="padding:16px 0 0 0;font-size:18px;font-weight:bold;">Total Paid</td>
+            <td style="padding:16px 0 0 0;text-align:right;font-size:18px;font-weight:bold;color:#48bb78;">{{ amount }}
+            </td>
+        </tr>
+    </table>
+</div>
+
+<p>You can view your full billing history in your dashboard.</p>
+
+<div style="text-align:center;margin:32px 0;">
+    <a href="https://momentaic.com/dashboard/billing" class="button" style="background-color:#4f46e5;">View Billing</a>
+</div>
+{% endblock %}

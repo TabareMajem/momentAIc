@@ -95,6 +95,14 @@ class Startup(Base):
     action_items: Mapped[List["ActionItem"]] = relationship(
         "ActionItem", back_populates="startup", cascade="all, delete-orphan"
     )
+    
+    # Proactive Agent System
+    autonomy_settings: Mapped[Optional["StartupAutonomySettings"]] = relationship(
+        "StartupAutonomySettings", back_populates="startup", uselist=False, cascade="all, delete-orphan"
+    )
+    proactive_actions: Mapped[List["ProactiveActionLog"]] = relationship(
+        "ProactiveActionLog", back_populates="startup", cascade="all, delete-orphan"
+    )
 
 
     __table_args__ = (
@@ -208,3 +216,4 @@ from app.models.user import User
 from app.models.growth import Lead, ContentItem, AcquisitionChannel
 from app.models.workflow import Workflow
 from app.models.conversation import Conversation
+from app.models.autonomy import StartupAutonomySettings, ProactiveActionLog

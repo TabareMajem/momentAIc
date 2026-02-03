@@ -216,5 +216,32 @@ class BuilderChatRequest(BaseModel):
     context_files: Optional[List[str]] = None
 
 
+class GenerateImageRequest(BaseModel):
+    """Request to generate an image"""
+    startup_id: UUID
+    prompt: str = Field(..., min_length=5, description="Description of the image to generate")
+    style: str = Field(default="anime", description="Style: anime, realistic, 3d-render")
+    archetype: str = Field(default="Hero", description="Archetype name for card generation")
+
+
+class ImageGenerationResponse(BaseModel):
+    """Image generation response"""
+    image_url: str
+    credits_used: int
+
+
+class GenerateVideoRequest(BaseModel):
+    """Request to generate a video"""
+    startup_id: UUID
+    prompt: str = Field(..., min_length=10, description="Description of the video to generate")
+    model: str = Field(default="kling", description="Video model: kling, sora (if available)")
+
+
+class VideoGenerationResponse(BaseModel):
+    """Video generation response"""
+    video_url: str
+    credits_used: int
+
+
 # Forward references
 ConversationWithMessages.model_rebuild()

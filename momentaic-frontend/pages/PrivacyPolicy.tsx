@@ -25,6 +25,11 @@ export default function PrivacyPolicy() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-12 text-center"
                 >
+                    <div className="flex justify-center mb-6">
+                        <div className="relative w-24 h-24 rounded-full overflow-hidden border border-[#00f0ff]/30 shadow-[0_0_30px_rgba(0,240,255,0.2)]">
+                            <img src="/root/.gemini/antigravity/brain/ffd40e2c-57b3-4cfd-8eb2-314e12ced473/policy_shield_header_1770142403906.png" alt="Privacy Shield" className="w-full h-full object-cover" />
+                        </div>
+                    </div>
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">Privacy Policy</h1>
                     <p className="text-xl text-gray-400">Effective Date: January 1, 2026</p>
                 </motion.div>

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="text-align:center;margin-bottom:24px;">
+    <span class="status-badge"
+        style="background-color:{% if status == 'completed' %}#def7ec{% else %}#fed7d7{% endif %};color:{% if status == 'completed' %}#03543f{% else %}#9b2c2c{% endif %};">
+        {{ status|upper }}
+    </span>
+</div>
+
+<h2 style="margin:0 0 16px 0;color:#1a202c;font-size:20px;font-weight:700;text-align:center;">Workflow Finished: {{
+    workflow_name }}</h2>
+
+<p>Hi {{ name }},</p>
+
+<p>Your workflow <strong>{{ workflow_name }}</strong> has finished running.</p>
+
+{% if outputs %}
+<div style="background-color:#f8fafc;border:1px solid #edf2f7;border-radius:6px;padding:16px;margin:24px 0;">
+    <h3 style="margin:0 0 12px 0;font-size:14px;text-transform:uppercase;color:#718096;letter-spacing:1px;">Summary
+        Output</h3>
+    <pre
+        style="white-space:pre-wrap;font-family:monospace;font-size:13px;color:#2d3748;margin:0;">{{ outputs | tojson(indent=2) }}</pre>
+</div>
+{% endif %}
+
+<div style="text-align:center;margin:32px 0;">
+    <a href="https://momentaic.com/dashboard/workflows" class="button" style="background-color:#4f46e5;">View
+        Results</a>
+</div>
+{% endblock %}

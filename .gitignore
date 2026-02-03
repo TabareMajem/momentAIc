@@ -14,3 +14,4 @@ vps_check.sh
 vps_patch.sh
 *.crt
 env.complete.production
+momentaic-backend/app/core/service_account.json

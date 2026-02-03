@@ -61,6 +61,24 @@ export default function Settings() {
                 </CardContent>
             </Card>
 
+            {/* Link to Autonomy Settings */}
+            <Card className="border-brand-cyan/20 bg-brand-cyan/5 hover:border-brand-cyan/40 transition-colors cursor-pointer" onClick={() => window.location.href = '/settings/autonomy'}>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-brand-cyan/20 rounded-lg">
+                                <Zap className="w-5 h-5 text-brand-cyan" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg">Proactive Agent Control</CardTitle>
+                                <CardDescription>Configure your AI workforce autonomy levels</CardDescription>
+                            </div>
+                        </div>
+                        <span className="text-brand-cyan text-sm font-medium">Configure →</span>
+                    </div>
+                </CardHeader>
+            </Card>
+
             {/* AUTOPILOT MODE - Project PHOENIX */}
             <Card className="border-purple-500/20 bg-purple-500/5">
                 <CardHeader>

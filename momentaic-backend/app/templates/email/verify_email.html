@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 style="margin:0 0 24px 0;color:#1a202c;font-size:22px;font-weight:700;">Verify your email address</h2>
+
+<p>Hi {{ name }},</p>
+
+<p>Thanks for signing up for MomentAIc! Please verify your email address to get started.</p>
+
+<div style="text-align:center;margin:32px 0;">
+    <a href="{{ verification_link }}" class="button" style="background-color:#4f46e5;">Verify Email</a>
+</div>
+
+<p style="font-size:14px;color:#718096;">
+    If the button doesn't work, copy and paste this link into your browser:<br>
+    <a href="{{ verification_link }}" style="color:#4f46e5;word-break:break-all;">{{ verification_link }}</a>
+</p>
+
+<p style="margin-top:24px;">
+    If you didn't create an account, you can safely ignore this email.
+</p>
+{% endblock %}

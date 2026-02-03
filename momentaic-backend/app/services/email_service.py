@@ -268,6 +268,32 @@ class EmailService:
                 "app_name": self.from_name,
             },
         )
+    
+    async def send_payment_receipt(
+        self,
+        to_email: str,
+        full_name: str,
+        amount: str,
+        currency: str = "USD",
+        plan_name: str = "Credits",
+        invoice_id: str = "INV-000",
+    ) -> bool:
+        """Send payment receipt"""
+        import datetime
+        return await self.send_template_email(
+            to_email=to_email,
+            template_name="payment_receipt",
+            subject=f"Payment Receipt: {amount}",
+            context={
+                "name": full_name,
+                "amount": amount,
+                "currency": currency,
+                "plan_name": plan_name,
+                "invoice_id": invoice_id,
+                "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+                "app_name": self.from_name,
+            },
+        )
 
 
 # Lazy singleton instance

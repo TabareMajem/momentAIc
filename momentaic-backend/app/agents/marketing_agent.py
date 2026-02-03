@@ -301,10 +301,27 @@ class MarketingAgent:
         """
         Scan specific platforms for guerrilla marketing opportunities.
         Uses sophisticated search operators to find high-intent discussions.
+        Refactored to use Pydantic Output Parsing for reliability.
         """
         logger.info(f"MarketingAgent: Scanning {platform} for '{keywords}'")
         from app.agents.base import web_search
-        
+        from langchain.output_parsers import PydanticOutputParser
+        from pydantic import BaseModel, Field
+        from langchain.schema import HumanMessage, SystemMessage
+
+        # Define Pydantic Model for structured output
+        class MarketingOpportunity(BaseModel):
+            platform: str = Field(description="The platform where the opportunity was found")
+            type: str = Field(description="Type of opportunity: comment, reply, or trend_jack")
+            title: str = Field(description="Post title or Tweet context")
+            url: Optional[str] = Field(description="URL if available, else null")
+            insight: str = Field(description="Why is this an opportunity? (e.g. 'User hates Competitor X')")
+            draft: str = Field(description="A witty, helpful response promoting our solution")
+            timestamp: str = Field(description="ISO timestamp or approximate time")
+
+        class OpportunityList(BaseModel):
+            opportunities: List[MarketingOpportunity]
+
         results = []
         
         try:
@@ -318,42 +335,38 @@ class MarketingAgent:
                 
             search_data = await web_search.ainvoke(query)
             
-            # Use LLM to parse raw text into structured opportunities
-            # This turns the "search blob" into the nice cards we see in the UI
+            # Setup Parser
+            parser = PydanticOutputParser(pydantic_object=OpportunityList)
+            
             prompt = f"""
             Analyze these {platform} search results and extract 3 high-intent marketing opportunities.
             
             Search Results:
             {search_data}
             
-            Return a JSON array of objects with this EXACT schema:
-            [
-              {{
-                "platform": "{platform}",
-                "type": "comment" (for reddit) or "reply" (for twitter) or "trend_jack",
-                "title": "Post title or Tweet context",
-                "url": "URL if available, else null",
-                "insight": "Why is this an opportunity? (e.g. 'User hates Competitor X')",
-                "draft": "A witty, helpful response promoting our solution (don't sound like a bot)",
-                "timestamp": "ISO timestamp (approximate)"
-              }}
-            ]
+            {parser.get_format_instructions()}
+            
+            Focus on finding people who are dissatisfied with competitors or asking for recommendations.
             """
             
-            from langchain_core.messages import HumanMessage, SystemMessage
             response = await self.llm.ainvoke([
                 SystemMessage(content="You are a guerrilla marketing expert. You find leads and draft killer replies."),
                 HumanMessage(content=prompt)
             ])
             
-            import json
-            import re
-            
-            content = response.content
-            match = re.search(r'\[.*\]', content, re.DOTALL)
-            if match:
-                results = json.loads(match.group(0))
-                
+            # Parse output
+            try:
+                parsed_result = parser.parse(response.content)
+                results = [op.dict() for op in parsed_result.opportunities]
+            except Exception as parse_error:
+                logger.warning("MarketingAgent: Pydantic parse failed", error=str(parse_error))
+                # Fallback to simple regex if Pydantic fails (though unlikely with format instructions)
+                import json
+                import re
+                match = re.search(r'\[.*\]', response.content, re.DOTALL)
+                if match:
+                     results = json.loads(match.group(0))
+
         except Exception as e:
             logger.error(f"Scan failed for {platform}", error=str(e))
             
