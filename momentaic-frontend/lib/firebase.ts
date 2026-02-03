@@ -3,13 +3,13 @@ import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyAx5uuSihoy0LO8yxWeXhcmvSEzQPFP9eI",
-    authDomain: "momentaicapp.firebaseapp.com",
-    projectId: "momentaicapp",
-    storageBucket: "momentaicapp.firebasestorage.app",
-    messagingSenderId: "781939948391",
-    appId: "1:781939948391:web:2ed149fc461be961bb4dc2",
-    measurementId: "G-TH98XYS8KM"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
