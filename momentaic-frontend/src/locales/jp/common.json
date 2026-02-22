@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "コマンドセンター",
+        "startups": "帝国",
+        "signals": "ターゲットレーダー",
+        "war_room": "取締役会",
+        "campaigns": "スウォーム展開",
+        "growth": "成長エンジン",
+        "pulse": "ビジネスパルス",
+        "characters": "AIキャラクター工場",
+        "telemetry": "テレメトリマトリックス",
+        "agents": "エージェントフォージ",
+        "agent_studio": "エージェントスタジオ",
+        "guerrilla": "非対称戦",
+        "callcenter": "音声オペレーション",
+        "openclaw": "OpenClaw プロキシ",
+        "settings": "設定",
+        "global_campaign": "世界征服"
+    },
+    "hero": {
+        "title_prefix": "ただ自動化するな。",
+        "title_highlight": "支配せよ。",
+        "subtitle": "AIの共同創設者の準備が完了しました。スウォームを展開します。",
+        "cta_primary": "スウォームを展開",
+        "cta_secondary": "マトリックスを表示"
+    },
+    "common": {
+        "loading": "読み込み中...",
+        "error": "エラー"
+    }
+}

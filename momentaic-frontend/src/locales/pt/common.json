@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "Centro de Comando",
+        "startups": "Impérios",
+        "signals": "Radar de Alvos",
+        "war_room": "O Conselho",
+        "campaigns": "Implantações do Enxame",
+        "growth": "Motor de Crescimento",
+        "pulse": "Pulso de Negócios",
+        "characters": "Fábrica de Personagens",
+        "telemetry": "Matriz Base de Telemetria",
+        "agents": "Forja de Agentes",
+        "agent_studio": "Estúdio de Agentes",
+        "guerrilla": "Guerra Assimétrica",
+        "callcenter": "Operações de Voz",
+        "openclaw": "Proxy OpenClaw",
+        "settings": "Configurações",
+        "global_campaign": "Dominação Global"
+    },
+    "hero": {
+        "title_prefix": "NÃO APENAS AUTOMATIZE.",
+        "title_highlight": "DOMINE.",
+        "subtitle": "Seus cofundadores de IA estão prontos. Implante o enxame.",
+        "cta_primary": "Implantar Enxame",
+        "cta_secondary": "Ver Matriz"
+    },
+    "common": {
+        "loading": "Carregando...",
+        "error": "Erro"
+    }
+}

@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Bell, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -58,9 +57,9 @@ export const MorningBriefWidget = () => {
 
             {/* Mobile: Horizontal Scroll | Desktop: Grid */}
             <div className="flex overflow-x-auto pb-4 gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-mandatory md:snap-none hide-scrollbar">
-                <AnimatePresence>
+                
                     {items.map((item) => (
-                        <motion.div
+                        <div
                             key={item.id}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -106,9 +105,9 @@ export const MorningBriefWidget = () => {
                                 </button>
                             </div>
 
-                        </motion.div>
+                        </div>
                     ))}
-                </AnimatePresence>
+                
             </div>
         </div>
     );

@@ -9,8 +9,11 @@ import { logEvent } from 'firebase/analytics';
 
 // Pages
 import LandingPage from './pages/LandingPage';
+import IntelHub from './pages/intel/index';
+import ArticleDetail from './pages/intel/ArticleDetail';
 import LoginPage from './pages/Login';
 import SignupPage from './pages/Signup';
+import InvestorsPage from './pages/Investors';
 import Dashboard from './pages/Dashboard';
 import StartupsList from './pages/StartupsList';
 import StartupNew from './pages/StartupNew';
@@ -23,6 +26,7 @@ import AdminPanel from './pages/AdminPanel';
 import AgentForge from './pages/AgentForge';
 import VisionPortal from './pages/VisionPortal';
 import GrowthEngine from './pages/GrowthEngine';
+import GrowthPlaybook from './pages/GrowthPlaybook';
 import IntegrationsPage from './pages/IntegrationsPage';
 import TriggersPage from './pages/TriggersPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -32,12 +36,14 @@ import ReferralDashboard from './pages/ReferralDashboard';
 import SocialProofStudio from './pages/SocialProofStudio';
 import ExperimentsLab from './pages/ExperimentsLab';
 import Campaigns from './pages/Campaigns';
-import AmbassadorDashboard from './pages/AmbassadorDashboard';
 import OnboardingWizard from './pages/OnboardingWizard';
 import RegionFomoPage from './pages/RegionFomoPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import AmbassadorDashboard from './pages/AmbassadorDashboard';
 // import WarRoomDashboard from './pages/WarRoomDashboard'; // Removed to fix duplicate
 import AutoPilotOnboarding from './pages/AutoPilotOnboarding';
+import ViralSwarm from './pages/ViralSwarm';
+import GlobalCampaign from './pages/GlobalCampaign';
 
 import TheVault from './pages/TheVault';
 import IntegrationBuilder from './pages/IntegrationBuilder';
@@ -47,16 +53,24 @@ import InnovatorLab from './pages/InnovatorLab';
 import GeniusOnboarding from './pages/GeniusOnboarding';
 import EmpireBuilder from './pages/EmpireBuilder';
 import WarRoomDashboard from './pages/WarRoomDashboard';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 import { OnboardingTour } from './components/OnboardingTour';
 import FromLovable from './pages/FromLovable';
 import FromBolt from './pages/FromBolt';
 import LiveAgentView from './pages/LiveAgentView';
 import AutonomySettings from './pages/AutonomySettings';
+import BusinessPulse from './pages/BusinessPulse';
+import CharacterFactory from './pages/CharacterFactory';
+import GuerrillaWarfare from './pages/GuerrillaWarfare';
+import TelemetryCore from './pages/TelemetryCore';
+import OpenClawProxy from './pages/OpenClawProxy';
+import CallCenter from './pages/CallCenter';
 
 const ProtectedLayout = () => {
   return (
-    <div className="flex min-h-screen bg-[#050505]">
+    <div className="flex min-h-screen bg-[#050505] text-white">
       <OnboardingTour />
       <Sidebar />
       <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#050505]">
@@ -85,7 +99,7 @@ const ProtectedRoute = () => {
     }
   }, [window.location.pathname]);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-[#00f0ff] font-mono">LOADING...</div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-purple-500 font-mono"><span className="animate-pulse">LOADING...</span></div>;
 
   if (!isAuthenticated && !localStorage.getItem('access_token')) {
     return <Navigate to="/login" replace />;
@@ -108,20 +122,30 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/intel" element={<IntelHub />} />
+          <Route path="/intel/:slug" element={<ArticleDetail />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/mission" element={<MissionPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/join" element={<RegionFomoPage />} />
-          <Route path="/start" element={<AutoPilotOnboarding />} />
+          <Route path="/ambassador" element={<AmbassadorDashboard />} />
+          <Route path="/investors" element={<InvestorsPage />} />
+
+          {/* Redirect deprecated routes to new funnel */}
+          <Route path="/start" element={<Navigate to="/signup" replace />} />
+          <Route path="/genius" element={<Navigate to="/onboarding/genius" replace />} />
+
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/from-lovable" element={<FromLovable />} />
           <Route path="/from-bolt" element={<FromBolt />} />
-          <Route path="/genius" element={<GeniusOnboarding />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/war-room" element={<WarRoomDashboard />} />
 
             {/* Startup Routes */}
             <Route path="/startups" element={<StartupsList />} />
@@ -146,6 +170,7 @@ export default function App() {
 
             {/* Growth Engine */}
             <Route path="/growth" element={<GrowthEngine />} />
+            <Route path="/growth/playbook" element={<GrowthPlaybook />} />
 
             {/* Integrations & Triggers */}
             <Route path="/integrations" element={<IntegrationsPage />} />
@@ -160,11 +185,19 @@ export default function App() {
             {/* Core Routes */}
             <Route path="/executor" element={<ExecutorPage />} />
             <Route path="/innovator" element={<InnovatorLab />} />
+            <Route path="/guerrilla" element={<GuerrillaWarfare />} />
             <Route path="/war-room" element={<WarRoomDashboard />} />
             <Route path="/vault" element={<TheVault />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/autonomy" element={<AutonomySettings />} />
+            <Route path="/pulse" element={<BusinessPulse />} />
+            <Route path="/characters" element={<CharacterFactory />} />
             <Route path="/live" element={<LiveAgentView />} />
+            <Route path="/telemetry" element={<TelemetryCore />} />
+            <Route path="/openclaw" element={<OpenClawProxy />} />
+            <Route path="/call-center" element={<CallCenter />} />
+            <Route path="/viral-swarm" element={<ViralSwarm />} />
+            <Route path="/global-campaign" element={<GlobalCampaign />} />
 
             {/* Legacy Routes (kept for backward compat) */}
             <Route path="/power-plays" element={<PowerPlays />} />
@@ -182,4 +215,3 @@ export default function App() {
     </ToastProvider>
   );
 }
-

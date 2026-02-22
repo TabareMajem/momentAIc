@@ -1,195 +1,135 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { useToast } from '../components/ui/Toast';
-import {
-    Zap, Github, Twitter, TrendingUp, Search,
-    MessageSquare, Copy, ExternalLink, RefreshCw, XCircle
-} from 'lucide-react';
+import { useAuthStore } from '../stores/auth-store';
+import { Shield, Brain, Zap, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Badge } from '../components/ui/Badge';
+import { PageMeta } from '../components/ui/PageMeta';
 
-// --- TYPES ---
-type Opportunity = {
-    platform: 'reddit' | 'twitter' | 'linkedin';
-    type: 'comment' | 'reply' | 'trend_jack' | 'other';
-    title?: string;
-    url?: string;
-    topic?: string;
-    insight: string;
-    draft: string;
-    timestamp: string;
-};
-
-// --- COMPONENTS ---
-const OppCard = ({ item }: { item: Opportunity }) => {
-    const { toast } = useToast();
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(item.draft);
-        toast({ type: 'success', title: 'Copied', message: 'Draft copied to clipboard.' });
+interface DebateVerdict {
+    id: string;
+    created_at: string;
+    payload: {
+        yc_stance: string;
+        musk_stance: string;
+        unified_recommendation: string;
     };
-
-    return (
-        <Card className="bg-[#0a0a0a] border border-white/10 hover:border-purple-500/30 transition-all group">
-            <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                        {item.platform === 'reddit' ? <span className="p-1 px-2 rounded bg-orange-500/10 text-orange-500 font-bold text-xs">REDDIT</span> :
-                            item.platform === 'twitter' ? <Twitter className="w-4 h-4 text-cyan-400" /> :
-                                <TrendingUp className="w-4 h-4 text-green-400" />}
-                        <span className="text-xs text-gray-500 font-mono">{new Date(item.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                    {item.url && (
-                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
-                            <ExternalLink className="w-4 h-4" />
-                        </a>
-                    )}
-                </div>
-                {item.title && <CardTitle className="text-sm font-bold text-white line-clamp-1">{item.title}</CardTitle>}
-                {item.topic && <CardTitle className="text-sm font-bold text-white uppercase tracking-wide">TREND: {item.topic}</CardTitle>}
-                <CardDescription className="text-xs text-gray-400 font-mono border-l-2 border-white/20 pl-2">
-                    {item.insight}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="bg-[#050505] p-3 rounded-lg border border-white/5 font-mono text-xs text-gray-300 relative group-hover:border-purple-500/20 transition-colors">
-                    <p>{item.draft}</p>
-                    <button
-                        onClick={handleCopy}
-                        className="absolute bottom-2 right-2 p-1.5 bg-black border border-white/20 rounded hover:text-[#00f0ff] hover:border-[#00f0ff] transition-colors"
-                    >
-                        <Copy className="w-3 h-3" />
-                    </button>
-                </div>
-                <div className="mt-3 flex justify-end">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white"
-                        onClick={() => item.url ? window.open(item.url, '_blank') : null}
-                        disabled={!item.url}
-                    >
-                        {item.url ? 'ENGAGE' : 'NO LINK'} <ExternalLink className="w-3 h-3 ml-2" />
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
+}
 
 export default function WarRoomDashboard() {
-    const [activeTab, setActiveTab] = useState<'reddit' | 'twitter' | 'trends'>('reddit');
-    const [loading, setLoading] = useState(false);
-    const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+    const { user } = useAuthStore();
+    const [verdicts, setVerdicts] = useState<DebateVerdict[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const [redditKeywords, setRedditKeywords] = useState('');
-    const [twitterCompetitors, setTwitterCompetitors] = useState('');
+    useEffect(() => {
+        const fetchVerdicts = async () => {
+            if (!user?.startup_id) return;
+            try {
+                // We're casting to any here as the endpoint is new and might not be typed in the frontend yet
+                const data = await (api as any).getWarRoomVerdicts(user.startup_id);
+                setVerdicts(data);
+            } catch (error) {
+                console.error('Failed to fetch war room verdicts:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const runScan = async () => {
-        setLoading(true);
-        setOpportunities([]); // Clear previous
+        fetchVerdicts();
 
-        try {
-            // [REALITY UPGRADE] Call real backend agent scan
-            // POST /api/v1/guerrilla/scan { platform: 'reddit', keywords: '...' }
-            const platform = activeTab === 'trends' ? 'general' : activeTab;
-            const keywords = activeTab === 'reddit' ? (redditKeywords || 'SaaS, AI, Startup') :
-                activeTab === 'twitter' ? (twitterCompetitors || 'Competitor') :
-                    'Technology Trends';
-
-            const data = await api.scanOpportunities(platform, keywords);
-            setOpportunities(data);
-
-        } catch (e) {
-            console.error("Scan failed", e);
-            toast({ type: 'error', title: 'Scan Failed', message: 'Could not deploy agents. Check backend.' });
-
-            // Fallback for visual continuity if API fails (optional, good for demo resilience)
-            // But for this task, we want to rely on the real thing primarily.
-        } finally {
-            setLoading(false);
-        }
-    };
+        // Poll every 30 seconds for new escalating debates
+        const interval = setInterval(fetchVerdicts, 30000);
+        return () => clearInterval(interval);
+    }, [user?.startup_id]);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-end border-b border-white/10 pb-6">
-                <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                        <span className="font-mono text-xs text-red-500 tracking-widest uppercase">Live Operation</span>
-                    </div>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tight">Guerrilla War Room</h1>
-                    <p className="text-gray-400 text-sm mt-1">Deploy automated agents to intercept high-intent traffic.</p>
+        <div className="max-w-6xl mx-auto pb-20 mt-8">
+            <PageMeta title="War Room | MomentAIc" description="Review automated debate outcomes from strategic AI advisors." />
+
+            <div className="mb-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400 font-mono text-xs mb-4">
+                    <Shield className="w-3 h-3" /> AUTONOMIC_BOARD_OF_DIRECTORS
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant={activeTab === 'reddit' ? 'cyber' : 'outline'}
-                        onClick={() => setActiveTab('reddit')}
-                        className="h-9 text-xs"
-                    >
-                        REDDIT SLEEPER
-                    </Button>
-                    <Button
-                        variant={activeTab === 'twitter' ? 'cyber' : 'outline'}
-                        onClick={() => setActiveTab('twitter')}
-                        className="h-9 text-xs"
-                    >
-                        TWITTER SHARK
-                    </Button>
-                    <Button
-                        variant={activeTab === 'trends' ? 'cyber' : 'outline'}
-                        onClick={() => setActiveTab('trends')}
-                        className="h-9 text-xs"
-                    >
-                        TREND SURFER
-                    </Button>
-                </div>
+                <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter uppercase relative group">
+                    The <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-purple-500">Autonomic Board</span>
+                </h1>
+                <p className="text-gray-400 font-mono text-sm max-w-2xl border-l-2 border-purple-500 pl-4">
+                    When critical Heartbeat metrics drop, your Ghost Co-Founders (YC Partner & Elon Musk) are automatically summoned into an asymmetric debate loop. Below are the executing directives generated by the Swarm.
+                </p>
             </div>
 
-            {/* Controls */}
-            <Card className="bg-[#050505] border-white/10">
-                <CardContent className="p-6 flex gap-4 items-end">
-                    <div className="flex-1 space-y-2">
-                        <label className="text-xs font-mono text-gray-500 uppercase">
-                            {activeTab === 'reddit' ? 'Target Keywords (comma sep)' :
-                                activeTab === 'twitter' ? 'Competitor Handles (comma sep)' :
-                                    'Trend Vertical'}
-                        </label>
-                        <input
-                            type="text"
-                            className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg h-10 px-4 text-white text-sm focus:outline-none focus:border-[#00f0ff]"
-                            placeholder={
-                                activeTab === 'reddit' ? 'e.g. "salesforce alternative", "cold email tool"' :
-                                    activeTab === 'twitter' ? 'e.g. @salesforce, @hubspot' :
-                                        'Technology, AI, SaaS'
-                            }
-                            value={activeTab === 'reddit' ? redditKeywords : activeTab === 'twitter' ? twitterCompetitors : 'Technology'}
-                            onChange={(e) => activeTab === 'reddit' ? setRedditKeywords(e.target.value) : setTwitterCompetitors(e.target.value)}
-                        />
+            {loading ? (
+                <div className="flex items-center justify-center h-64 border border-white/10 border-dashed rounded-xl bg-white/[0.02]">
+                    <div className="flex items-center gap-3 font-mono text-purple-500">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping" />
+                        SYNTHESIZING_STRATEGY_LOOP...
                     </div>
-                    <Button onClick={runScan} isLoading={loading} className="h-10 px-8" variant="cyber">
-                        <Zap className="w-4 h-4 mr-2" /> DEPLOY AGENTS
-                    </Button>
-                </CardContent>
-            </Card>
-
-            {/* Results Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {opportunities.map((opp, i) => (
-                    <OppCard key={i} item={opp} />
-                ))}
-            </div>
-
-            {opportunities.length === 0 && !loading && (
-                <div className="text-center py-20 border border-dashed border-white/10 rounded-xl">
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-6 h-6 text-gray-600" />
+                </div>
+            ) : verdicts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center border border-white/5 border-dashed rounded-xl bg-black/40 backdrop-blur-sm">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/5 flex items-center justify-center mb-6">
+                        <Shield className="w-8 h-8 text-green-500" />
                     </div>
-                    <p className="text-gray-500 font-mono text-sm">Waiting for target coordinates...</p>
+                    <h3 className="text-xl font-bold font-mono text-white mb-2">SYSTEMS NOMINAL</h3>
+                    <p className="text-gray-500 text-sm max-w-md">No metrics have triggered an algorithmic escalation. Your synthetic board remains on standby, continuously analyzing the Heartbeat Engine.</p>
+                </div>
+            ) : (
+                <div className="space-y-8">
+                    {verdicts.map((verdict, idx) => (
+                        <div key={verdict.id} className="relative bg-[#0a0a0f]/60 backdrop-blur-xl border border-red-500/20 p-8 clip-corner-4 hover:border-red-500/50 transition-colors shadow-[0_0_30px_rgba(239,68,68,0.05)]">
+                            <div className="absolute top-0 right-0 p-4 opacity-50">
+                                <AlertTriangle className="w-24 h-24 text-red-500/10" />
+                            </div>
+
+                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10 relative z-10">
+                                <div className="flex items-center gap-3 text-red-400 font-mono text-xs uppercase">
+                                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                    ESCALATION_DETECTED
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-500 font-mono text-xs">
+                                    <Clock className="w-3 h-3" />
+                                    {new Date(verdict.created_at).toLocaleString()}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 relative z-10">
+                                {/* YC Advisor Output */}
+                                <div className="bg-black/80 border border-orange-500/30 p-5 rounded-lg shadow-[inset_0_0_20px_rgba(249,115,22,0.05)]">
+                                    <div className="flex items-center gap-2 text-orange-400 font-bold font-mono text-sm mb-4 border-b border-orange-500/20 pb-2">
+                                        <Brain className="w-4 h-4 animate-pulse" /> YC_ADVISOR // TRUTH_PROTOCOL
+                                    </div>
+                                    <p className="text-orange-100/80 font-mono text-sm leading-relaxed whitespace-pre-wrap">{verdict.payload.yc_stance}</p>
+                                </div>
+
+                                {/* Musk Enforcer Output */}
+                                <div className="bg-black/80 border border-blue-500/30 p-5 rounded-lg shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]">
+                                    <div className="flex items-center gap-2 text-blue-400 font-bold font-mono text-sm mb-4 border-b border-blue-500/20 pb-2">
+                                        <Zap className="w-4 h-4 animate-pulse" /> MUSK_ENFORCER // BURN_THE_BOATS
+                                    </div>
+                                    <p className="text-blue-100/80 font-mono text-sm leading-relaxed whitespace-pre-wrap">{verdict.payload.musk_stance}</p>
+                                </div>
+                            </div>
+
+                            {/* Unified Recommendation */}
+                            <div className="relative z-10 bg-gradient-to-r from-purple-900/60 to-black border border-purple-500/60 p-6 rounded-lg clip-corner-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all">
+                                <div className="text-[10px] font-mono text-purple-400 tracking-widest uppercase mb-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                                    /// AUTONOMIC_SYNTHESIS (EXECUTABLE_DIRECTIVE)
+                                </div>
+                                <div className="text-lg md:text-xl font-medium text-white leading-relaxed border-l-2 border-purple-500/50 pl-4">
+                                    {verdict.payload.unified_recommendation}
+                                </div>
+
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <button className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold font-mono text-sm rounded border border-purple-400 shadow-[0_0_15px_rgba(147,51,234,0.5)] transition-all hover:scale-[1.02]">
+                                        AUTHORIZE // EXECUTE MULTIPLIER
+                                    </button>
+                                    <button className="px-6 py-2 bg-black border border-white/20 hover:border-red-500 hover:text-red-400 text-white font-mono text-sm rounded transition-all">
+                                        OVERRIDE // MANUAL CONTROL
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>

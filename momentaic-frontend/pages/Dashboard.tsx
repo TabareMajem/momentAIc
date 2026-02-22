@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Users, TrendingUp, Send, Bot, Eye, Rocket, ArrowRight,
   BarChart2, Shield, ChevronDown, ChevronUp, Film, Image as ImageIcon, PlayCircle,
@@ -11,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import ActivityFeed from '../components/ActivityFeed';
 import { MorningBriefWidget } from '../components/dashboard/MorningBriefWidget';
 import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidget';
+import { AstroTurfWidget } from '../components/ui/AstroTurfWidget';
 import { useAuthStore } from '../stores/auth-store';
 
 // ============ TYPES ============
@@ -69,7 +69,7 @@ function AgentCard({ activity }: { activity: AgentActivity }) {
   };
 
   return (
-    <motion.div
+    <div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-slate-900/50 rounded-xl border border-white/5 overflow-hidden hover:border-white/10 transition-colors"
@@ -111,7 +111,7 @@ function AgentCard({ activity }: { activity: AgentActivity }) {
         {/* Progress Bar */}
         {activity.status === 'running' && (
           <div className="mt-3 h-1 bg-slate-800 rounded-full overflow-hidden">
-            <motion.div
+            <div
               className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
               initial={{ width: 0 }}
               animate={{ width: `${activity.progress}%` }}
@@ -122,56 +122,56 @@ function AgentCard({ activity }: { activity: AgentActivity }) {
       </div>
 
       {/* Expanded Content */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="border-t border-white/5"
-          >
-            <div className="p-4 space-y-3">
-              {/* Live Message */}
-              <div className="bg-slate-800/50 rounded-lg p-3">
-                <p className="text-xs text-slate-500 mb-1">Current Status</p>
-                <p className="text-sm text-slate-300 font-mono">
-                  {activity.message || 'Processing...'}
+
+      {expanded && (
+        <div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          className="border-t border-white/5"
+        >
+          <div className="p-4 space-y-3">
+            {/* Live Message */}
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-xs text-slate-500 mb-1">Current Status</p>
+              <p className="text-sm text-slate-300 font-mono">
+                {activity.message || 'Processing...'}
+              </p>
+            </div>
+
+            {/* Result Preview */}
+            {activity.result && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                <p className="text-xs text-emerald-400 mb-1">Result</p>
+                <p className="text-sm text-emerald-300">
+                  {typeof activity.result === 'string'
+                    ? activity.result.slice(0, 200)
+                    : JSON.stringify(activity.result).slice(0, 200)}
                 </p>
               </div>
+            )}
 
-              {/* Result Preview */}
-              {activity.result && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
-                  <p className="text-xs text-emerald-400 mb-1">Result</p>
-                  <p className="text-sm text-emerald-300">
-                    {typeof activity.result === 'string'
-                      ? activity.result.slice(0, 200)
-                      : JSON.stringify(activity.result).slice(0, 200)}
-                  </p>
-                </div>
+
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              {activity.status === 'running' && (
+                <Button size="sm" variant="outline">
+                  <Pause className="w-3 h-3 mr-1" />
+                  Pause
+                </Button>
               )}
-
-
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                {activity.status === 'running' && (
-                  <Button size="sm" variant="outline">
-                    <Pause className="w-3 h-3 mr-1" />
-                    Pause
-                  </Button>
-                )}
-                {activity.status === 'complete' && (
-                  <Button size="sm" variant="cyber">
-                    View Full Result
-                  </Button>
-                )}
-              </div>
+              {activity.status === 'complete' && (
+                <Button size="sm" variant="cyber">
+                  View Full Result
+                </Button>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }
 
@@ -486,7 +486,7 @@ function EmpireProgressWidget() {
   const percent = Math.min(((status.current_step) / stepsCount) * 100, 100);
 
   return (
-    <motion.div
+    <div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-xl p-5 mb-8 relative overflow-hidden group"
@@ -513,7 +513,7 @@ function EmpireProgressWidget() {
 
         <div className="flex items-center gap-4">
           <div className="w-32 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 hidden sm:block">
-            <motion.div
+            <div
               className="h-full bg-gradient-to-r from-purple-500 to-cyan-500"
               initial={{ width: 0 }}
               animate={{ width: `${percent}%` }}
@@ -524,7 +524,69 @@ function EmpireProgressWidget() {
           </Button>
         </div>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+// ============ ZERO STATE WIDGET ============
+
+function ZeroStateWidget({ pendingStrategy, onCreateStartup }: { pendingStrategy: any; onCreateStartup: () => void }) {
+  return (
+    <div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4"
+    >
+      <div className="max-w-lg space-y-8">
+        {/* Icon */}
+        <div className="relative mx-auto w-24 h-24">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-cyan-500/20 rounded-full animate-pulse" />
+          <div className="relative w-full h-full rounded-full bg-[#111] border border-white/10 flex items-center justify-center">
+            <Rocket className="w-10 h-10 text-[#00f0ff]" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <div>
+          <h2 className="text-3xl font-bold text-white mb-3">Launch Your Empire</h2>
+          <p className="text-gray-400 text-sm">
+            {pendingStrategy
+              ? "You have a strategy ready! Create your first startup to activate it."
+              : "Create your first startup to unlock the full power of your AI team."
+            }
+          </p>
+        </div>
+
+        {/* Pending Strategy Preview */}
+        {pendingStrategy && (
+          <div className="bg-[#0a0a0a] border border-[#00f0ff]/20 rounded-xl p-4 text-left">
+            <div className="flex items-center gap-2 mb-2 text-[#00f0ff]">
+              <Sparkles className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-widest">Saved Strategy</span>
+            </div>
+            <p className="text-sm text-gray-300 line-clamp-2">
+              {pendingStrategy.strategy?.target_audience || pendingStrategy.plan?.summary || "Your AI-generated growth strategy is ready"}
+            </p>
+          </div>
+        )}
+
+        {/* CTA Button */}
+        <Button
+          variant="cyber"
+          size="lg"
+          onClick={onCreateStartup}
+          className="w-full max-w-xs mx-auto"
+        >
+          <Zap className="w-5 h-5 mr-2" />
+          CREATE YOUR FIRST STARTUP
+        </Button>
+
+        {/* Secondary Action */}
+        <p className="text-xs text-gray-600">
+          Takes less than 60 seconds • No credit card required
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -533,18 +595,32 @@ function EmpireProgressWidget() {
 
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasStartups, setHasStartups] = useState<boolean | null>(null);
+  const [pendingStrategy, setPendingStrategy] = useState<any>(null);
 
   useEffect(() => {
     const loadRealData = async () => {
       try {
+        // Check for pending strategies from onboarding
+        const pendingStrategyData = localStorage.getItem('pendingStrategy');
+        const pendingGeniusPlan = localStorage.getItem('pendingGeniusPlan');
+        if (pendingStrategyData) {
+          setPendingStrategy(JSON.parse(pendingStrategyData));
+        } else if (pendingGeniusPlan) {
+          setPendingStrategy(JSON.parse(pendingGeniusPlan));
+        }
+
         // 1. Get User's Startup
         const startups = await api.getStartups();
         if (!startups || startups.length === 0) {
+          setHasStartups(false);
           setLoading(false);
           return;
         }
+        setHasStartups(true);
         const startup = startups[0];
 
         // 2. Get Dashboard Data with Real Activity
@@ -629,104 +705,117 @@ export default function Dashboard() {
 
 
 
-      {/* Admin Specialized Agents */}
-      {
-        user?.is_superuser && (
-          <div className="space-y-8">
-            <AdminEcosystemWidget />
-            <AdminAgentWidget />
-          </div>
-        )
-      }
-
-      {/* Empire Progress Widget */}
-      <EmpireProgressWidget />
-
-      {/* Morning Brief Widget - The "AI CEO" Report */}
-      <div className="mb-8">
-        <MorningBriefWidget />
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Agents */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              Active Agents
-            </h2>
-            <Button size="sm" variant="outline">
-              <Pause className="w-3 h-3 mr-1" />
-              Pause All
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader className="w-6 h-6 text-slate-400 animate-spin" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities
-                .filter(a => a.status === 'running')
-                .map(activity => (
-                  <AgentCard key={activity.id} activity={activity} />
-                ))}
+      {/* Show Zero State if no startups */}
+      {hasStartups === false ? (
+        <ZeroStateWidget
+          pendingStrategy={pendingStrategy}
+          onCreateStartup={() => navigate('/onboarding/genius')}
+        />
+      ) : (
+        <>
+          {/* Admin Specialized Agents */}
+          {user?.is_superuser && (
+            <div className="space-y-8">
+              <AdminEcosystemWidget />
+              <AdminAgentWidget />
             </div>
           )}
 
-          {/* Pending */}
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" />
-              Pending Queue
-            </h2>
-            <div className="space-y-3">
-              {activities
-                .filter(a => a.status === 'pending')
-                .map(activity => (
-                  <AgentCard key={activity.id} activity={activity} />
-                ))}
+          {/* Empire Progress Widget */}
+          <EmpireProgressWidget />
+
+          {/* Morning Brief & AstroTurf Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-2">
+              <MorningBriefWidget />
+            </div>
+            <div className="lg:col-span-1">
+              <AstroTurfWidget />
             </div>
           </div>
 
-          {/* Completed */}
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
-              Completed Today
-            </h2>
-            <div className="space-y-3">
-              {activities
-                .filter(a => a.status === 'complete')
-                .map(activity => (
-                  <AgentCard key={activity.id} activity={activity} />
-                ))}
+          {/* Main Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Active Agents */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                  Active Agents
+                </h2>
+                <Button size="sm" variant="outline">
+                  <Pause className="w-3 h-3 mr-1" />
+                  Pause All
+                </Button>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader className="w-6 h-6 text-slate-400 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activities
+                    .filter(a => a.status === 'running')
+                    .map(activity => (
+                      <AgentCard key={activity.id} activity={activity} />
+                    ))}
+                </div>
+              )}
+
+              {/* Pending */}
+              <div className="mt-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  Pending Queue
+                </h2>
+                <div className="space-y-3">
+                  {activities
+                    .filter(a => a.status === 'pending')
+                    .map(activity => (
+                      <AgentCard key={activity.id} activity={activity} />
+                    ))}
+                </div>
+              </div>
+
+              {/* Completed */}
+              <div className="mt-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  Completed Today
+                </h2>
+                <div className="space-y-3">
+                  {activities
+                    .filter(a => a.status === 'complete')
+                    .map(activity => (
+                      <AgentCard key={activity.id} activity={activity} />
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar: Quick Actions + Activity Feed */}
+            <div className="space-y-6">
+              {/* Quick Focus */}
+              <div className="bg-slate-900/50 rounded-xl border border-white/5 p-4">
+                <h3 className="font-medium mb-3">Quick Focus</h3>
+                <input
+                  type="text"
+                  placeholder="What should AI focus on?"
+                  className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                />
+                <Button className="w-full mt-3" variant="cyber">
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Task
+                </Button>
+              </div>
+
+              {/* Activity Feed */}
+              <ActivityFeed />
             </div>
           </div>
-        </div>
-
-        {/* Sidebar: Quick Actions + Activity Feed */}
-        <div className="space-y-6">
-          {/* Quick Focus */}
-          <div className="bg-slate-900/50 rounded-xl border border-white/5 p-4">
-            <h3 className="font-medium mb-3">Quick Focus</h3>
-            <input
-              type="text"
-              placeholder="What should AI focus on?"
-              className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-            />
-            <Button className="w-full mt-3" variant="cyber">
-              <Play className="w-4 h-4 mr-2" />
-              Start Task
-            </Button>
-          </div>
-
-          {/* Activity Feed */}
-          <ActivityFeed />
-        </div>
-      </div>
-    </div >
+        </>
+      )}
+    </div>
   );
 }

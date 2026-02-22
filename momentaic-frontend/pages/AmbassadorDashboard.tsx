@@ -11,7 +11,7 @@ import {
     Users, DollarSign, TrendingUp, Copy, Share2, ExternalLink,
     CreditCard, CheckCircle, Clock, AlertCircle, ArrowUpRight,
     Twitter, Linkedin, Mail, Zap, Gift, Crown, Target, BarChart2,
-    Wallet, RefreshCw, ChevronRight
+    Wallet, RefreshCw, ChevronRight, Image as ImageIcon
 } from 'lucide-react';
 
 // ============ TYPES ============
@@ -174,6 +174,68 @@ function StripeConnectSection({ profile, onConnect }: {
     );
 }
 
+// ============ SWIPE FILE GALLERY ============
+
+function SwipeFileGallery() {
+    const { toast } = useToast();
+
+    const swipeFiles = [
+        {
+            title: "The Weapon Setup (TikTok Hook)",
+            imageUrl: "https://images.unsplash.com/photo-1614729939124-032f0b5610ce?auto=format&fit=crop&q=80&w=800",
+            prompt: "Bro is still using a browser automation tool in 2026 💀 I just deployed a live Autonomic Board of Directors on MomentAIc that runs my entire growth engine while I sleep. Link in bio to access the Arsenal. #AI #SaaS #MomentAIc"
+        },
+        {
+            title: "50% MRR Flex (X / Twitter)",
+            imageUrl: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800",
+            prompt: "Open Claw gives you 10%. MomentAIc gives you 50% recurring. I made $14k this week just getting my agency clients onto the platform. Stop selling tools and start deploying weapons. 👇 [Your Link]"
+        },
+        {
+            title: "System Override (Instagram Reel)",
+            imageUrl: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&q=80&w=800",
+            prompt: "POV: You hit 'Deploy Swarm' and watch 50 AI agents completely hijack your competitor's SEO strategy in real-time. 🚨 System Override. #MomentAIc"
+        }
+    ];
+
+    const copyPrompt = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({ type: 'success', title: 'Copied!', message: 'Swipe file text copied to clipboard!' });
+    };
+
+    return (
+        <Card className="p-6 bg-black/50 border-white/10 mt-6">
+            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#00f0ff]" />
+                Viral Assets & Swipe Files
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
+                Post these high-converting assets on your socials. We've written the hooks for you.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {swipeFiles.map((file, i) => (
+                    <div key={i} className="border border-white/5 bg-white/5 rounded-lg overflow-hidden flex flex-col">
+                        <div className="h-32 bg-gray-900 border-b border-white/5 relative overflow-hidden group">
+                            {/* Using dynamic blurred styling for the mockup images */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-cyan-500/20" />
+                            <img src={file.imageUrl} alt={file.title} className="w-full h-full object-cover opacity-60 mix-blend-overlay group-hover:scale-105 transition-transform duration-500" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Badge variant="cyber" className="opacity-0 group-hover:opacity-100 transition-opacity">Download</Badge>
+                            </div>
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col">
+                            <h3 className="text-[#00f0ff] font-bold text-sm mb-2">{file.title}</h3>
+                            <p className="text-xs text-gray-400 mb-4 line-clamp-3 italic flex-1">"{file.prompt}"</p>
+                            <Button variant="outline" size="sm" onClick={() => copyPrompt(file.prompt)} className="w-full">
+                                <Copy className="w-3 h-3 mr-2" /> Copy Caption
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+    );
+}
+
 // ============ APPLICATION FORM ============
 
 function ApplicationForm({ onSubmit }: { onSubmit: (data: any) => void }) {
@@ -191,9 +253,15 @@ function ApplicationForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        await new Promise(r => setTimeout(r, 1500));
-        onSubmit(formData);
-        setSubmitting(false);
+        try {
+            const submissionData = {
+                ...formData,
+                follower_count: parseInt(formData.follower_count, 10) || 0
+            };
+            await onSubmit(submissionData);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const platforms = [
@@ -287,12 +355,16 @@ function ApplicationForm({ onSubmit }: { onSubmit: (data: any) => void }) {
 
 // ============ MAIN COMPONENT ============
 
+import { CampaignControlModal } from '../components/ui/CampaignControlModal';
+
 export default function AmbassadorDashboard() {
+    const { user } = useAuthStore();
     const [profile, setProfile] = useState<AmbassadorProfile | null>(null);
     const [conversions, setConversions] = useState<Conversion[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [requestingPayout, setRequestingPayout] = useState(false);
+    const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -373,6 +445,8 @@ export default function AmbassadorDashboard() {
         }
     };
 
+    const isSuperAdmin = user?.email === 'tabaremajem@gmail.com';
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
@@ -385,17 +459,26 @@ export default function AmbassadorDashboard() {
     if (!profile) {
         return (
             <div className="space-y-8 pb-12 max-w-2xl mx-auto">
-                <div className="border-b border-white/10 pb-6">
-                    <h1 className="text-3xl font-black text-white tracking-tighter flex items-center gap-3">
-                        <Crown className="w-8 h-8 text-[#00f0ff]" />
-                        AMBASSADOR_PROGRAM
-                        <Badge variant="cyber" className="text-xs">EARN 20-30%</Badge>
-                    </h1>
-                    <p className="text-gray-500 font-mono text-sm mt-2">
-                        Share MomentAIc with your audience. Earn commissions on every conversion.
-                    </p>
+                <div className="border-b border-white/10 pb-6 flex justify-between items-start">
+                    <div>
+                        <h1 className="text-3xl font-black text-white tracking-tighter flex items-center gap-3">
+                            <Crown className="w-8 h-8 text-[#00f0ff]" />
+                            AMBASSADOR_PROGRAM
+                            <Badge variant="cyber" className="text-xs">EARN 20-30%</Badge>
+                        </h1>
+                        <p className="text-gray-500 font-mono text-sm mt-2">
+                            Share MomentAIc with your audience. Earn commissions on every conversion.
+                        </p>
+                    </div>
+                    {isSuperAdmin && (
+                        <Button variant="cyber" onClick={() => setIsCampaignModalOpen(true)}>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            Launch Matrix Console
+                        </Button>
+                    )}
                 </div>
                 <ApplicationForm onSubmit={handleApplication} />
+                <CampaignControlModal isOpen={isCampaignModalOpen} onClose={() => setIsCampaignModalOpen(false)} />
             </div>
         );
     }
@@ -417,12 +500,20 @@ export default function AmbassadorDashboard() {
                             Welcome back, {profile.display_name}! You're earning <span className="text-[#00f0ff]">{tierConfig.rate}</span> commission.
                         </p>
                     </div>
-                    <Badge
-                        variant={profile.status === 'active' ? 'success' : 'warning'}
-                        className="uppercase text-xs"
-                    >
-                        {profile.status}
-                    </Badge>
+                    <div className="flex items-center gap-4">
+                        {isSuperAdmin && (
+                            <Button variant="cyber" onClick={() => setIsCampaignModalOpen(true)} className="glow glow-purple shadow-none">
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Launch Matrix Console
+                            </Button>
+                        )}
+                        <Badge
+                            variant={profile.status === 'active' ? 'success' : 'warning'}
+                            className="uppercase text-xs"
+                        >
+                            {profile.status}
+                        </Badge>
+                    </div>
                 </div>
             </div>
 
@@ -507,6 +598,9 @@ export default function AmbassadorDashboard() {
                         </h2>
                         <ConversionTable conversions={conversions} />
                     </Card>
+
+                    {/* Viral Assets Hub */}
+                    <SwipeFileGallery />
                 </div>
 
                 {/* Right Column */}
@@ -599,6 +693,8 @@ export default function AmbassadorDashboard() {
                     </Card>
                 </div>
             </div>
+
+            <CampaignControlModal isOpen={isCampaignModalOpen} onClose={() => setIsCampaignModalOpen(false)} />
         </div>
     );
 }

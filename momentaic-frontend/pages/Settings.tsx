@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { User, CreditCard, LogOut, CheckCircle, Zap, Loader2 } from 'lucide-react';
+import { User, CreditCard, LogOut, CheckCircle, Zap, Loader2, PhoneCall, MessageSquare, Link as LinkIcon } from 'lucide-react';
 import { SubscriptionTier } from '../types';
 import { useToast } from '../components/ui/Toast';
 
@@ -13,6 +13,8 @@ export default function Settings() {
     const { user, logout, upgradeTier } = useAuthStore();
     const { toast } = useToast();
     const [loadingTier, setLoadingTier] = useState<string | null>(null);
+    const [twilioSid, setTwilioSid] = useState('');
+    const [twilioToken, setTwilioToken] = useState('');
 
     if (!user) return null;
 
@@ -39,7 +41,7 @@ export default function Settings() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+            <h1 className="text-2xl font-bold text-white">Account Settings</h1>
 
             <Card>
                 <CardHeader>
@@ -125,7 +127,103 @@ export default function Settings() {
                 </CardContent>
             </Card>
 
-            <h2 className="text-xl font-bold text-gray-900 pt-4">Subscription Protocol</h2>
+            {/* TELECOM CONFIGURATION */}
+            <h2 className="text-xl font-bold text-white pt-4">Telecom Integrations</h2>
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                            <PhoneCall className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg">Twilio BYOK (Bring Your Own Key)</CardTitle>
+                            <CardDescription>Connect your Twilio account to provision real phone numbers for your AI agents.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                            label="Twilio Account SID"
+                            type="password"
+                            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            value={twilioSid}
+                            onChange={(e) => setTwilioSid(e.target.value)}
+                        />
+                        <Input
+                            label="Twilio Auth Token"
+                            type="password"
+                            placeholder="Enter Auth Token"
+                            value={twilioToken}
+                            onChange={(e) => setTwilioToken(e.target.value)}
+                        />
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                    <Button onClick={() => {
+                        // Persist to local storage for now to make it easy for the demo
+                        localStorage.setItem('twilio_sid', twilioSid);
+                        localStorage.setItem('twilio_token', twilioToken);
+                        toast({ type: 'success', title: 'Keys Saved', message: 'Twilio integration activated.' });
+                    }}>
+                        Save API Keys
+                    </Button>
+                </CardFooter>
+            </Card>
+
+            {/* EXTERNAL INTEGRATIONS */}
+            <h2 className="text-xl font-bold text-white pt-4">External Integrations</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* STRIPE */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-500/20 rounded-lg">
+                                <CreditCard className="w-5 h-5 text-indigo-400" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg">Stripe Billing</CardTitle>
+                                <CardDescription>Trigger actions based on MRR, Churn, and new Customers.</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                            Connected as `acct_1M...`
+                        </div>
+                        <Button variant="outline" className="w-full text-gray-300">
+                            Manage Connection
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                {/* SLACK */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-500/20 rounded-lg">
+                                <MessageSquare className="w-5 h-5 text-amber-400" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg">Slack Workspace</CardTitle>
+                                <CardDescription>Allow agents to DM you or post alerts to #channels.</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+                            <LinkIcon className="w-4 h-4 text-gray-400" />
+                            Not Connected
+                        </div>
+                        <Button variant="cyber" className="w-full bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black border-none">
+                            Connect Workspace
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <h2 className="text-xl font-bold text-white pt-4">Subscription Protocol</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* STARTER */}

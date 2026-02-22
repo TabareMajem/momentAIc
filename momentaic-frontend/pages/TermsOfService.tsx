@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Shield, FileText, CheckCircle, AlertTriangle, Scale } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -23,7 +22,7 @@ export default function TermsOfService() {
             </header>
 
             <main className="pt-24 pb-20 px-6 max-w-4xl mx-auto">
-                <motion.div
+                <div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-12 text-center"
@@ -35,7 +34,7 @@ export default function TermsOfService() {
                     </div>
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">Terms of Service</h1>
                     <p className="text-xl text-gray-400">Effective Date: January 1, 2026</p>
-                </motion.div>
+                </div>
 
                 <div className="space-y-12 bg-white/5 border border-white/10 rounded-2xl p-8 md:p-12 backdrop-blur-sm">
 

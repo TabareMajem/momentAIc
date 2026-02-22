@@ -52,10 +52,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             key={t.id}
             className={cn(
               "pointer-events-auto flex items-start w-full p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-y-0 opacity-100",
-              "bg-white border-l-4",
-              t.type === 'success' && "border-green-500",
-              t.type === 'error' && "border-red-500",
-              t.type === 'info' && "border-blue-500"
+              "bg-[#111] border-l-4 border border-white/10",
+              t.type === 'success' && "border-l-green-500",
+              t.type === 'error' && "border-l-red-500",
+              t.type === 'info' && "border-l-blue-500"
             )}
           >
             <div className="flex-shrink-0">
@@ -64,12 +64,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               {t.type === 'info' && <Info className="w-5 h-5 text-blue-500" />}
             </div>
             <div className="ml-3 w-0 flex-1 pt-0.5">
-              <p className="text-sm font-medium text-gray-900">{t.title}</p>
-              {t.message && <p className="mt-1 text-sm text-gray-500">{t.message}</p>}
+              <p className="text-sm font-medium text-white">{t.title}</p>
+              {t.message && <p className="mt-1 text-sm text-gray-400">{t.message}</p>}
             </div>
             <div className="ml-4 flex-shrink-0 flex">
               <button
-                className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="rounded-md inline-flex text-gray-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f0ff]"
                 onClick={() => removeToast(t.id)}
               >
                 <span className="sr-only">Close</span>

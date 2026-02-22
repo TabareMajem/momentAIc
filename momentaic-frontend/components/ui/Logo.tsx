@@ -10,12 +10,8 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({ className, collapsed }) => {
   return (
     <Link to="/" className={cn("flex items-center gap-3 group select-none", className)}>
-      <div className="relative w-10 h-10 flex items-center justify-center">
-        <img
-          src="/favicon.png"
-          alt="MomentAIc Logo"
-          className="w-full h-full object-contain drop-shadow-lg"
-        />
+      <div className="relative w-10 h-10 flex items-center justify-center bg-black/50 rounded-lg border border-white/10 overflow-hidden">
+        <img src="/logo-new.png" alt="MomentAIc Logo" className="w-full h-full object-contain p-1" />
       </div>
 
       {!collapsed && (

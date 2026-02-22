@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "Command Center",
+        "startups": "Empires",
+        "signals": "Target Radar",
+        "war_room": "The Board",
+        "campaigns": "Swarm Deploys",
+        "growth": "Growth Engine",
+        "pulse": "Business Pulse",
+        "characters": "AI Character Factory",
+        "telemetry": "Telemetry Matrix",
+        "agents": "Agent Forge",
+        "agent_studio": "Agent Studio",
+        "guerrilla": "Asymmetric Warfare",
+        "callcenter": "Voice Operations",
+        "openclaw": "OpenClaw Proxy",
+        "settings": "Settings",
+        "global_campaign": "World Domination"
+    },
+    "hero": {
+        "title_prefix": "DON'T JUST AUTOMATE.",
+        "title_highlight": "DOMINATE.",
+        "subtitle": "Your AI startup co-founders are ready. Deploy the swarm.",
+        "cta_primary": "Deploy Swarm",
+        "cta_secondary": "View Matrix"
+    },
+    "common": {
+        "loading": "Loading...",
+        "error": "Error"
+    }
+}

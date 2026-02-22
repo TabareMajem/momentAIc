@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Briefcase, Globe, Heart, Zap, Award, CheckCircle } from 'lucide-react';
-import api from '../lib/api';
+import { api } from '../lib/api';
 
 interface Match {
     id: string;

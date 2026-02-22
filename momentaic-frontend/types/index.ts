@@ -237,13 +237,13 @@ export interface Lead {
   id: string;
   startup_id: string;
   company_name: string;
-  contact_person: string;
+  contact_name: string;
   email: string;
   status: LeadStatus;
-  value: number;
+  value?: number;
   last_interaction?: string;
   ai_notes?: string;
-  probability: number;
+  probability?: number;
 }
 
 // --- AMBASSADOR & REFERRAL ---

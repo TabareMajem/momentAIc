@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bot, Sparkles, Zap, Send, Users, TrendingUp, FileText,
     Activity, Radio, Loader2, CheckCircle, ArrowRight
@@ -136,7 +135,7 @@ export default function LiveAgentView() {
                         const isActive = activeAgents.includes(name);
 
                         return (
-                            <motion.div
+                            <div
                                 key={name}
                                 className={`p-4 rounded-xl border transition-all ${isActive
                                         ? 'bg-white/5 border-white/20'
@@ -160,7 +159,7 @@ export default function LiveAgentView() {
                                         <div className="w-2 h-2 rounded-full bg-gray-600" />
                                     )}
                                 </div>
-                            </motion.div>
+                            </div>
                         );
                     })}
                 </div>
@@ -170,13 +169,13 @@ export default function LiveAgentView() {
                     <h2 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">LIVE ACTIVITY STREAM</h2>
 
                     <div className="bg-black/30 rounded-xl border border-white/10 p-4 h-[600px] overflow-y-auto">
-                        <AnimatePresence>
+                        
                             {events.map((event) => {
                                 const agentConfig = AGENT_CONFIG[event.agent as keyof typeof AGENT_CONFIG] || AGENT_CONFIG['Strategist'];
                                 const Icon = agentConfig.icon;
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={event.id}
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
@@ -212,10 +211,10 @@ export default function LiveAgentView() {
                                         <div className="text-xs text-gray-600 font-mono shrink-0">
                                             {event.timestamp.toLocaleTimeString()}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 );
                             })}
-                        </AnimatePresence>
+                        
                         <div ref={eventEndRef} />
                     </div>
                 </div>

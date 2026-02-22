@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
     Rocket, Zap, Users, Target, TrendingUp, Play, Loader, CheckCircle,
     FileText, Mail, Brain, Sparkles, ChevronRight, Clock
@@ -77,7 +76,7 @@ function PowerPlayCard({
     const Icon = play.icon;
 
     return (
-        <motion.div
+        <div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-xl"
@@ -154,7 +153,7 @@ function PowerPlayCard({
                     </Button>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -217,7 +216,7 @@ export default function PowerPlays() {
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-12">
-                <motion.div
+                <div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center"
@@ -233,14 +232,14 @@ export default function PowerPlays() {
                         Execute complete marketing campaigns with a single click.
                         Each Power Play chains multiple AI agents together to deliver real results.
                     </p>
-                </motion.div>
+                </div>
             </div>
 
             {/* Power Play Grid */}
             <div className="max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {POWER_PLAYS.map((play, idx) => (
-                        <motion.div
+                        <div
                             key={play.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -251,7 +250,7 @@ export default function PowerPlays() {
                                 onExecute={() => handleExecute(play)}
                                 isExecuting={executingId === play.id}
                             />
-                        </motion.div>
+                        </div>
                     ))}
                 </div>
             </div>

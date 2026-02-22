@@ -1,15 +1,16 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+    apiKey: "AIzaSyAx5uuSihoy0LO8yxWeXhcmvSEzQPFP9eI",
+    authDomain: "momentaicapp.firebaseapp.com",
+    projectId: "momentaicapp",
+    storageBucket: "momentaicapp.firebasestorage.app",
+    messagingSenderId: "781939948391",
+    appId: "1:781939948391:web:2ed149fc461be961bb4dc2",
+    measurementId: "G-TH98XYS8KM"
 };
 
 // Initialize Firebase
@@ -25,5 +26,17 @@ isSupported().then(supported => {
         console.warn("Firebase Analytics not supported in this environment");
     }
 });
+
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+export const githubProvider = new GithubAuthProvider();
+
+export const signInWithGoogle = async () => {
+    return await signInWithPopup(auth, googleProvider);
+};
+
+export const signInWithGithub = async () => {
+    return await signInWithPopup(auth, githubProvider);
+};
 
 export { app, analytics };

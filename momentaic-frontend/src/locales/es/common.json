@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "Centro de Mando",
+        "startups": "Imperios",
+        "signals": "Radar de Objetivos",
+        "war_room": "La Junta",
+        "campaigns": "Despliegues del Enjambre",
+        "growth": "Motor de Crecimiento",
+        "pulse": "Pulso Empresarial",
+        "characters": "Fábrica de Personajes",
+        "telemetry": "Matriz de Telemetría",
+        "agents": "Forja de Agentes",
+        "agent_studio": "Estudio de Agentes",
+        "guerrilla": "Guerra Asimétrica",
+        "callcenter": "Operaciones de Voz",
+        "openclaw": "Proxy OpenClaw",
+        "settings": "Configuración",
+        "global_campaign": "Dominación Global"
+    },
+    "hero": {
+        "title_prefix": "NO SOLO AUTOMATICES.",
+        "title_highlight": "DOMINA.",
+        "subtitle": "Tus cofundadores de IA están listos. Despliega el enjambre.",
+        "cta_primary": "Desplegar Enjambre",
+        "cta_secondary": "Ver Matriz"
+    },
+    "common": {
+        "loading": "Cargando...",
+        "error": "Error"
+    }
+}

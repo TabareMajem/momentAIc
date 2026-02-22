@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 2685,
       host: '0.0.0.0',
-      allowedHosts: ['momentaic.com', 'www.momentaic.com', 'api.momentaic.com', 'localhost', '127.0.0.1'],
+      allowedHosts: true,
     },
     plugins: [react()],
     // Security: No API keys are injected into frontend builds

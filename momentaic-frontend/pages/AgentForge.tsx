@@ -8,9 +8,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { Play, Square, Save, RotateCcw, Box, Eye, Terminal as TerminalIcon, Cpu, Globe, MessageSquare, AlertTriangle, Zap, CheckCircle2, Network, Trash2 } from 'lucide-react';
+import { Play, Square, Save, RotateCcw, Box, Eye, Terminal as TerminalIcon, Cpu, Globe, MessageSquare, AlertTriangle, Zap, CheckCircle2, Network, Trash2, DownloadCloud, X, ArrowRight, Link as LinkIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/Toast';
+import { api } from '../lib/api';
 
 // --- VISUAL GRAPH ENGINE COMPONENTS ---
 
@@ -147,6 +148,28 @@ export default function AgentForge() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [importingAgent, setImportingAgent] = useState<string | null>(null);
+  const [yokaizenAgents, setYokaizenAgents] = useState<any[]>([]);
+
+  // Webhook State
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookPayload, setWebhookPayload] = useState('{\n  "event": "swarm_completed"\n}');
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  // Fetch real agents from Yokaizen API
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const agents = await api.getYokaizenAgents();
+        if (agents) setYokaizenAgents(agents);
+      } catch (err) {
+        console.error("Failed to load Yokaizen agents", err);
+      }
+    };
+    if (showImportModal && yokaizenAgents.length === 0) fetchAgents();
+  }, [showImportModal]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -177,6 +200,55 @@ export default function AgentForge() {
       addLog('error', 'Failed to generate workflow architecture.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleImportYokaizenAgent = async (agent: any) => {
+    setImportingAgent(agent.id);
+    addLog('system', `Downloading ${agent.name} architecture from Yokaizen servers...`);
+
+    try {
+      const resp = await api.importYokaizenAgent(agent.id);
+
+      const imported = resp?.imported_agent || agent;
+      const newNode: WorkflowNode = {
+        id: `node-${resp?.internal_id || Date.now()}`,
+        type: imported.framework === 'LangChain' ? 'supervisor' : imported.framework === 'OpenAI Swarm' ? 'supervisor' : 'mcp',
+        position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
+        data: {
+          label: imported.name,
+          description: imported.description,
+          status: 'idle',
+          systemInstruction: `You are ${imported.name}, an advanced reasoning engine imported from Yokaizen. version: ${imported.version}`,
+          config: { model: 'DeepSeek V3', parameters: { temperature: 0.2 } }
+        }
+      };
+
+      setNodes([...nodes, newNode]);
+      addLog('success', `Successfully imported ${imported.name} into MomentAIc swarm.`);
+    } catch (error) {
+      addLog('error', `Failed to import ${agent.name}.`);
+    } finally {
+      setImportingAgent(null);
+      setShowImportModal(false);
+    }
+  };
+
+  const handleTriggerWebhook = async () => {
+    if (!webhookUrl) return;
+    setIsTriggering(true);
+    addLog('system', `Proxying Webhook Trigger to AgentForge URL: ${webhookUrl}...`);
+    try {
+      const parsedPayload = JSON.parse(webhookPayload);
+      await api.triggerAgentForgeWorkflow(webhookUrl, parsedPayload);
+      toast({ type: 'success', title: 'Webhook Triggered', message: 'Successfully delegated workflow to AgentForge.' });
+      addLog('success', `AgentForge Webhook executed successfully.`);
+      setShowIntegrationModal(false);
+    } catch (e: any) {
+      toast({ type: 'error', title: 'Webhook Failed', message: e.response?.data?.detail || 'Execution proxy failed.' });
+      addLog('error', `AgentForge proxy failed: ${e.response?.data?.detail || e.message}`);
+    } finally {
+      setIsTriggering(false);
     }
   };
 
@@ -282,16 +354,22 @@ export default function AgentForge() {
       </div>
 
       {/* Original Toolbar - Workflow Studio */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-[#0a0a0a] border border-white/10 p-4 rounded-xl">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-[#0a0a0a] border border-white/10 p-4 rounded-xl relative z-10">
         <div>
           <h1 className="text-xl font-bold font-mono text-white flex items-center gap-2">
             <Network className="text-[#00f0ff]" /> AGENT_FORGE <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded ml-2">STUDIO V1.0</span>
           </h1>
           <p className="text-xs text-gray-500 font-mono mt-1">Build & simulate AI agent workflows locally</p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <Button variant="outline" size="sm" onClick={() => setShowIntegrationModal(true)} className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 whitespace-nowrap">
+            <LinkIcon className="w-4 h-4 mr-2" /> Webhooks
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)} className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 whitespace-nowrap">
+            <DownloadCloud className="w-4 h-4 mr-2" /> Import
+          </Button>
           <Button variant="outline" size="sm" onClick={resetWorkflow} disabled={isRunning}><RotateCcw className="w-4 h-4 mr-2" /> Reset</Button>
-          <Button variant="cyber" size="sm" onClick={handleRunSimulation} disabled={isRunning || nodes.length === 0}>
+          <Button variant="cyber" size="sm" onClick={handleRunSimulation} disabled={isRunning || nodes.length === 0} className="whitespace-nowrap">
             {isRunning ? 'EXECUTING...' : 'RUN SIMULATION'}
             {!isRunning && <Play className="w-4 h-4 ml-2 fill-current" />}
           </Button>
@@ -440,6 +518,112 @@ export default function AgentForge() {
           )}
         </div>
       </div>
+
+      {/* Yokaizen Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#0a0a0f] border border-purple-500/30 w-full max-w-2xl rounded-xl shadow-[0_0_50px_rgba(168,85,247,0.15)] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-purple-900/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <DownloadCloud className="w-5 h-5 text-purple-400" />
+                </div>
+                <h3 className="font-mono font-bold text-white tracking-widest">YOKAIZEN_IMPORT_MATRIX</h3>
+              </div>
+              <button onClick={() => setShowImportModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-gray-400 font-mono mb-6">Select a pre-trained reasoning engine from your Yokaizen account to inject into the current workflow canvas.</p>
+
+              <div className="space-y-3">
+                {yokaizenAgents.map(agent => (
+                  <div key={agent.id} className="flex items-center justify-between p-4 rounded-lg border border-white/5 bg-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group">
+                    <div>
+                      <h4 className="font-bold text-white font-mono flex items-center gap-2">
+                        {agent.name}
+                        <Badge variant="outline" className="text-xs font-mono text-purple-400 border-purple-500/30">
+                          {agent.reasoning}/100 REASONING
+                        </Badge>
+                      </h4>
+                      <p className="text-xs text-gray-500 font-mono mt-1">Type: {agent.type}</p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="cyber"
+                      className="bg-purple-600 hover:bg-purple-500 border-none opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleImportYokaizenAgent(agent)}
+                      disabled={importingAgent === agent.id}
+                    >
+                      {importingAgent === agent.id ? (
+                        <Zap className="w-4 h-4 animate-pulse" />
+                      ) : (
+                        <>Inject to Canvas <ArrowRight className="w-4 h-4 ml-2" /></>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Integration Mapping Modal */}
+      {showIntegrationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#0a0a0f] border border-cyan-500/30 w-full max-w-xl rounded-xl shadow-[0_0_50px_rgba(0,240,255,0.1)] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-cyan-900/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-cyan-500/20 rounded-lg">
+                  <LinkIcon className="w-5 h-5 text-cyan-400" />
+                </div>
+                <h3 className="font-mono font-bold text-white tracking-widest">AGENTFORGE_WEBHOOK_PROXY</h3>
+              </div>
+              <button onClick={() => setShowIntegrationModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-gray-400 font-mono mb-6">Delegate workflows directly to the <span className="text-cyan-400 font-bold">AgentForge Hub</span>. Momentaic securely proxies this request without exposing your master API keys to the frontend.</p>
+
+              <div className="space-y-4">
+                <Input
+                  label="AgentForge Trigger URL parameter"
+                  placeholder="e.g. wd-1a2b3c4d5e"
+                  value={webhookUrl}
+                  onChange={e => setWebhookUrl(e.target.value)}
+                  className="font-mono"
+                />
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase font-mono mb-2">JSON Payload (Context Passing)</label>
+                  <textarea
+                    value={webhookPayload}
+                    onChange={e => setWebhookPayload(e.target.value)}
+                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-cyan-400 font-mono text-xs h-32 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 outline-none"
+                    spellCheck={false}
+                  />
+                </div>
+
+                <Button
+                  variant="cyber"
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 border-none mt-2"
+                  onClick={handleTriggerWebhook}
+                  disabled={isTriggering || !webhookUrl}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {isTriggering ? 'PROXYING REQUEST...' : 'TRIGGER AGENTFORGE WORKFLOW'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

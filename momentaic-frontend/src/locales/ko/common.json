@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "지휘 센터",
+        "startups": "제국",
+        "signals": "타겟 레이더",
+        "war_room": "위협 분석실",
+        "campaigns": "스웜 배포",
+        "growth": "성장 엔진",
+        "pulse": "비즈니스 펄스",
+        "characters": "AI 캐릭터 팩토리",
+        "telemetry": "원격 측정 매트릭스",
+        "agents": "에이전트 포지",
+        "agent_studio": "에이전트 스튜디오",
+        "guerrilla": "비대칭 전술",
+        "callcenter": "음성 작전",
+        "openclaw": "OpenClaw 프록시",
+        "settings": "설정",
+        "global_campaign": "세계 정복"
+    },
+    "hero": {
+        "title_prefix": "자동화만 하지 마십시오.",
+        "title_highlight": "지배하십시오.",
+        "subtitle": "당신의 AI 스타트업 공동 창업자가 준비되었습니다. 스웜을 배포하세요.",
+        "cta_primary": "스웜 배포",
+        "cta_secondary": "매트릭스 보기"
+    },
+    "common": {
+        "loading": "로딩 중...",
+        "error": "오류"
+    }
+}

@@ -3,14 +3,19 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Settings, LogOut, Menu, X, Zap, Shield, ChevronDown,
-  Plug, Bell, FlaskConical, Megaphone, Network, Eye, Bot, BarChart2
+  Plug, Bell, FlaskConical, Megaphone, Network, Eye, Bot, BarChart2,
+  Activity, Users, Sparkles, BookOpen, Globe
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth-store';
 import { useNotificationStore } from '../../src/stores/notification-store';
 import { Logo } from '../ui/Logo';
+import { Target, Mic } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LanguageSelector } from './LanguageSelector';
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -18,10 +23,24 @@ export function Sidebar() {
 
   // Core navigation (4 main tabs)
   const coreNavigation = [
-    { name: 'COMMAND', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'EXECUTOR', href: '/executor', icon: Zap },
+    { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { name: t('nav.campaigns'), href: '/executor', icon: Zap },
     { name: 'VAULT', href: '/vault', icon: Shield },
-    { name: 'CONFIG', href: '/settings', icon: Settings },
+    { name: t('nav.settings'), href: '/settings', icon: Settings },
+  ];
+
+  // New flagship features (always visible)
+  const flagshipFeatures = [
+    { name: '💰 REVENUE', href: '/ambassador', icon: Users },
+    { name: t('nav.global_campaign'), href: '/global-campaign', icon: Globe },
+    { name: 'Viral Swarm', href: '/viral-swarm', icon: Zap },
+    { name: t('nav.pulse'), href: '/pulse', icon: Activity },
+    { name: t('nav.telemetry'), href: '/telemetry', icon: BarChart2 },
+    { name: t('nav.characters'), href: '/characters', icon: Sparkles },
+    { name: t('nav.war_room'), href: '/war-room', icon: Shield },
+    { name: t('nav.openclaw'), href: '/openclaw', icon: Target },
+    { name: t('nav.callcenter'), href: '/call-center', icon: Mic },
+    { name: t('nav.guerrilla'), href: '/guerrilla', icon: Zap },
   ];
 
   // Pro features (dropdown for Growth/God Mode)
@@ -29,13 +48,14 @@ export function Sidebar() {
     { name: 'Integrations', href: '/integrations', icon: Plug },
     { name: 'Triggers', href: '/triggers', icon: Bell },
     { name: 'Experiments', href: '/experiments', icon: FlaskConical },
-    { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
+    { name: t('nav.campaigns'), href: '/campaigns', icon: Megaphone },
     { name: 'Agent Market', href: '/agents', icon: Bot },
-    { name: 'Growth Engine', href: '/growth', icon: BarChart2 },
+    { name: t('nav.growth'), href: '/growth', icon: BarChart2 },
+    { name: 'Growth Playbook', href: '/growth/playbook', icon: BookOpen },
     { name: 'Innovator Lab', href: '/innovator', icon: FlaskConical },
-    { name: 'Agent Forge', href: '/agent-forge', icon: Network },
+    { name: t('nav.agents'), href: '/agent-forge', icon: Network },
     { name: 'Vision Portal', href: '/vision-portal', icon: Eye },
-    { name: 'War Room', href: '/war-room', icon: Shield },
+    { name: t('nav.war_room'), href: '/war-room', icon: Shield },
   ];
 
   const isPro = user?.subscription_tier === 'growth' || user?.subscription_tier === 'god_mode' || user?.role === 'admin';
@@ -99,7 +119,48 @@ export function Sidebar() {
             </Link>
           ))}
 
-          <div className="mt-8 pt-8 border-t border-white/10">
+          {/* Flagship Features */}
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+            <div className="text-[9px] font-mono text-purple-400 uppercase tracking-widest px-4 mb-2">✦ FACTORY</div>
+            {flagshipFeatures.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "flex items-center p-4 border rounded-xl transition-all",
+                  location.pathname === item.href
+                    ? "bg-purple-600/20 border-purple-500/30 text-white shadow-lg"
+                    : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
+                )}
+              >
+                <item.icon className="mr-4 w-5 h-5 text-purple-400" />
+                <span className="font-mono font-bold text-sm tracking-widest">{item.name}</span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-white/10 space-y-4">
+            {/* Mobile Credits HUD */}
+            <div className="bg-[#111] rounded-lg p-3 border border-white/10">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[9px] uppercase text-gray-500 tracking-widest flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-yellow-500" /> CREDITS
+                </span>
+                <span className={cn("text-xs font-bold font-mono", creditColor)}>
+                  {user?.subscription_tier === 'god_mode' ? '∞' : user?.credits}
+                </span>
+              </div>
+              {user?.subscription_tier !== 'god_mode' && (
+                <div className="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", creditPercent < 20 ? 'bg-red-500' : 'bg-brand-cyan')}
+                    style={{ width: `${Math.min(creditPercent, 100)}%` }}
+                  ></div>
+                </div>
+              )}
+            </div>
+
             <button onClick={logout} className="w-full py-4 border border-red-500/30 bg-red-500/5 text-red-500 font-bold font-mono rounded-xl hover:bg-red-500/10 transition-colors uppercase tracking-widest text-xs">
               DISCONNECT_SESSION
             </button>
@@ -139,6 +200,34 @@ export function Sidebar() {
               </Link>
             );
           })}
+          {/* Flagship Features (Always Visible) */}
+          <div className="mt-4 pt-4 border-t border-white/5">
+            <div className="px-4 mb-2 text-[9px] font-bold text-purple-400 tracking-[0.2em]">✦ FACTORY</div>
+            {flagshipFeatures.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center px-4 py-3 text-[10px] font-bold transition-all duration-200 group relative tracking-[0.15em] rounded-lg mb-1",
+                    isActive
+                      ? "text-white bg-purple-600/10 border border-purple-500/30"
+                      : "text-gray-500 hover:text-white hover:bg-white/5 border border-transparent"
+                  )}
+                >
+                  <item.icon className={cn(
+                    "mr-3 h-4 w-4 transition-colors",
+                    isActive ? "text-purple-400" : "text-gray-600 group-hover:text-purple-400"
+                  )} />
+                  {item.name}
+                  {isActive && (
+                    <div className="absolute right-0 inset-y-0 w-1 bg-gradient-to-b from-purple-500 to-pink-500 rounded-l-full"></div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
 
           {/* Pro Dropdown - Only for Growth/God Mode */}
           {isPro && (
@@ -213,6 +302,10 @@ export function Sidebar() {
                 ></div>
               </div>
             )}
+          </div>
+
+          <div className="flex -mx-4 items-center justify-center pt-2">
+            <LanguageSelector />
           </div>
 
           <div className="flex items-center px-3 py-2 border border-white/10 bg-black/50 rounded-lg">

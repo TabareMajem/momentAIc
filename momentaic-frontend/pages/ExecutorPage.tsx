@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Zap, CheckCircle, Clock, Loader, Play, Pause,
     MessageSquare, FileText, Users, TrendingUp, Send
@@ -52,7 +51,7 @@ function TaskItem({ task }: { task: ExecutorTask }) {
     const Icon = getIcon();
 
     return (
-        <motion.div
+        <div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className={`flex items-center gap-4 p-4 rounded-xl border ${getStatusColor()} transition-all`}
@@ -67,7 +66,7 @@ function TaskItem({ task }: { task: ExecutorTask }) {
                 )}
             </div>
             {getStatusIcon()}
-        </motion.div>
+        </div>
     );
 }
 
@@ -139,7 +138,7 @@ export default function ExecutorPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
             {/* Header */}
             <div className="max-w-3xl mx-auto pt-12 px-6">
-                <motion.div
+                <div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-12"
@@ -164,10 +163,10 @@ export default function ExecutorPage() {
                     <p className="text-slate-400 text-lg">
                         {completedCount} tasks completed today · {inProgressCount} in progress
                     </p>
-                </motion.div>
+                </div>
 
                 {/* Focus Input */}
-                <motion.div
+                <div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-12"
@@ -191,22 +190,22 @@ export default function ExecutorPage() {
                     <p className="text-center text-sm text-slate-500 mt-3">
                         Or let me decide what's most important
                     </p>
-                </motion.div>
+                </div>
 
                 {/* Task List */}
                 <div className="space-y-4 pb-12">
-                    <AnimatePresence>
+                    
                         {tasks.map((task, idx) => (
-                            <motion.div
+                            <div
                                 key={task.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.1 }}
                             >
                                 <TaskItem task={task} />
-                            </motion.div>
+                            </div>
                         ))}
-                    </AnimatePresence>
+                    
                 </div>
             </div>
         </div>

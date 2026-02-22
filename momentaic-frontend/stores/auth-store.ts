@@ -9,10 +9,11 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  firebaseLogin: (idToken: string) => Promise<void>;
   signup: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
-  
+
   // Business Logic Actions
   deductCredits: (amount: number) => boolean;
   upgradeTier: (tier: SubscriptionTier) => void;
@@ -37,7 +38,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: false,
       isAuthenticated: false,
-      
+
       login: async (email, password) => {
         set({ isLoading: true });
         try {
@@ -45,6 +46,19 @@ export const useAuthStore = create<AuthState>()(
           await get().loadUser();
         } catch (error) {
           console.error('Login failed', error);
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      firebaseLogin: async (idToken) => {
+        set({ isLoading: true });
+        try {
+          await api.firebaseLogin(idToken);
+          await get().loadUser();
+        } catch (error) {
+          console.error('Firebase Auth failed', error);
           throw error;
         } finally {
           set({ isLoading: false });
@@ -76,12 +90,12 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.getMe();
           // Initialize credits if missing in mock
           if (user.credits === undefined) {
-             user.credits = TIER_CREDITS[user.subscription_tier];
+            user.credits = TIER_CREDITS[user.subscription_tier];
           }
           set({ user, isAuthenticated: true });
         } catch (error) {
-           set({ user: null, isAuthenticated: false });
-           api.logout();
+          set({ user: null, isAuthenticated: false });
+          api.logout();
         } finally {
           set({ isLoading: false });
         }
@@ -90,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
       deductCredits: (amount: number) => {
         const { user } = get();
         if (!user) return false;
-        
+
         // God Mode has infinite credits
         if (user.subscription_tier === 'god_mode') return true;
 
@@ -105,12 +119,12 @@ export const useAuthStore = create<AuthState>()(
       upgradeTier: (tier: SubscriptionTier) => {
         const { user } = get();
         if (user) {
-          set({ 
-            user: { 
-              ...user, 
+          set({
+            user: {
+              ...user,
               subscription_tier: tier,
               credits: TIER_CREDITS[tier] // Reset credits on upgrade
-            } 
+            }
           });
         }
       },

@@ -4,12 +4,12 @@ import { cn } from '../../lib/utils';
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn(
-      "tech-panel relative bg-[#0a0a0a]/80 text-gray-100 transition-all duration-300 group overflow-hidden rounded-xl border border-white/5 shadow-2xl backdrop-blur-sm", 
+      "tech-panel relative bg-[#0a0a0a]/80 text-gray-100 transition-all duration-300 group overflow-hidden rounded-xl border border-white/5 shadow-2xl backdrop-blur-sm",
       className
     )} {...props}>
-      {/* Subtle Noise Texture */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none mix-blend-overlay"></div>
-      
+      {/* Subtle Noise Texture - Replaced with Local */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay bg-noise-pattern"></div>
+
       {/* Hover Glow Gradient */}
       <div className="absolute -inset-px bg-gradient-to-r from-[#00f0ff]/0 via-[#00f0ff]/10 to-[#00f0ff]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
 

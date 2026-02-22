@@ -31,7 +31,17 @@ export default function OnboardingWizard() {
     };
 
     const handleLaunch = () => {
-        // In a real app, this would save the strategy to DB
+        // Save strategy to localStorage before navigating
+        // This prevents data loss if user is redirected to login
+        if (strategy) {
+            localStorage.setItem('pendingStrategy', JSON.stringify({
+                strategy: strategy.strategy,
+                generated_post: strategy.generated_post,
+                url,
+                description,
+                savedAt: new Date().toISOString()
+            }));
+        }
         navigate('/dashboard');
     };
 

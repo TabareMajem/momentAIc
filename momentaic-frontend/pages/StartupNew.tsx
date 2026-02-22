@@ -6,7 +6,6 @@ import { StartupCreate } from '../types';
 import { ArrowLeft, Send, Bot, Target, Lightbulb, ShieldAlert, Rocket, Check, Loader2, ExternalLink } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { Card } from '../components/ui/Card';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface Competitor {
     name: string;
@@ -193,12 +192,12 @@ export default function StartupNew() {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
 
-            <AnimatePresence mode="wait">
+            
                 {/* ... (keep input and analyzing phases) ... */}
 
                 {/* PHASE 1: INPUT */}
                 {phase === 'input' && (
-                    <motion.div
+                    <div
                         key="input"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -288,12 +287,12 @@ export default function StartupNew() {
                                 </Button>
                             </form>
                         </Card>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* PHASE 2: ANALYZING (Live Progress) */}
                 {phase === 'analyzing' && (
-                    <motion.div
+                    <div
                         key="analyzing"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -310,7 +309,7 @@ export default function StartupNew() {
 
                             {/* Progress Bar */}
                             <div className="relative h-3 bg-white/10 rounded-full overflow-hidden mb-8">
-                                <motion.div
+                                <div
                                     className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#00f0ff] to-[#0066ff] rounded-full"
                                     initial={{ width: '0%' }}
                                     animate={{ width: `${progress}%` }}
@@ -324,7 +323,7 @@ export default function StartupNew() {
                                     <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Competitors Found</h3>
                                     <div className="space-y-2">
                                         {competitors.map((comp, i) => (
-                                            <motion.div
+                                            <div
                                                 key={i}
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
@@ -340,19 +339,19 @@ export default function StartupNew() {
                                                         <ExternalLink className="w-4 h-4" />
                                                     </a>
                                                 )}
-                                            </motion.div>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
                         </Card>
-                    </motion.div>
+                    </div>
                 )}
 
 
                 {/* PHASE 3: COMPLETE (AI CEO Report) */}
                 {phase === 'complete' && report && (
-                    <motion.div
+                    <div
                         key="complete"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -465,12 +464,12 @@ export default function StartupNew() {
                                 </Button>
                             </div>
                         </Card>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* PHASE 4: TEAM ASSEMBLY (CINEMATIC) */}
                 {phase === 'assembly' && (
-                    <motion.div
+                    <div
                         key="assembly"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -481,7 +480,7 @@ export default function StartupNew() {
 
                         <div className="relative z-10 w-full max-w-2xl text-center space-y-12">
 
-                            <motion.div
+                            <div
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 className="space-y-4"
@@ -492,11 +491,11 @@ export default function StartupNew() {
                                 <p className="text-[#00f0ff] font-mono animate-pulse">
                                     &gt; SCANNING GLOBAL TALENT POOL...
                                 </p>
-                            </motion.div>
+                            </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {recruitedAgents.map((agent, i) => (
-                                    <motion.div
+                                    <div
                                         key={agent}
                                         initial={{ scale: 0.8, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
@@ -514,23 +513,23 @@ export default function StartupNew() {
                                             </div>
                                         </div>
                                         <Check className="ml-auto text-green-500 w-6 h-6" />
-                                    </motion.div>
+                                    </div>
                                 ))}
                             </div>
 
-                            <motion.div
+                            <div
                                 animate={{ opacity: [0.5, 1, 0.5] }}
                                 transition={{ repeat: Infinity, duration: 2 }}
                                 className="text-gray-500 font-mono text-sm mt-8"
                             >
                                 Initializing Neural Links... {Math.min(recruitedAgents.length * 25, 100)}%
-                            </motion.div>
+                            </div>
 
                         </div>
-                    </motion.div>
+                    </div>
                 )}
 
-            </AnimatePresence>
+            
         </div>
     );
 }

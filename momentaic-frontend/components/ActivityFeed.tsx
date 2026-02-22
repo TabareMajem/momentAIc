@@ -1,8 +1,8 @@
+
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bot, CheckCircle, Clock, XCircle, Send, Edit, Sparkles,
-    FileText, Mail, MessageSquare, Zap, ChevronRight, Loader
+    Zap, ChevronRight, Loader
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
@@ -64,12 +64,7 @@ function ActivityCard({
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="relative flex gap-4 p-4 rounded-xl bg-slate-900/50 border border-white/5 hover:border-white/10 transition-colors"
-        >
+        <div className="relative flex gap-4 p-4 rounded-xl bg-slate-900/50 border border-white/5 hover:border-white/10 transition-all animate-fade-in">
             {/* Agent Avatar */}
             <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${getAgentColor()} flex items-center justify-center`}>
                 <Bot className="w-5 h-5 text-white" />
@@ -111,7 +106,7 @@ function ActivityCard({
                     </div>
                 )}
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -158,7 +153,6 @@ export default function ActivityFeed() {
     }, []);
 
     const handleApprove = async (id: string) => {
-        // In production, call API to approve and execute
         setActivities(prev =>
             prev.map(a => a.id === id ? { ...a, status: 'completed' as const } : a)
         );
@@ -212,7 +206,7 @@ export default function ActivityFeed() {
                         <p>No recent activity</p>
                     </div>
                 ) : (
-                    <AnimatePresence>
+                    <div className="space-y-3">
                         {activities.map(activity => (
                             <ActivityCard
                                 key={activity.id}
@@ -222,7 +216,7 @@ export default function ActivityFeed() {
                                 onEdit={() => toast({ type: 'info', title: 'Editor', message: 'Edit modal coming soon' })}
                             />
                         ))}
-                    </AnimatePresence>
+                    </div>
                 )}
             </div>
 

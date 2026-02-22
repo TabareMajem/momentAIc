@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Brain, Search, Users, ShieldAlert, Rocket, Newspaper, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
+import { Brain, Search, Users, ShieldAlert, Rocket, Newspaper, AlertTriangle, CheckCircle, Zap, Code, FileText, Cpu } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import toast from 'react-hot-toast';
+import { api } from '../lib/api'; // Import our API client
 
 // Helper for mocked API calls during development if backend isn't reachable yet
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const InnovatorLab: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'research' | 'growth' | 'wargame'>('research');
+    const [activeTab, setActiveTab] = useState<'research' | 'growth' | 'wargame' | 'product'>('research');
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20">
@@ -42,6 +42,12 @@ const InnovatorLab: React.FC = () => {
                     icon={<ShieldAlert className="w-4 h-4" />}
                     label="War Gaming"
                 />
+                <TabButton
+                    active={activeTab === 'product'}
+                    onClick={() => setActiveTab('product')}
+                    icon={<Code className="w-4 h-4" />}
+                    label="Product Architect"
+                />
             </div>
 
             {/* Content Area */}
@@ -49,12 +55,107 @@ const InnovatorLab: React.FC = () => {
                 {activeTab === 'research' && <DeepResearchWidget />}
                 {activeTab === 'growth' && <GrowthMonitorWidget />}
                 {activeTab === 'wargame' && <WarGamingWidget />}
+                {activeTab === 'product' && <ProductArchitectWidget />}
             </div>
         </div>
     );
 };
 
 // --- Sub-Components ---
+
+const ProductArchitectWidget = () => {
+    const [feature, setFeature] = useState({ name: '', description: '' });
+    const [isLoading, setIsLoading] = useState(false);
+    const [result, setResult] = useState<any>(null);
+
+    const handleArchitect = async () => {
+        if (!feature.name || !feature.description) return;
+        setIsLoading(true);
+        setResult(null);
+        try {
+            // Use local storage startup ID or mock
+            const startupId = localStorage.getItem('currentStartupId') || 'demo_startup';
+
+            await api.runProductMission("spec_feature", feature, startupId);
+            toast.success("Architect Agent started! Check back momentarily.");
+
+            // In a real app, we'd poll or wait for SSE. 
+            // For now, simulate a "thinking" delay then show a success message or mock result if instant.
+            // Since it's a background task, we might not get result immediately.
+            // But let's assume for demo purposes we want to simulate the interaction.
+
+            setTimeout(() => {
+                setResult({
+                    status: "started",
+                    message: "Agents are drafting the PRD. Check the 'Requests' log or Vault for output."
+                });
+            }, 1000);
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Architecture mission failed.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Code className="w-5 h-5 text-purple-400" />
+                    Product Architect (Super-Agent)
+                </h2>
+                <p className="text-sm text-gray-400">
+                    Desribe a feature. The AI will act as PM, Designer, and Tech Lead to spec it out.
+                </p>
+
+                <div className="space-y-4 max-w-2xl">
+                    <div>
+                        <label className="block text-xs font-mono text-gray-500 mb-1">FEATURE NAME</label>
+                        <input
+                            type="text"
+                            value={feature.name}
+                            onChange={(e) => setFeature({ ...feature, name: e.target.value })}
+                            placeholder="e.g. One-Click Onboarding"
+                            className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:border-purple-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-mono text-gray-500 mb-1">REQUIREMENTS / USER STORY</label>
+                        <textarea
+                            value={feature.description}
+                            onChange={(e) => setFeature({ ...feature, description: e.target.value })}
+                            placeholder="As a user, I want to..."
+                            className="w-full h-32 bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:border-purple-500 outline-none resize-none"
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleArchitect}
+                        disabled={isLoading || !feature.name}
+                        className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                        {isLoading ? <span className="animate-spin">⏳</span> : <Cpu className="w-4 h-4" />}
+                        {isLoading ? "Architecting..." : "Generate Spec & Architecture"}
+                    </button>
+                </div>
+            </div>
+
+            {result && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-6 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-green-400">Mission Started</h3>
+                        <p className="text-sm text-gray-300">{result.message}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const DeepResearchWidget = () => {
     const [topic, setTopic] = useState('');
@@ -108,13 +209,13 @@ const DeepResearchWidget = () => {
             </div>
 
             {report && (
-                <motion.div
+                <div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white/5 border border-white/10 rounded-xl p-8 prose prose-invert max-w-none"
                 >
                     <ReactMarkdown>{report}</ReactMarkdown>
-                </motion.div>
+                </div>
             )}
         </div>
     );

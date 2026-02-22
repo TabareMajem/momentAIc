@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "Centre de Commandement",
+        "startups": "Empires",
+        "signals": "Radar Cible",
+        "war_room": "Le Conseil",
+        "campaigns": "Déploiements d'Essaims",
+        "growth": "Moteur de Croissance",
+        "pulse": "Pouls de l'Entreprise",
+        "characters": "Usine de Personnages",
+        "telemetry": "Matrice de Télémétrie",
+        "agents": "Forge d'Agents",
+        "agent_studio": "Studio d'Agents",
+        "guerrilla": "Guerre Asymétrique",
+        "callcenter": "Opérations Vocales",
+        "openclaw": "Proxy OpenClaw",
+        "settings": "Paramètres",
+        "global_campaign": "Domination Mondiale"
+    },
+    "hero": {
+        "title_prefix": "NE VOUS CONTENTEZ PAS D'AUTOMATISER.",
+        "title_highlight": "DOMINEZ.",
+        "subtitle": "Vos co-fondateurs IA sont prêts. Déployez l'essaim.",
+        "cta_primary": "Déployer l'Essaim",
+        "cta_secondary": "Voir la Matrice"
+    },
+    "common": {
+        "loading": "Chargement...",
+        "error": "Erreur"
+    }
+}

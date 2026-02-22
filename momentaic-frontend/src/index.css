@@ -13,14 +13,162 @@
 
 /* Base Styles */
 body {
-    background-color: #000;
+    background-color: #050508;
     color: #fff;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
+    overflow-x: hidden;
 }
 
-/* ===== KILLER ANIMATIONS ===== */
+/* ===== CUSTOM EFFECTS ===== */
 
-/* Confetti burst animation */
+/* CRT Scanline Effect */
+.scanlines {
+    position: relative;
+    overflow: hidden;
+}
+
+.scanlines::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(to bottom,
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.scanlines::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(18, 16, 16, 0.1);
+    opacity: 0;
+    z-index: 2;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+    0% {
+        opacity: 0.027951;
+    }
+
+    5% {
+        opacity: 0.048283;
+    }
+
+    10% {
+        opacity: 0.041325;
+    }
+
+    15% {
+        opacity: 0.015241;
+    }
+
+    20% {
+        opacity: 0.067342;
+    }
+
+    25% {
+        opacity: 0.091392;
+    }
+
+    30% {
+        opacity: 0.076595;
+    }
+
+    35% {
+        opacity: 0.061763;
+    }
+
+    40% {
+        opacity: 0.018999;
+    }
+
+    45% {
+        opacity: 0.057777;
+    }
+
+    50% {
+        opacity: 0.088194;
+    }
+
+    55% {
+        opacity: 0.012555;
+    }
+
+    60% {
+        opacity: 0.049444;
+    }
+
+    65% {
+        opacity: 0.091724;
+    }
+
+    70% {
+        opacity: 0.009949;
+    }
+
+    75% {
+        opacity: 0.088647;
+    }
+
+    80% {
+        opacity: 0.038162;
+    }
+
+    85% {
+        opacity: 0.090333;
+    }
+
+    90% {
+        opacity: 0.080536;
+    }
+
+    95% {
+        opacity: 0.02033;
+    }
+
+    100% {
+        opacity: 0.086326;
+    }
+}
+
+/* Neon Text */
+.text-neon-blue {
+    text-shadow: 0 0 5px #00f0ff, 0 0 10px #00f0ff, 0 0 20px #00f0ff;
+}
+
+.text-neon-purple {
+    text-shadow: 0 0 5px #a855f7, 0 0 10px #a855f7, 0 0 20px #a855f7;
+}
+
+.text-neon-green {
+    text-shadow: 0 0 5px #22c55e, 0 0 10px #22c55e, 0 0 20px #22c55e;
+}
+
+/* Neural Network Background */
+.bg-neural {
+    background-color: #030014;
+    background-image:
+        radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+        radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+}
+
+/* ===== CORE ANIMATIONS ===== */
+
+/* Confetti */
 @keyframes confetti {
     0% {
         transform: translateY(0) rotate(0deg) scale(1);
@@ -37,7 +185,7 @@ body {
     animation: confetti 2s ease-out forwards;
 }
 
-/* Floating animation for cards */
+/* Float */
 @keyframes float {
 
     0%,
@@ -54,7 +202,7 @@ body {
     animation: float 3s ease-in-out infinite;
 }
 
-/* Glow pulse for CTA buttons */
+/* Glow Pulse */
 @keyframes glow-pulse {
 
     0%,
@@ -71,7 +219,7 @@ body {
     animation: glow-pulse 2s ease-in-out infinite;
 }
 
-/* Gradient text shimmer */
+/* Shimmer */
 @keyframes shimmer {
     0% {
         background-position: -200% center;
@@ -87,7 +235,7 @@ body {
     animation: shimmer 3s linear infinite;
 }
 
-/* Slide up fade in */
+/* Slide Up Fade */
 @keyframes slide-up-fade {
     0% {
         opacity: 0;
@@ -104,7 +252,7 @@ body {
     animation: slide-up-fade 0.6s ease-out forwards;
 }
 
-/* Scale in bounce */
+/* Scale Bounce */
 @keyframes scale-bounce {
     0% {
         transform: scale(0);
@@ -121,4 +269,230 @@ body {
 
 .animate-scale-bounce {
     animation: scale-bounce 0.5s ease-out forwards;
+}
+
+/* Fade In Up */
+@keyframes fade-in-up {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+}
+
+/* Grid Flow */
+@keyframes grid-flow {
+    0% {
+        transform: perspective(1000px) rotateX(60deg) translateY(0);
+    }
+
+    100% {
+        transform: perspective(1000px) rotateX(60deg) translateY(50px);
+    }
+}
+
+.animate-grid-flow {
+    animation: grid-flow 2s linear infinite;
+}
+
+/* Marquee Vertical */
+@keyframes marquee-vertical {
+    0% {
+        transform: translateY(0);
+    }
+
+    100% {
+        transform: translateY(-50%);
+    }
+}
+
+/* Pulse Fast */
+@keyframes pulse-fast {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+}
+
+.animate-pulse-fast {
+    animation: pulse-fast 1.5s ease-in-out infinite;
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Noise overlay */
+.bg-noise {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0.02;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Glow utility */
+.text-glow-brand {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+/* Glass Card */
+.glass-card {
+    background: rgba(10, 10, 15, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+}
+
+/* Tech Panel */
+.tech-panel {
+    position: relative;
+    background: rgba(10, 10, 10, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Brand Button Gradient */
+.btn-brand {
+    background-image: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%);
+    transition: all 0.3s ease;
+}
+
+.btn-brand:hover {
+    background-image: linear-gradient(135deg, #9333ea 0%, #2563eb 50%, #0891b2 100%);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Cyber Grid */
+.bg-cyber-grid {
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+/* CRT overlay (legacy, kept for other pages) */
+.crt-overlay {
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+}
+
+.perspective-1000 {
+    perspective: 1000px;
+}
+
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+
+/* ===== V3 CYBER UTILITIES ===== */
+
+/* Cut Corners (Battlestar/Cyberpunk style) */
+.clip-corner-1 {
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 95% 100%, 0 100%);
+}
+
+.clip-corner-2 {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 10% 100%, 0 90%);
+}
+
+.clip-corner-4 {
+    clip-path: polygon(20px 0, 100% 0,
+            100% calc(100% - 20px), calc(100% - 20px) 100%,
+            0 100%, 0 20px);
+}
+
+.clip-id-card {
+    clip-path: polygon(0 0,
+            70% 0,
+            80% 15%,
+            100% 15%,
+            100% 100%,
+            0 100%);
+}
+
+/* HUD Borders */
+.border-hud {
+    position: relative;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.05);
+}
+
+.border-hud::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid #a855f7;
+    border-left: 2px solid #a855f7;
+}
+
+.border-hud::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid #a855f7;
+    border-right: 2px solid #a855f7;
+}
+
+/* Technical Grid Background */
+.bg-tech-grid {
+    background-size: 40px 40px;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+}
+
+/* Blinking Cursor Block */
+.cursor-block {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.2em;
+    background-color: #a855f7;
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
 }

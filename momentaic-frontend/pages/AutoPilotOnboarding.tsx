@@ -1,7 +1,6 @@
 // ... (imports remain the same)
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, CheckCircle, Loader, Sparkles, ArrowRight, Terminal, Cpu } from 'lucide-react';
 import { api } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
@@ -146,14 +145,14 @@ export default function AutoPilotOnboarding() {
         <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 font-sans">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
-            <motion.div
+            <div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="w-full max-w-2xl relative z-10"
             >
                 {/* INPUT PHASE */}
                 {phase === 'input' && (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="text-center"
@@ -195,12 +194,12 @@ export default function AutoPilotOnboarding() {
                                 <ArrowRight className="w-5 h-5" />
                             </button>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* EXECUTING PHASE */}
                 {phase === 'executing' && (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="space-y-6"
@@ -245,12 +244,12 @@ export default function AutoPilotOnboarding() {
                                 <AgentTerminal logs={logs} />
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* DONE PHASE */}
                 {phase === 'done' && (
-                    <motion.div
+                    <div
                         // ... (keep similar completion provided in previous context but enhanced)
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -270,9 +269,9 @@ export default function AutoPilotOnboarding() {
                         <div className="inline-flex items-center gap-2 text-sm text-slate-500 animate-pulse">
                             Initializing Dashboard Interface...
                         </div>
-                    </motion.div>
+                    </div>
                 )}
-            </motion.div>
+            </div>
         </div>
     );
 }

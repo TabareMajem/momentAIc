@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Zap, Sparkles, Box, CircuitBoard, Globe, Code, Brain, Cpu, RefreshCw, Copy, Check, Crosshair, Network } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { WarRoomWidget } from './WarRoomWidget';
@@ -158,9 +157,9 @@ export function AdminEcosystemWidget() {
                 </div>
 
                 {/* Global Strategy Result */}
-                <AnimatePresence>
+                
                     {strategyContent && (
-                        <motion.div
+                        <div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -194,9 +193,9 @@ export function AdminEcosystemWidget() {
                                     </div>
                                 </div>
                             </div>
-                        </motion.div>
+                        </div>
                     )}
-                </AnimatePresence>
+                
 
                 {/* Product Hive Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
@@ -215,11 +214,11 @@ export function AdminEcosystemWidget() {
                             `}
                         >
                             <div className="flex justify-between items-start">
-                                <motion.div variants={glitchVariants}>
+                                <div variants={glitchVariants}>
                                     {p.name.includes('Yokaizen') ? <Brain className="w-6 h-6 text-pink-500" /> :
                                         p.name.includes('Agent') ? <Cpu className="w-6 h-6 text-cyan-500" /> :
                                             <Globe className="w-6 h-6 text-emerald-500" />}
-                                </motion.div>
+                                </div>
                                 {selectedProduct?.name === p.name && (
                                     <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
                                 )}
@@ -238,9 +237,9 @@ export function AdminEcosystemWidget() {
                 </div>
 
                 {/* Selected Product Command Center */}
-                <AnimatePresence mode='wait'>
+                
                     {selectedProduct && (
-                        <motion.div
+                        <div
                             key={selectedProduct.name}
                             initial={{ opacity: 0, scale: 0.98, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -280,7 +279,7 @@ export function AdminEcosystemWidget() {
 
                             {/* Generated Content Display */}
                             {generatedContent && (
-                                <motion.div
+                                <div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10"
@@ -310,11 +309,11 @@ export function AdminEcosystemWidget() {
                                             </div>
                                         </div>
                                     ))}
-                                </motion.div>
+                                </div>
                             )}
-                        </motion.div>
+                        </div>
                     )}
-                </AnimatePresence>
+                
 
             </div>
 

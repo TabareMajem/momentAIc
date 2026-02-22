@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, Globe, Rocket, Terminal, X, CheckCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 
@@ -57,8 +56,8 @@ export const OnboardingTour = () => {
     const currentStep = steps[step];
 
     return (
-        <AnimatePresence>
-            <motion.div
+        
+            <div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -66,7 +65,7 @@ export const OnboardingTour = () => {
             >
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
-                <motion.div
+                <div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     className="relative w-full max-w-4xl bg-[#050505] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[600px]"
@@ -96,7 +95,7 @@ export const OnboardingTour = () => {
                         </div>
 
                         <div className="space-y-6 mt-8">
-                            <motion.div
+                            <div
                                 key={step} // Animate on step change
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -116,7 +115,7 @@ export const OnboardingTour = () => {
                                         {currentStep.highlight}
                                     </p>
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
 
                         {/* Footer Controls */}
@@ -151,8 +150,8 @@ export const OnboardingTour = () => {
                             </div>
                         </div>
                     </div>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                </div>
+            </div>
+        
     );
 };

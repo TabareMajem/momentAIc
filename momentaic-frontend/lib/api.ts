@@ -28,6 +28,10 @@ class ApiClient {
       if (this.token) {
         config.headers.Authorization = `Bearer ${this.token}`;
       }
+      if (typeof window !== 'undefined') {
+        const lang = localStorage.getItem('i18nextLng') || 'en';
+        config.headers['Accept-Language'] = lang;
+      }
       return config;
     });
 
@@ -73,6 +77,13 @@ class ApiClient {
     return data;
   }
 
+  async firebaseLogin(idToken: string): Promise<AuthResponse> {
+    const { data } = await this.client.post('/api/v1/auth/firebase-oauth', { id_token: idToken });
+    const token = data.tokens?.access_token || data.access_token;
+    this.setToken(token);
+    return data;
+  }
+
 
   async getMe(): Promise<User> {
     const { data } = await this.client.get('/api/v1/auth/me');
@@ -84,6 +95,15 @@ class ApiClient {
     };
   }
 
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const { data } = await this.client.post('/api/v1/auth/forgot-password', { email });
+    return data;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const { data } = await this.client.post('/api/v1/auth/reset-password', { token, new_password: newPassword });
+    return data;
+  }
 
   // === INTEGRATIONS ===
   async getIntegrations(startupId: string) {
@@ -323,6 +343,14 @@ class ApiClient {
       };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+      }
+      if (typeof window !== 'undefined') {
+        const lang = localStorage.getItem('i18nextLng') || 'en';
+        headers['Accept-Language'] = lang;
+      }
+      if (typeof window !== 'undefined') {
+        const lang = localStorage.getItem('i18nextLng') || 'en';
+        headers['Accept-Language'] = lang;
       }
 
       // Use fetch for streaming support (Axios is bad at this)
@@ -568,13 +596,44 @@ class ApiClient {
   }
 
   // === GROWTH ENGINE ===
-  async generateOutreach(startupId: string, leadId: string) {
-    const { data } = await this.client.post(`/api/v1/growth/leads/${leadId}/generate-outreach?startup_id=${startupId}`, {});
+  async generateOutreach(startupId: string, leadId: string, options: { channel: string; tone?: string; objective?: string; custom_context?: string }) {
+    const { data } = await this.client.post(`/api/v1/growth/leads/${leadId}/generate-outreach?startup_id=${startupId}`, options);
     return data;
   }
 
   async generateContent(payload: any) {
     const { data } = await this.client.post('/api/v1/growth/content/generate', payload);
+    return data;
+  }
+
+  async getViralHistory() {
+    const { data } = await this.client.get('/api/v1/viral/history');
+    return data;
+  }
+
+  async generateViralCampaign(topic: string) {
+    const { data } = await this.client.post('/api/v1/viral/generate', { topic });
+    return data;
+  }
+
+  async deployGlobalCampaign(payload: { domain: string; personas: string[]; languages: string[]; additional_context?: string }) {
+    const { data } = await this.client.post('/api/v1/campaigns/global/deploy', payload);
+    return data;
+  }
+
+  async createViralCampaign(payload: {
+    campaign_type: string;
+    target_audience?: string;
+    tone?: string;
+    variations?: number;
+    platform?: string;
+    additional_context?: any;
+    startup_id: string; // convenient to pass here, though API expects it in query or path if needed, but here it's likely part of the body or context
+  }) {
+    // Note: The backend endpoint is /api/v1/growth/campaigns/viral
+    // And it expects startup_id as query param ?startup_id=... based on other endpoints pattern
+    const { startup_id, ...body } = payload;
+    const { data } = await this.client.post(`/api/v1/growth/campaigns/viral?startup_id=${startup_id}`, body);
     return data;
   }
 
@@ -616,6 +675,102 @@ class ApiClient {
       { responseType: 'blob' }
     );
     return URL.createObjectURL(response.data);
+  }
+  // === OPERATIONS / PULSE ===
+  async getPulse(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/a2a/pulse/${startupId}`);
+    return data;
+  }
+
+  async getPulseTimeline(startupId: string, params: any) {
+    const { data } = await this.client.get(`/api/v1/a2a/pulse/${startupId}/timeline`, { params });
+    return data;
+  }
+
+  async runOperationsMission(mission: string, context: any, startupId: string) {
+    // Expected endpoint: POST /api/v1/operations/mission
+    const { data } = await this.client.post(`/api/v1/operations/mission`, {
+      mission,
+      context,
+      startup_id: startupId
+    });
+    return data;
+  }
+  // === PRODUCT FACTORY ===
+  async runProductMission(mission: string, requirement: any, startupId: string) {
+    // Expected endpoint: POST /api/v1/product/mission
+    const { data } = await this.client.post(`/api/v1/product/mission`, {
+      mission,
+      requirement,
+      startup_id: startupId
+    });
+    return data;
+  }
+
+  // === ASTROTURF COMMUNITY GTM ===
+  async getAstroTurfMentions(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/astroturf/mentions?startup_id=${startupId}`);
+    return data;
+  }
+
+  async deployAstroTurfMention(mentionId: string) {
+    const { data } = await this.client.post(`/api/v1/astroturf/mentions/${mentionId}/deploy`);
+    return data;
+  }
+
+  async dismissAstroTurfMention(mentionId: string) {
+    const { data } = await this.client.post(`/api/v1/astroturf/mentions/${mentionId}/dismiss`);
+    return data;
+  }
+
+  // === AGENTFORGE / YOKAIZEN CORE ===
+  async getYokaizenAgents() {
+    const { data } = await this.client.get(`/api/v1/integrations/yokaizen/agents/me`);
+    return data;
+  }
+
+  async importYokaizenAgent(agentId: string) {
+    const { data } = await this.client.post(`/api/v1/integrations/yokaizen/agents/${agentId}/import`);
+    return data;
+  }
+
+  // === TELECOM / TWILIO ===
+  async searchTelecomNumbers(accountSid: string, authToken: string, areaCode: string) {
+    const { data } = await this.client.post(`/api/v1/voice/webhooks/telecom/search`, null, {
+      params: { account_sid: accountSid, auth_token: authToken, area_code: areaCode }
+    });
+    return data;
+  }
+
+  async provisionTelecomNumber(accountSid: string, authToken: string, phoneNumber: string, startupId: string, language: string = 'en-US') {
+    const { data } = await this.client.post(`/api/v1/voice/webhooks/telecom/provision`, null, {
+      params: { account_sid: accountSid, auth_token: authToken, phone_number: phoneNumber, startup_id: startupId, language }
+    });
+    return data;
+  }
+
+  async getProvisionedNumbers(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/voice/webhooks/telecom/numbers`, {
+      params: { startup_id: startupId }
+    });
+    return data;
+  }
+
+  // === AGENTFORGE OUTBOUND PROXY ===
+  async triggerAgentForgeWorkflow(triggerUrl: string, payload: any) {
+    const { data } = await this.client.post(`/api/v1/integrations/agentforge/trigger-workflow`, {
+      trigger_url: triggerUrl,
+      payload
+    });
+    return data;
+  }
+
+  async triggerDirectAgentForge(agentType: string, payload: any) {
+    const { data } = await this.client.post(`/api/v1/integrations/agentforge/direct-agent`, {
+      agent_type: agentType,
+      payload
+    });
+    return data;
   }
 }
 

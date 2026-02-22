@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Zap, Target, Eye, PenTool, Users, Video, Palette, Code, DollarSign, Activity, Lock, AlertTriangle, Flame, CircleDashed, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
@@ -93,7 +92,7 @@ export function WarRoomWidget({ product, onClose }: { product: any, onClose: () 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
+            <div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="bg-[#050510] border border-red-500/30 rounded-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col shadow-[0_0_50px_rgba(220,38,38,0.2)]"
@@ -189,7 +188,7 @@ export function WarRoomWidget({ product, onClose }: { product: any, onClose: () 
                     </div>
                 </div>
 
-            </motion.div>
+            </div>
         </div>
     );
 }

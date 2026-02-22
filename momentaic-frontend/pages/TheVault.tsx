@@ -20,11 +20,19 @@ export default function TheVault() {
 
     const fetchFiles = async () => {
         try {
-            const res = await fetch('/api/v1/vault');
+            const res = await fetch('/api/v1/vault/');
+            if (!res.ok) throw new Error(`Status: ${res.status}`);
+
             const data = await res.json();
-            setFiles(data);
+            if (Array.isArray(data)) {
+                setFiles(data);
+            } else {
+                console.warn("Vault API returned non-array:", data);
+                setFiles([]);
+            }
         } catch (err) {
             console.error("Failed to fetch vault", err);
+            setFiles([]);
         } finally {
             setLoading(false);
         }

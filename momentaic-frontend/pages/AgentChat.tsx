@@ -127,6 +127,17 @@ export default function AgentChat() {
   const isAgentLocked = (user?.subscription_tier === 'starter' && selectedAgentInfo?.tier !== 'starter') ||
     (user?.subscription_tier === 'growth' && selectedAgentInfo?.tier === 'god_mode');
 
+  // Helper to check if an agent is accessible
+  const isAgentAccessible = (agent: typeof AGENTS[0]) => {
+    if (user?.subscription_tier === 'god_mode' || user?.role === 'admin') return true;
+    if (user?.subscription_tier === 'growth') return agent.tier !== 'god_mode';
+    return agent.tier === 'starter';
+  };
+
+  // Split agents into accessible and locked
+  const accessibleAgents = AGENTS.filter(isAgentAccessible);
+  const lockedAgents = AGENTS.filter(a => !isAgentAccessible(a));
+
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
       {/* Header Controls */}
@@ -140,9 +151,17 @@ export default function AgentChat() {
               value={currentAgent}
               onChange={(e) => setCurrentAgent(e.target.value as AgentType)}
             >
-              {AGENTS.map(a => (
+              {accessibleAgents.map(a => (
                 <option key={a.id} value={a.id}>
                   {a.name} {a.tier !== 'starter' ? `[${a.tier.toUpperCase()}]` : ''}
+                </option>
+              ))}
+              {lockedAgents.length > 0 && (
+                <option disabled className="text-gray-500">── UPGRADE TO UNLOCK ──</option>
+              )}
+              {lockedAgents.map(a => (
+                <option key={a.id} value={a.id} disabled className="text-gray-500">
+                  🔒 {a.name} [{a.tier.toUpperCase()}]
                 </option>
               ))}
             </select>

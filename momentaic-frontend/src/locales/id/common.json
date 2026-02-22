@@ -1,0 +1,31 @@
+{
+    "nav": {
+        "dashboard": "Pusat Komando",
+        "startups": "Kerajaan",
+        "signals": "Radar Target",
+        "war_room": "Dewan Direksi",
+        "campaigns": "Penyebaran Kawanan",
+        "growth": "Mesin Pertumbuhan",
+        "pulse": "Denyut Bisnis",
+        "characters": "Pabrik Karakter AI",
+        "telemetry": "Matriks Telemetri",
+        "agents": "Tempaan Agen",
+        "agent_studio": "Studio Agen",
+        "guerrilla": "Perang Asimetris",
+        "callcenter": "Operasi Suara",
+        "openclaw": "Proxy OpenClaw",
+        "settings": "Pengaturan",
+        "global_campaign": "Dominasi Global"
+    },
+    "hero": {
+        "title_prefix": "JANGAN HANYA OTOMATISKAN.",
+        "title_highlight": "DOMINASI.",
+        "subtitle": "Rekan pendiri AI Anda sudah siap. Sebarkan kawanan.",
+        "cta_primary": "Sebarkan Kawanan",
+        "cta_secondary": "Lihat Matriks"
+    },
+    "common": {
+        "loading": "Memuat...",
+        "error": "Kesalahan"
+    }
+}
