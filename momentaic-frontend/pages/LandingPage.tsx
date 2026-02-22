@@ -18,6 +18,7 @@ import { EcosystemSection } from '../components/landing/EcosystemSection';
 import { ProtocolShowcase } from '../components/landing/ProtocolShowcase';
 import { AgentHive } from '../components/landing/AgentHive';
 import { SystemStream } from '../components/landing/SystemStream';
+import { InevitabilitySection } from '../components/landing/InevitabilitySection';
 
 // ─── UTILS ───
 const TypewriterText = ({ text, delay = 0, speed = 50 }: { text: string, delay?: number, speed?: number }) => {
@@ -250,6 +251,9 @@ export default function LandingPage() {
 
             {/* ─── SYSTEM EVENT STREAM (Proactive) ─── */}
             <SystemStream />
+
+            {/* ─── INEVITABILITY / EFFICIENCY CRISIS ─── */}
+            <InevitabilitySection />
 
             {/* ─── ECOSYSTEM (The Brain) ─── */}
             <EcosystemSection />
