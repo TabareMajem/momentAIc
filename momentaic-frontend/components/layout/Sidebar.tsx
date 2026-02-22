@@ -139,6 +139,14 @@ export function Sidebar() {
                 <span className="font-mono font-bold text-sm tracking-widest">{item.name}</span>
               </Link>
             ))}
+            <Link
+              to="/invest"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center p-4 border rounded-xl transition-all border-red-500/30 bg-red-500/10 text-red-500 shadow-lg hover:bg-red-500/20"
+            >
+              <Target className="mr-4 w-5 h-5" />
+              <span className="font-mono font-bold text-sm tracking-widest uppercase">LP Portal</span>
+            </Link>
           </div>
 
           <div className="mt-8 pt-8 border-t border-white/10 space-y-4">
@@ -228,6 +236,13 @@ export function Sidebar() {
                 </Link>
               );
             })}
+            <Link
+              to="/invest"
+              className="flex items-center px-4 py-3 text-[10px] font-bold transition-all duration-200 group relative tracking-[0.15em] rounded-lg mb-1 text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 uppercase"
+            >
+              <Target className="mr-3 h-4 w-4 text-red-400" />
+              LP Portal
+            </Link>
           </div>
 
           {/* Pro Dropdown - Only for Growth/God Mode */}
