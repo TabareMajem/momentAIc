@@ -51,9 +51,16 @@ export function CampaignControlModal({ isOpen, onClose }: CampaignControlModalPr
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="absolute inset-0 bg-tech-grid opacity-10 pointer-events-none" />
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <img
+                    src="/momentai_campaign_matrix.png"
+                    alt="Campaign Matrix Background"
+                    className="w-full h-full object-cover opacity-10 mix-blend-screen"
+                />
+            </div>
+            <div className="absolute inset-0 bg-tech-grid opacity-10 pointer-events-none z-0" />
 
-            <div className="relative w-full max-w-6xl max-h-[90vh] bg-[#050508] border border-purple-500/30 rounded-xl shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            <div className="relative z-10 w-full max-w-6xl max-h-[90vh] bg-[#050508]/90 backdrop-blur-md border border-purple-500/30 rounded-xl shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-white/5 bg-[#0a0a0f]">
                     <div className="flex items-center gap-4">

@@ -26,6 +26,7 @@ export function Sidebar() {
     { name: t('nav.dashboard'), href: '/dashboard', icon: LayoutDashboard },
     { name: t('nav.campaigns'), href: '/executor', icon: Zap },
     { name: 'VAULT', href: '/vault', icon: Shield },
+    { name: 'RESEARCH', href: '/research', icon: BookOpen },
     { name: t('nav.settings'), href: '/settings', icon: Settings },
   ];
 

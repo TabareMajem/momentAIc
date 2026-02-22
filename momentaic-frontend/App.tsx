@@ -67,6 +67,7 @@ import GuerrillaWarfare from './pages/GuerrillaWarfare';
 import TelemetryCore from './pages/TelemetryCore';
 import OpenClawProxy from './pages/OpenClawProxy';
 import CallCenter from './pages/CallCenter';
+import { ResearchWhitepaper } from './components/marketing/ResearchWhitepaper';
 
 const ProtectedLayout = () => {
   return (
@@ -209,6 +210,9 @@ export default function App() {
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminPanel />} />
             </Route>
+
+            {/* Viral Marketing Routes */}
+            <Route path="/research" element={<ResearchWhitepaper onBack={() => window.history.back()} />} />
           </Route>
         </Routes>
       </Router>

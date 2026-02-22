@@ -10,9 +10,10 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Bot, Lock, ArrowRight, Search, Sparkles, Zap, TrendingUp, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
+import { InteractiveAgentShowcase } from '../components/marketing/InteractiveAgentShowcase';
 
 export default function AgentsMarket() {
-    const [agents, setAgents] = useState<{available: AgentInfo[], locked: AgentInfo[]}>({ available: [], locked: [] });
+    const [agents, setAgents] = useState<{ available: AgentInfo[], locked: AgentInfo[] }>({ available: [], locked: [] });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [intent, setIntent] = useState<string | null>(null);
@@ -49,9 +50,9 @@ export default function AgentsMarket() {
 
     const filteredAgents = allAgents.filter(agent => {
         if (!searchQuery) return true;
-        const matchesText = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          agent.description.toLowerCase().includes(searchQuery.toLowerCase());
-        
+        const matchesText = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            agent.description.toLowerCase().includes(searchQuery.toLowerCase());
+
         // Intent matching
         if (intent === 'growth' && (agent.id.includes('sales') || agent.id.includes('business'))) return true;
         if (intent === 'tech' && agent.id.includes('technical')) return true;
@@ -63,13 +64,13 @@ export default function AgentsMarket() {
 
     const AgentCard: React.FC<{ agent: AgentInfo }> = ({ agent }) => {
         const isLocked = (user?.subscription_tier === 'starter' && agent.tier !== 'starter') ||
-                         (user?.subscription_tier === 'growth' && agent.tier === 'god_mode');
-        
+            (user?.subscription_tier === 'growth' && agent.tier === 'god_mode');
+
         return (
             <Card className={`h-full flex flex-col group relative overflow-hidden ${isLocked ? 'opacity-75 bg-gray-50/5' : 'hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] border-white/10'}`}>
                 {/* Hover Glow */}
                 {!isLocked && <div className="absolute inset-0 bg-gradient-to-br from-[#00f0ff]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>}
-                
+
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div className={`p-3 rounded-xl border ${isLocked ? 'bg-gray-900 border-white/5' : 'bg-[#00f0ff]/10 border-[#00f0ff]/20'}`}>
@@ -103,7 +104,7 @@ export default function AgentsMarket() {
 
     if (loading) return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-[280px] bg-white/5" />)}
+            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-[280px] bg-white/5" />)}
         </div>
     );
 
@@ -113,7 +114,7 @@ export default function AgentsMarket() {
             <div className="relative overflow-hidden rounded-2xl bg-[#0a0a0a] border border-white/10 p-8 md:p-12 text-center">
                 <div className="absolute inset-0 bg-cyber-grid opacity-10 pointer-events-none"></div>
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#00f0ff]/10 blur-[100px] rounded-full pointer-events-none"></div>
-                
+
                 <h1 className="relative z-10 text-3xl md:text-4xl font-black text-white mb-2 uppercase tracking-tighter">
                     Agent Command Center
                 </h1>
@@ -126,7 +127,7 @@ export default function AgentsMarket() {
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-[#00f0ff] to-[#a855f7] rounded-xl opacity-30 group-hover:opacity-70 blur transition duration-500"></div>
                         <div className="relative flex items-center bg-black rounded-xl p-1">
                             <Search className="ml-4 w-5 h-5 text-gray-400" />
-                            <input 
+                            <input
                                 type="text"
                                 placeholder='Try "I need to raise capital" or "Fix my code quality"...'
                                 className="w-full bg-transparent border-none focus:ring-0 text-white p-4 font-mono text-sm placeholder:text-gray-600"
@@ -147,11 +148,11 @@ export default function AgentsMarket() {
                 {/* Quick Prompts */}
                 <div className="relative z-10 flex flex-wrap justify-center gap-3 mt-6">
                     {[
-                        { label: "Need more users", intent: "growth", icon: <TrendingUp className="w-3 h-3"/> },
-                        { label: "Code audit", intent: "tech", icon: <Zap className="w-3 h-3"/> },
-                        { label: "Draft contracts", intent: "legal", icon: <Shield className="w-3 h-3"/> },
+                        { label: "Need more users", intent: "growth", icon: <TrendingUp className="w-3 h-3" /> },
+                        { label: "Code audit", intent: "tech", icon: <Zap className="w-3 h-3" /> },
+                        { label: "Draft contracts", intent: "legal", icon: <Shield className="w-3 h-3" /> },
                     ].map((btn, i) => (
-                        <button 
+                        <button
                             key={i}
                             onClick={() => setSearchQuery(btn.label)}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-gray-400 hover:text-white transition-colors font-mono uppercase tracking-wide"
@@ -160,6 +161,11 @@ export default function AgentsMarket() {
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Interactive Swarm Demonstration Feature */}
+            <div className="py-8">
+                <InteractiveAgentShowcase />
             </div>
 
             {/* Recommendations Section */}

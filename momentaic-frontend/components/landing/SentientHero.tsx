@@ -94,8 +94,16 @@ export function SentientHero() {
     return (
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#020202] pt-20">
             {/* ─── SCENE BACKGROUND ─── */}
-            <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none" />
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[500px] bg-purple-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
+            <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none z-0" />
+            <div className="absolute inset-0 z-0">
+                <img
+                    src="/root/.gemini/antigravity/brain/eaaa4a7a-8d33-4a12-b01d-322663287d37/momentai_business_os_1771770121942.png"
+                    alt="Autonomous Business OS"
+                    className="w-full h-full object-cover opacity-20 mix-blend-screen"
+                />
+            </div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[500px] bg-purple-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none z-1" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#020202]/80 to-[#020202] z-1 pointer-events-none" />
             <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/80 to-transparent z-10" />
 
             {/* ─── TERMINAL OVERLAY ─── */}
