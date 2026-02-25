@@ -11,6 +11,7 @@ import ActivityFeed from '../components/ActivityFeed';
 import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidget';
 import { AstroTurfWidget } from '../components/ui/AstroTurfWidget';
 import { LiveAgentDashboard } from '../components/LiveAgentDashboard';
+import { BenchmarkWidget } from '../components/dashboard/BenchmarkWidget';
 import { useAuthStore } from '../stores/auth-store';
 import { useStartupStore } from '../stores/startup-store';
 
@@ -810,6 +811,9 @@ export default function Dashboard() {
                   Start Task
                 </Button>
               </div>
+
+              {/* Benchmark Widget Insights */}
+              <BenchmarkWidget />
 
               {/* Live WebSocket Swarm Feed */}
               <LiveAgentDashboard />

@@ -293,7 +293,12 @@ class ApiClient {
     return data;
   }
 
-  // === SIGNALS ===
+  async getBenchmarks(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/startups/${startupId}/benchmarks`);
+    return data;
+  }
+
+  // === MOMENTUM OS ===
   async getSignalScores(startupId: string): Promise<SignalScores> {
     const { data } = await this.client.get(`/api/v1/startups/${startupId}/signals`);
     return data;
@@ -437,10 +442,29 @@ class ApiClient {
     return data;
   }
 
-  async getIndustryPlaybooks(industry: string) {
+  // === PLAYBOOKS ===
+  async getIndustryPlaybooks(industry?: string) {
     const { data } = await this.client.get('/api/v1/playbooks', {
       params: { industry }
     });
+    return data;
+  }
+
+  // === MARKETPLACE ===
+  async getMarketplaceTemplates(industry?: string, agentType?: string, sortBy: 'upvotes' | 'newest' = 'upvotes') {
+    const { data } = await this.client.get('/api/v1/marketplace/templates', {
+      params: { industry, agent_type: agentType, sort_by: sortBy }
+    });
+    return data;
+  }
+
+  async upvoteTemplate(templateId: string) {
+    const { data } = await this.client.post(`/api/v1/marketplace/templates/${templateId}/upvote`);
+    return data;
+  }
+
+  async cloneTemplate(templateId: string) {
+    const { data } = await this.client.post(`/api/v1/marketplace/templates/${templateId}/clone`);
     return data;
   }
 

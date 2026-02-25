@@ -26,6 +26,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
     { id: 'pulse', name: 'Business Pulse', description: 'Real-time heartbeat monitoring & KPIs', href: '/pulse', icon: 'Activity', tier: 'growth', category: 'operations', stageRecommended: ['mvp', 'pmf', 'scaling'] },
     { id: 'growth', name: 'Growth Engine', description: 'Automated lead gen, SEO, and outreach', href: '/growth', icon: 'TrendingUp', tier: 'growth', category: 'marketing', stageRecommended: ['mvp', 'pmf'] },
     { id: 'agent_forge', name: 'Agent Forge', description: 'Build, customize, and deploy AI agents', href: '/agent-forge', icon: 'Network', tier: 'growth', category: 'agents', stageRecommended: ['pmf', 'scaling'] },
+    { id: 'agent_marketplace', name: 'Agent Marketplace', description: 'Discover and clone community AI agents', href: '/agent-marketplace', icon: 'Sparkles', tier: 'growth', category: 'agents', stageRecommended: ['idea', 'mvp', 'pmf', 'scaling'] },
     { id: 'characters', name: 'Character Factory', description: 'Create AI personas for content and outreach', href: '/characters', icon: 'Sparkles', tier: 'growth', category: 'agents', stageRecommended: ['idea', 'mvp'] },
     { id: 'research', name: 'Research Lab', description: 'Deep market intelligence and competitor analysis', href: '/research', icon: 'BookOpen', tier: 'growth', category: 'intelligence', stageRecommended: ['idea', 'mvp'] },
 

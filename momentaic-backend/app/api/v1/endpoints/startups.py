@@ -434,6 +434,22 @@ async def update_metrics(
     
     return StartupResponse.model_validate(startup)
 
+@router.get("/{startup_id}/benchmarks")
+async def get_startup_benchmarks(
+    startup_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get aggregated industry benchmarks to compare this startup against peers.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    from app.services.benchmark_service import benchmark_service
+    benchmarks = await benchmark_service.get_industry_benchmarks(db, str(startup_id))
+    
+    return benchmarks
+
 
 # Sprint endpoints
 @router.post("/{startup_id}/sprints", response_model=SprintResponse, status_code=status.HTTP_201_CREATED)
