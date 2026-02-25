@@ -12,6 +12,7 @@ import { MorningBriefWidget } from '../components/dashboard/MorningBriefWidget';
 import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidget';
 import { AstroTurfWidget } from '../components/ui/AstroTurfWidget';
 import { useAuthStore } from '../stores/auth-store';
+import { useStartupStore } from '../stores/startup-store';
 
 // ============ TYPES ============
 
@@ -596,13 +597,29 @@ function ZeroStateWidget({ pendingStrategy, onCreateStartup }: { pendingStrategy
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+  const { startups, activeStartupId, fetchStartups } = useStartupStore();
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasStartups, setHasStartups] = useState<boolean | null>(null);
   const [pendingStrategy, setPendingStrategy] = useState<any>(null);
 
+  const hasStartups = startups.length > 0;
+
+  // Hydrate startup store if needed
   useEffect(() => {
+    if (user && startups.length === 0) {
+      fetchStartups();
+    }
+  }, [user]);
+
+  // Load dashboard data whenever the active startup changes
+  useEffect(() => {
+    if (!user || !activeStartupId) {
+      setLoading(false);
+      return;
+    }
+
     const loadRealData = async () => {
+      setLoading(true);
       try {
         // Check for pending strategies from onboarding
         const pendingStrategyData = localStorage.getItem('pendingStrategy');
@@ -613,35 +630,21 @@ export default function Dashboard() {
           setPendingStrategy(JSON.parse(pendingGeniusPlan));
         }
 
-        // 1. Get User's Startup
-        const startups = await api.getStartups();
-        if (!startups || startups.length === 0) {
-          setHasStartups(false);
-          setLoading(false);
-          return;
-        }
-        setHasStartups(true);
-        const startup = startups[0];
+        // Get Dashboard Data scoped to active startup
+        const dashboard = await api.getDashboard(activeStartupId);
 
-        // 2. Get Dashboard Data with Real Activity
-        const dashboard = await api.getDashboard(startup.id);
-
-        // 3. Map to Frontend Model
+        // Map to Frontend Model
         const realActivities: AgentActivity[] = dashboard.recent_activity.map((a: any, idx: number) => ({
-          id: `act-${idx}`, // Generate ID since backend aggregation doesn't providing unique stable ID yet
+          id: `act-${idx}`,
           agent: a.agent || 'System',
           task: a.type === 'content_drafted' ? 'Drafting Content' :
             a.type === 'lead_acquired' ? 'Hunting Leads' :
               a.message.split(':')[0] || 'Processing',
-          status: 'complete', // Most stored logs are "success"
+          status: 'complete',
           progress: 100,
           message: a.message,
           started_at: a.timestamp
         }));
-
-        // Add some "Running" fake agents if empty, to show life? 
-        // OR strictly stick to real data? 
-        // Strict Real Data is the goal of Phase 21.
 
         setActivities(realActivities);
       } catch (e) {
@@ -651,10 +654,8 @@ export default function Dashboard() {
       }
     };
 
-    if (user) {
-      loadRealData();
-    }
-  }, [user]);
+    loadRealData();
+  }, [user, activeStartupId]);
 
   const activeCount = activities.filter(a => a.status === 'running').length;
   const pendingCount = activities.filter(a => a.status === 'pending').length;

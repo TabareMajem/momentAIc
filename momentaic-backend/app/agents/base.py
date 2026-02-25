@@ -98,6 +98,102 @@ class BaseAgent(ABC):
                   return parsed_dict
         return parsed_dict
 
+    async def self_correcting_call(
+        self,
+        prompt: str,
+        goal: str = "High quality response",
+        target_audience: str = "General",
+        response_model: Type[T] = None,
+        model_name: str = "gemini-pro",
+        temperature: float = 0.7,
+        max_iterations: int = 3,
+        threshold: int = 85
+    ) -> Any:
+        """
+        Generalized 'Draft -> Critique -> Rewrite' loop utilizing JudgementAgent.
+        """
+        # 1. Initial Draft
+        draft_response = await self.structured_llm_call(
+            prompt=prompt,
+            response_model=response_model,
+            model_name=model_name,
+            temperature=temperature
+        )
+        
+        # We need a string representation to critique
+        if isinstance(draft_response, BaseModel):
+            draft_str = draft_response.model_dump_json()
+        elif isinstance(draft_response, dict):
+            draft_str = json.dumps(draft_response)
+        else:
+            draft_str = str(draft_response)
+
+        from app.agents.judgement_agent import judgement_agent
+        
+        current_draft = draft_response
+        current_draft_str = draft_str
+        
+        for iteration in range(max_iterations):
+            # Evaluate current draft
+            evaluation = await judgement_agent.evaluate_content(
+                goal=goal,
+                target_audience=target_audience,
+                variations=[current_draft_str]
+            )
+            
+            if "error" in evaluation:
+                logger.warning(f"Self-correction loop evaluation failed: {evaluation['error']}")
+                return current_draft
+                
+            scores = evaluation.get("scores", [0])
+            score = scores[0] if scores else 0
+            
+            # If good enough, break
+            if score >= threshold:
+                break
+                
+            critiques = evaluation.get("critique", [])
+            critique_text = "\\n".join(critiques)
+            
+            # 2. Rewrite based on critique
+            rewrite_prompt = f"""
+            {prompt}
+            
+            === PREVIOUS ATTEMPT ===
+            {current_draft_str}
+            
+            === CRITIQUE FROM EXPERT REVIEWER ===
+            Your previous attempt scored {score}/100.
+            Here is the critical feedback to improve it:
+            {critique_text}
+            
+            Please REWRITE the response to specifically address this feedback and achieve a score > {threshold}.
+            """
+            
+            current_draft = await self.structured_llm_call(
+                prompt=rewrite_prompt,
+                response_model=response_model,
+                model_name=model_name,
+                temperature=temperature
+            )
+            
+            if isinstance(current_draft, BaseModel):
+                current_draft_str = current_draft.model_dump_json()
+            elif isinstance(current_draft, dict):
+                current_draft_str = json.dumps(current_draft)
+            else:
+                current_draft_str = str(current_draft)
+                
+        return current_draft
+
+    async def handle_message(self, msg: Any) -> None:
+        """
+        Default A2A Message Bus handler.
+        Override in subclasses for specific routing behavior.
+        """
+        logger.info(f"Agent {self.__class__.__name__} received unhandled message {msg.id}: {msg.topic}")
+        pass
+
 
 
 # ==================

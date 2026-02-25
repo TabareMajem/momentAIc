@@ -97,7 +97,7 @@ export function SentientHero() {
             <div className="absolute inset-0 bg-tech-grid opacity-20 pointer-events-none z-0" />
             <div className="absolute inset-0 z-0">
                 <img
-                    src="/root/.gemini/antigravity/brain/eaaa4a7a-8d33-4a12-b01d-322663287d37/momentai_business_os_1771770121942.png"
+                    src="/images/momentai_business_os_1771770121942.png"
                     alt="Autonomous Business OS"
                     className="w-full h-full object-cover opacity-20 mix-blend-screen"
                 />

@@ -3,7 +3,7 @@
 # MOMENTAIC MASTER DEPLOYMENT FIX SCRIPT
 # Run this from your LOCAL terminal (where momentaic folder is)
 
-VPS_IP="72.62.151.245"
+VPS_IP="207.180.227.179"
 VPS_USER="root"
 REMOTE_DIR="/opt/momentaic"
 

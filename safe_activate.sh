@@ -1,6 +1,6 @@
 #!/bin/bash
 # Safely enable Momentaic without breaking Yorisoi
-VPS_IP="72.62.151.245"
+VPS_IP="207.180.227.179"
 
 echo "Activating Momentaic Config..."
 

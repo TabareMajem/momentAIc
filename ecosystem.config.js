@@ -2,9 +2,7 @@ module.exports = {
     apps: [
         {
             name: "momentaic-backend",
-            cwd: "/opt/momentaic/momentaic-backend",
-            name: "momentaic-backend",
-            cwd: "/opt/momentaic/momentaic-backend",
+            cwd: "/root/momentaic/momentaic-backend",
             script: "./start_backend.sh",
             interpreter: "bash",
             instances: 1,
@@ -18,7 +16,7 @@ module.exports = {
         },
         {
             name: "momentaic-frontend",
-            cwd: "/opt/momentaic/momentaic-frontend",
+            cwd: "/root/momentaic/momentaic-frontend",
             script: "./start_frontend.sh",
             interpreter: "bash",
             exec_mode: "fork",

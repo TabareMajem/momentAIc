@@ -10,6 +10,8 @@ momentaic front/node_modules/
 momentaic front/dist/
 *.pem
 *.key
+firebase-adminsdk.json
+*service_account.json
 vps_check.sh
 vps_patch.sh
 *.crt

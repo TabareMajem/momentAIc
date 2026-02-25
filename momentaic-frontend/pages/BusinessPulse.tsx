@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Activity, Zap, AlertTriangle, Brain, CheckCircle2, Clock, RefreshCw, Eye, Scale, DollarSign, FileText } from 'lucide-react';
 import { api } from '../lib/api';
-import { useAuthStore } from '../stores/auth-store';
+import { useStartupStore } from '../stores/startup-store';
 
 interface HeartbeatSummary {
     agent_id: string;
@@ -75,11 +75,11 @@ function timeAgo(ts: string | null): string {
 }
 
 export default function BusinessPulse() {
+    const { activeStartupId } = useStartupStore();
     const [pulse, setPulse] = useState<PulseOverview | null>(null);
     const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<string>('all');
-    const [startupId, setStartupId] = useState<string>('');
 
     const fetchPulse = useCallback(async (sid: string) => {
         if (!sid) return;
@@ -98,27 +98,24 @@ export default function BusinessPulse() {
     }, [filter]);
 
     useEffect(() => {
-        // Try to get startup ID from local storage or current context
-        const stored = localStorage.getItem('currentStartupId');
-        if (stored) {
-            setStartupId(stored);
-            fetchPulse(stored);
+        if (activeStartupId) {
+            fetchPulse(activeStartupId);
         } else {
             setLoading(false);
         }
 
         // Auto-refresh every 30 seconds
         const interval = setInterval(() => {
-            if (startupId) fetchPulse(startupId);
+            if (activeStartupId) fetchPulse(activeStartupId);
         }, 30000);
         return () => clearInterval(interval);
-    }, [startupId, fetchPulse]);
+    }, [activeStartupId, fetchPulse]);
 
     const handleRunMission = async (mission: string, context: any) => {
-        if (!startupId) return;
+        if (!activeStartupId) return;
         try {
-            await api.runOperationsMission(mission, context, startupId);
-            fetchPulse(startupId); // Refresh to see new activity
+            await api.runOperationsMission(mission, context, activeStartupId);
+            fetchPulse(activeStartupId);
             alert(`Mission "${mission}" started! Check timeline for results.`);
         } catch (err) {
             console.error("Mission failed", err);
@@ -153,7 +150,7 @@ export default function BusinessPulse() {
                         <Scale className="w-3 h-3" /> LEGAL CHECK
                     </button>
                     <button
-                        onClick={() => startupId && fetchPulse(startupId)}
+                        onClick={() => activeStartupId && fetchPulse(activeStartupId)}
                         className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded font-mono text-xs text-gray-400 hover:text-white hover:border-purple-500/50 transition-all"
                     >
                         <RefreshCw className="w-3 h-3" /> REFRESH
@@ -258,9 +255,9 @@ export default function BusinessPulse() {
                 {timeline.length === 0 && !loading && (
                     <div className="text-center py-16 text-gray-600 font-mono text-sm">
                         <Brain className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                        {startupId
+                        {activeStartupId
                             ? 'No heartbeat activity yet. Agents will begin their first cycle shortly.'
-                            : 'No startup selected. Visit your dashboard first to initialize.'}
+                            : 'No startup selected. Use the selector in the sidebar to pick your startup.'}
                     </div>
                 )}
                 {timeline.map((entry) => {

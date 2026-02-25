@@ -245,6 +245,7 @@ async def chat(
     startup = startup_result.scalar_one()
     
     startup_context = {
+        "startup_id": str(chat_request.startup_id),
         "name": startup.name,
         "description": startup.description,
         "tagline": startup.tagline,
@@ -252,7 +253,10 @@ async def chat(
         "stage": startup.stage.value,
         "metrics": startup.metrics,
         "locale": request.headers.get("accept-language", "en"),
-    } if chat_request.include_context else {"locale": request.headers.get("accept-language", "en")}
+    } if chat_request.include_context else {
+        "startup_id": str(chat_request.startup_id),
+        "locale": request.headers.get("accept-language", "en")
+    }
 
     # Inject Agent Memory Context
     from app.services.agent_memory_service import agent_memory_service
@@ -423,13 +427,17 @@ async def chat_stream(
     startup = startup_result.scalar_one()
     
     startup_context = {
+        "startup_id": str(chat_request.startup_id),
         "name": startup.name,
         "description": startup.description,
         "industry": startup.industry,
         "stage": startup.stage.value,
         "metrics": startup.metrics,
         "locale": request.headers.get("accept-language", "en"),
-    } if chat_request.include_context else {"locale": request.headers.get("accept-language", "en")}
+    } if chat_request.include_context else {
+        "startup_id": str(chat_request.startup_id),
+        "locale": request.headers.get("accept-language", "en")
+    }
 
     # Inject Agent Memory Context
     from app.services.agent_memory_service import agent_memory_service

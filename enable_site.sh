@@ -1,6 +1,6 @@
 #!/bin/bash
 # Enable Momentaic and disable conflicts
-VPS_IP="72.62.151.245"
+VPS_IP="207.180.227.179"
 
 echo "Running Nginx fix on VPS..."
 

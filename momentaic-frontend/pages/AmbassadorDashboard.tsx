@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -6,12 +7,13 @@ import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../stores/auth-store';
+import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import {
     Users, DollarSign, TrendingUp, Copy, Share2, ExternalLink,
     CreditCard, CheckCircle, Clock, AlertCircle, ArrowUpRight,
     Twitter, Linkedin, Mail, Zap, Gift, Crown, Target, BarChart2,
-    Wallet, RefreshCw, ChevronRight, Image as ImageIcon
+    Wallet, RefreshCw, ChevronRight, Image as ImageIcon, Sparkles
 } from 'lucide-react';
 
 // ============ TYPES ============

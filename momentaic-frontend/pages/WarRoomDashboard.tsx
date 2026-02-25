@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { useAuthStore } from '../stores/auth-store';
+import { useStartupStore } from '../stores/startup-store';
 import { Shield, Brain, Zap, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PageMeta } from '../components/ui/PageMeta';
@@ -16,16 +16,15 @@ interface DebateVerdict {
 }
 
 export default function WarRoomDashboard() {
-    const { user } = useAuthStore();
+    const { activeStartupId } = useStartupStore();
     const [verdicts, setVerdicts] = useState<DebateVerdict[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchVerdicts = async () => {
-            if (!user?.startup_id) return;
+            if (!activeStartupId) return;
             try {
-                // We're casting to any here as the endpoint is new and might not be typed in the frontend yet
-                const data = await (api as any).getWarRoomVerdicts(user.startup_id);
+                const data = await (api as any).getWarRoomVerdicts(activeStartupId);
                 setVerdicts(data);
             } catch (error) {
                 console.error('Failed to fetch war room verdicts:', error);
@@ -39,7 +38,7 @@ export default function WarRoomDashboard() {
         // Poll every 30 seconds for new escalating debates
         const interval = setInterval(fetchVerdicts, 30000);
         return () => clearInterval(interval);
-    }, [user?.startup_id]);
+    }, [activeStartupId]);
 
     return (
         <div className="max-w-6xl mx-auto pb-20 mt-8">

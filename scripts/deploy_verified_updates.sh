@@ -67,7 +67,7 @@ echo "✅ Code synced (including docker-compose.yml)."
 echo ""
 echo "[4/4] Restarting Services..."
 cd /opt/momentaic/momentaic-backend
-if command -v pm2 &> /dev/null; then
+if command -v pm2 &> /dev/null && pm2 list | grep -q "momentaic-backend"; then
     pm2 restart momentaic-backend
     if pm2 list | grep -q "momentaic-frontend"; then
         pm2 restart momentaic-frontend
@@ -75,8 +75,8 @@ if command -v pm2 &> /dev/null; then
     fi
     echo "✅ PM2 Backend Restarted."
 else
-    echo "⚠️ PM2 not found in path. Rebuilding and restarting all Docker containers..."
-    docker compose up -d --build
+    echo "⚠️ PM2 process 'momentaic-backend' not found. Using Docker Compose..."
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
     
     echo ""
     echo "[5/5] Running database migrations..."

@@ -8,15 +8,20 @@ from sqlalchemy import select
 
 logger = structlog.get_logger(__name__)
 
-# Registry mapping from agent IDs to their class initializers
 def get_agent_instance(agent_id: str):
-    if agent_id == "yc_advisor_agent":
-        from app.agents.yc_advisor_agent import YCAdvisorAgent
-        return YCAdvisorAgent()
-    elif agent_id == "musk_enforcer_agent":
-        from app.agents.musk_enforcer_agent import MuskEnforcerAgent
-        return MuskEnforcerAgent()
-    # Add other core agents here as needed
+    from app.agents import LazyAgents
+    agents = LazyAgents()
+    try:
+        # A2A uses standard agent IDs, sometimes with "_agent" suffix
+        # LazyAgents properties often have "_agent" or not.
+        if hasattr(agents, agent_id):
+            return getattr(agents, agent_id)
+        elif hasattr(agents, agent_id.replace("_agent", "")):
+            return getattr(agents, agent_id.replace("_agent", ""))
+        elif hasattr(agents, f"{agent_id}_agent"):
+            return getattr(agents, f"{agent_id}_agent")
+    except Exception as e:
+        logger.error(f"Failed to load agent {agent_id} from LazyAgents", error=str(e))
     return None
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker

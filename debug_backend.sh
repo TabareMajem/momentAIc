@@ -1,5 +1,5 @@
 #!/bin/bash
-VPS_IP="72.62.151.245"
+VPS_IP="207.180.227.179"
 VPS_USER="root"
 LOG_FILE="backend_crash_logs.txt"
 

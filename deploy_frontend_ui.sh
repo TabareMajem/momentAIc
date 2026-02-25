@@ -18,6 +18,7 @@ sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/pages/" $VPS_USER@$VPS_IP:
 sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/App.tsx" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/"
 sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/components/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/components/"
 sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/lib/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/lib/"
+sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/src/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/src/"
 
 # Sync Build (The important part)
 sshpass -p "$VPS_PASS" rsync -avz "momentaic-frontend/dist/" $VPS_USER@$VPS_IP:"$REMOTE_DIR/momentaic-frontend/dist/"

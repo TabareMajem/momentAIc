@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Download, FileText, FileSpreadsheet, File, Shield, Briefcase, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface VaultFile {
-    filename: str;
-    url: str;
+    filename: string;
+    url: string;
     size: number;
-    created_at: str;
+    created_at: string;
     type: 'PDF' | 'CSV' | 'DOCX' | 'TXT' | 'UNKNOWN';
 }
 

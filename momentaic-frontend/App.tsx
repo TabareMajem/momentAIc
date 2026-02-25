@@ -1,9 +1,10 @@
 
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { useAuthStore } from './stores/auth-store';
 import { ToastProvider } from './components/ui/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { analytics } from './lib/firebase';
 import { logEvent } from 'firebase/analytics';
 
@@ -23,10 +24,6 @@ import AgentsMarket from './pages/AgentsMarket';
 import InvestmentDashboard from './pages/InvestmentDashboard';
 import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
-import AgentForge from './pages/AgentForge';
-import VisionPortal from './pages/VisionPortal';
-import GrowthEngine from './pages/GrowthEngine';
-import GrowthPlaybook from './pages/GrowthPlaybook';
 import IntegrationsPage from './pages/IntegrationsPage';
 import TriggersPage from './pages/TriggersPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -34,16 +31,11 @@ import MissionPage from './pages/MissionPage';
 import CoFounderMatch from './pages/CoFounderMatch';
 import ReferralDashboard from './pages/ReferralDashboard';
 import SocialProofStudio from './pages/SocialProofStudio';
-import ExperimentsLab from './pages/ExperimentsLab';
-import Campaigns from './pages/Campaigns';
 import OnboardingWizard from './pages/OnboardingWizard';
 import RegionFomoPage from './pages/RegionFomoPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AmbassadorDashboard from './pages/AmbassadorDashboard';
-// import WarRoomDashboard from './pages/WarRoomDashboard'; // Removed to fix duplicate
 import AutoPilotOnboarding from './pages/AutoPilotOnboarding';
-import ViralSwarm from './pages/ViralSwarm';
-import GlobalCampaign from './pages/GlobalCampaign';
 
 import TheVault from './pages/TheVault';
 import IntegrationBuilder from './pages/IntegrationBuilder';
@@ -51,23 +43,41 @@ import PowerPlays from './pages/PowerPlays';
 import ExecutorPage from './pages/ExecutorPage';
 import InnovatorLab from './pages/InnovatorLab';
 import GeniusOnboarding from './pages/GeniusOnboarding';
-import EmpireBuilder from './pages/EmpireBuilder';
-import WarRoomDashboard from './pages/WarRoomDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
 import { OnboardingTour } from './components/OnboardingTour';
 import FromLovable from './pages/FromLovable';
 import FromBolt from './pages/FromBolt';
-import LiveAgentView from './pages/LiveAgentView';
-import AutonomySettings from './pages/AutonomySettings';
-import BusinessPulse from './pages/BusinessPulse';
-import CharacterFactory from './pages/CharacterFactory';
-import GuerrillaWarfare from './pages/GuerrillaWarfare';
-import TelemetryCore from './pages/TelemetryCore';
-import OpenClawProxy from './pages/OpenClawProxy';
-import CallCenter from './pages/CallCenter';
+
+// Lazy-loaded heavy pages (code-splitting)
+const AgentForge = lazy(() => import('./pages/AgentForge'));
+const VisionPortal = lazy(() => import('./pages/VisionPortal'));
+const GrowthEngine = lazy(() => import('./pages/GrowthEngine'));
+const GrowthPlaybook = lazy(() => import('./pages/GrowthPlaybook'));
+const CharacterFactory = lazy(() => import('./pages/CharacterFactory'));
+const GuerrillaWarfare = lazy(() => import('./pages/GuerrillaWarfare'));
+const TelemetryCore = lazy(() => import('./pages/TelemetryCore'));
+const OpenClawProxy = lazy(() => import('./pages/OpenClawProxy'));
+const CallCenter = lazy(() => import('./pages/CallCenter'));
+const FeatureArsenal = lazy(() => import('./pages/FeatureArsenal'));
+const LiveAgentView = lazy(() => import('./pages/LiveAgentView'));
+const AutonomySettings = lazy(() => import('./pages/AutonomySettings'));
+const BusinessPulse = lazy(() => import('./pages/BusinessPulse'));
+const ViralSwarm = lazy(() => import('./pages/ViralSwarm'));
+const GlobalCampaign = lazy(() => import('./pages/GlobalCampaign'));
+const EmpireBuilder = lazy(() => import('./pages/EmpireBuilder'));
+const InvestorDeck = lazy(() => import('./pages/InvestorDeck'));
+const WarRoomDashboard = lazy(() => import('./pages/WarRoomDashboard'));
+const ExperimentsLab = lazy(() => import('./pages/ExperimentsLab'));
+const Campaigns = lazy(() => import('./pages/Campaigns'));
 import { ResearchWhitepaper } from './components/marketing/ResearchWhitepaper';
+
+const PageLoader = () => (
+  <div className="min-h-[50vh] flex items-center justify-center">
+    <span className="animate-pulse text-purple-500 font-mono">LOADING...</span>
+  </div>
+);
 
 const ProtectedLayout = () => {
   return (
@@ -76,7 +86,11 @@ const ProtectedLayout = () => {
       <Sidebar />
       <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#050505]">
         <div className="max-w-[1600px] mx-auto animate-fade-in">
-          <Outlet />
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
     </div>
@@ -85,20 +99,21 @@ const ProtectedLayout = () => {
 
 const ProtectedRoute = () => {
   const { isAuthenticated, loadUser, isLoading } = useAuthStore();
+  const location = useLocation();
 
   useEffect(() => {
     loadUser();
-  }, []);
+  }, [loadUser]);
 
   // Track page views
   useEffect(() => {
     if (analytics) {
       logEvent(analytics, 'page_view', {
         page_location: window.location.href,
-        page_path: window.location.pathname
+        page_path: location.pathname
       });
     }
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-purple-500 font-mono"><span className="animate-pulse">LOADING...</span></div>;
 
@@ -134,6 +149,7 @@ export default function App() {
           <Route path="/join" element={<RegionFomoPage />} />
           <Route path="/ambassador" element={<AmbassadorDashboard />} />
           <Route path="/investors" element={<InvestorsPage />} />
+          <Route path="/invest" element={<InvestorDeck />} />
 
           {/* Redirect deprecated routes to new funnel */}
           <Route path="/start" element={<Navigate to="/signup" replace />} />
@@ -187,10 +203,10 @@ export default function App() {
             <Route path="/executor" element={<ExecutorPage />} />
             <Route path="/innovator" element={<InnovatorLab />} />
             <Route path="/guerrilla" element={<GuerrillaWarfare />} />
-            <Route path="/war-room" element={<WarRoomDashboard />} />
             <Route path="/vault" element={<TheVault />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/autonomy" element={<AutonomySettings />} />
+            <Route path="/features" element={<FeatureArsenal />} />
             <Route path="/pulse" element={<BusinessPulse />} />
             <Route path="/characters" element={<CharacterFactory />} />
             <Route path="/live" element={<LiveAgentView />} />
@@ -203,8 +219,6 @@ export default function App() {
             {/* Legacy Routes (kept for backward compat) */}
             <Route path="/power-plays" element={<PowerPlays />} />
             <Route path="/builder" element={<IntegrationBuilder />} />
-            <Route path="/integrations" element={<IntegrationsPage />} />
-            <Route path="/agents/chat" element={<AgentChat />} />
 
             {/* Admin Routes */}
             <Route element={<AdminRoute />}>

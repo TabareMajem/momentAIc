@@ -34,9 +34,13 @@ sshpass -p "$VPS_PASS" ssh $VPS_USER@$VPS_IP << 'EOF'
     docker compose up -d postgres
     sleep 5 # Wait for port mapping
 
-    echo "Running Migrations (Locally)..."
-    # This requires DB port to be exposed on localhost
-    alembic upgrade head
+    echo "Running Migrations (Inside Docker)..."
+    # Run alembic inside the API container (ensure it's running first, or run via run command)
+    # We use 'run --rm' to spin up a temporary container for migration if api is not up yet
+    # But usually api depends on db.
+    
+    # Update: best practice is to run migration via docker compose run
+    docker compose run --rm api alembic upgrade head
     
     echo "Rebuilding Docker API..."
     docker compose build api celery-worker

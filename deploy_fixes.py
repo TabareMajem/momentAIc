@@ -2,7 +2,7 @@ import os
 import subprocess
 import time
 
-VPS_HOST = "72.62.151.245"
+VPS_HOST = "207.180.227.179"
 VPS_USER = "root"
 VPS_PASS = "Cruyff14-88888888"
 VPS_DIR = "/opt/momentaic/momentaic-backend"

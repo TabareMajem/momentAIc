@@ -139,12 +139,18 @@ class ContentAgent(BaseAgent):
         )
         
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content=self.config["system_prompt"]),
-                HumanMessage(content=prompt),
-            ])
+            full_prompt = f"{self.config['system_prompt']}\n\n{prompt}"
             
-            content = self._parse_response(response.content, platform)
+            # Use self-correction loop for high quality
+            response_content = await self.self_correcting_call(
+                prompt=full_prompt,
+                goal=f"Generate high-quality {platform} content",
+                target_audience=startup_context.get("industry", "general audience"),
+                model_name="gemini-pro",
+                threshold=85
+            )
+            
+            content = self._parse_response(response_content, platform)
             
             # Step 3: Generate hashtags
             hashtags = await generate_hashtags.ainvoke({"topic": topic, "platform": platform.value})
