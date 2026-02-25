@@ -484,6 +484,20 @@ async def chat_stream(
         if routing_result.get("routed") and routing_result.get("route_to"):
             routed_to = AgentType(routing_result["route_to"])
             yield f"data: {json.dumps({'chunk': '', 'is_final': False, 'status': f'Routed to {routed_to.value}'})}\n\n"
+            
+            from app.core.websocket import websocket_manager
+            import asyncio
+            from datetime import datetime
+            
+            asyncio.create_task(websocket_manager.broadcast_to_startup(
+                str(chat_request.startup_id),
+                {
+                    "type": "agent_action",
+                    "agent": "supervisor",
+                    "action": f"Delegating task to {routed_to.value}",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
         
         # 2. Agent Processing (Streaming)
         if routed_to:

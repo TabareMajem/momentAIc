@@ -146,6 +146,56 @@ function GlobalInsightsLoader({ startupId }: { startupId: string }) {
   );
 }
 
+function IndustryPlaybooks({ startupId, onSelect }: { startupId: string, onSelect: (agentId: AgentType, prompt: string) => void }) {
+  const [playbooks, setPlaybooks] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  useEffect(() => {
+    async function fetchPlaybooks() {
+      try {
+        // Find the industry for the given startupId
+        const startupsRes = await api.getStartups();
+        const startup = startupsRes.find((s: any) => s.id === startupId);
+        if (startup && startup.industry) {
+          const pbRes = await api.getIndustryPlaybooks(startup.industry);
+          setPlaybooks(pbRes);
+        } else {
+          const pbRes = await api.getIndustryPlaybooks("General");
+          setPlaybooks(pbRes);
+        }
+      } catch (e) {
+        console.error("Failed to load playbooks", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPlaybooks();
+  }, [startupId]);
+
+  if (loading || playbooks.length === 0) return null;
+
+  return (
+    <div className="w-full max-w-4xl mx-auto mt-8 animate-fade-in-up">
+      <div className="flex items-center gap-2 mb-4 px-2">
+        <Sparkles className="w-4 h-4 text-[#bf25eb]" />
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-widest">Industry Playbooks</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {playbooks.map(pb => (
+          <button
+            key={pb.id}
+            onClick={() => onSelect(pb.agent_type as AgentType, pb.initial_prompt)}
+            className="text-left bg-black/40 border border-white/10 hover:border-[#bf25eb]/50 hover:bg-[#bf25eb]/5 p-4 rounded-xl transition-all group"
+          >
+            <h4 className="font-bold text-white text-sm mb-1 group-hover:text-[#bf25eb] transition-colors">{pb.title}</h4>
+            <p className="text-xs text-gray-500 line-clamp-2">{pb.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const AGENTS: { id: AgentType, name: string, tier: SubscriptionTier }[] = [
   { id: 'orchestrator', name: 'Orchestrator', tier: 'starter' },
   { id: 'technical_copilot', name: 'Technical Co-Pilot', tier: 'starter' },
@@ -322,11 +372,20 @@ export default function AgentChat() {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {messages.length === 0 && !isAgentLocked && (
-            <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-4">
+            <div className="h-full max-h-[60vh] flex flex-col items-center justify-center text-gray-600 space-y-4">
               <div className="w-16 h-16 rounded-full bg-[#0a0a0a] border border-white/5 flex items-center justify-center">
                 <Bot className="w-8 h-8 text-[#00f0ff] animate-pulse" />
               </div>
               <p className="font-mono text-xs uppercase tracking-widest">Secure Channel Open. Cost: 1 Credit/Msg.</p>
+              {(startupIdParam || currentStartupId) && (
+                <IndustryPlaybooks
+                  startupId={startupIdParam || currentStartupId || ''}
+                  onSelect={(agent, prompt) => {
+                    setCurrentAgent(agent);
+                    setInput(prompt);
+                  }}
+                />
+              )}
             </div>
           )}
 

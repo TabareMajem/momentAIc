@@ -59,6 +59,18 @@ class AgentMemoryService:
                     action=action_type,
                     outcome_id=str(outcome.id),
                 )
+                
+                # Broadcast real-time activity
+                from app.core.websocket import websocket_manager
+                # We do not block the DB transaction on websocket delivery
+                payload = {
+                    "type": "agent_action",
+                    "agent": agent_name,
+                    "action": f"Executed action: {action_type}",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                asyncio.create_task(websocket_manager.broadcast_to_startup(str(startup_id), payload))
+                
                 return str(outcome.id)
 
         except Exception as e:

@@ -437,6 +437,13 @@ class ApiClient {
     return data;
   }
 
+  async getIndustryPlaybooks(industry: string) {
+    const { data } = await this.client.get('/api/v1/playbooks', {
+      params: { industry }
+    });
+    return data;
+  }
+
   // === MOMENTUM AI ===
   async createSprint(startupId: string, payload: { weekly_goal: string; key_metric_name?: string; key_metric_start?: number }): Promise<WeeklySprint> {
     const { data } = await this.client.post(`/api/v1/startups/${startupId}/sprints`, payload);

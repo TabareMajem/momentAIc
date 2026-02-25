@@ -8,9 +8,9 @@ import { api } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import ActivityFeed from '../components/ActivityFeed';
-import { MorningBriefWidget } from '../components/dashboard/MorningBriefWidget';
 import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidget';
 import { AstroTurfWidget } from '../components/ui/AstroTurfWidget';
+import { LiveAgentDashboard } from '../components/LiveAgentDashboard';
 import { useAuthStore } from '../stores/auth-store';
 import { useStartupStore } from '../stores/startup-store';
 
@@ -810,6 +810,9 @@ export default function Dashboard() {
                   Start Task
                 </Button>
               </div>
+
+              {/* Live WebSocket Swarm Feed */}
+              <LiveAgentDashboard />
 
               {/* Activity Feed */}
               <ActivityFeed />

@@ -25,6 +25,8 @@ from app.api.v1.endpoints import (
     characters,
     webhooks,
     intelligence,
+    playbooks,
+    ws,
 )
 
 api_router = APIRouter()
@@ -95,6 +97,20 @@ api_router.include_router(
     intelligence.router,
     prefix="/intelligence",
     tags=["Global Intelligence"],
+)
+
+# Industry Playbooks
+api_router.include_router(
+    playbooks.router,
+    prefix="/playbooks",
+    tags=["Playbooks"],
+)
+
+# WebSockets
+api_router.include_router(
+    ws.router,
+    prefix="/ws",
+    tags=["WebSockets"],
 )
 
 # Billing & Credits
