@@ -130,3 +130,8 @@ class OAuthStatusResponse(BaseModel):
     github_connected: bool
     linkedin_connected: bool
     gmail_connected: bool
+
+
+class FirebaseTokenRequest(BaseModel):
+    """Firebase ID token request"""
+    id_token: str

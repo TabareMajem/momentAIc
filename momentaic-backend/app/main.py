@@ -41,10 +41,82 @@ async def lifespan(app: FastAPI):
     logger.info("Starting MomentAIc API", env=settings.app_env)
     await init_db()
     logger.info("Database initialized")
+
+    # === MCP SYSTEM: Connect to Protocol Servers ===
+    from app.services.mcp_client import mcp_service
+    import os
+    
+    cwd = os.getcwd()
+    mcp_status = {}
+    
+    # 1. Browser Server
+    try:
+        browser_script = os.path.join(cwd, "servers/browser/server.py")
+        if os.path.exists(browser_script):
+            await mcp_service.connect_stdio_server(
+                name="browser",
+                command="python3",
+                args=[browser_script],
+                env={**os.environ}
+            )
+            mcp_status["browser"] = "connected"
+        else:
+            mcp_status["browser"] = "skipped (script not found)"
+    except Exception as e:
+        mcp_status["browser"] = f"failed: {str(e)[:100]}"
+        logger.error("MCP Browser Server failed", error=str(e))
+    
+    # 2. Google Workspace Server
+    try:
+        google_script = os.path.join(cwd, "servers/google/server.py")
+        if os.path.exists(google_script):
+            await mcp_service.connect_stdio_server(
+                name="google",
+                command="python3",
+                args=[google_script],
+                env={**os.environ}
+            )
+            mcp_status["google"] = "connected"
+        else:
+            mcp_status["google"] = "skipped (script not found)"
+    except Exception as e:
+        mcp_status["google"] = f"failed: {str(e)[:100]}"
+        logger.error("MCP Google Server failed", error=str(e))
+
+    # 3. Postgres Server
+    try:
+        pg_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        await mcp_service.connect_stdio_server(
+            name="postgres",
+            command="npx",
+            args=["-y", "@zeddotdev/postgres-context-server", pg_url],
+            env={**os.environ}
+        )
+        mcp_status["postgres"] = "connected"
+    except Exception as e:
+        mcp_status["postgres"] = f"failed: {str(e)[:100]}"
+        logger.error("MCP Postgres Server failed", error=str(e))
+
+    # 4. Filesystem Server
+    try:
+        project_root = cwd 
+        await mcp_service.connect_stdio_server(
+            name="filesystem",
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesystem", project_root],
+            env={**os.environ}
+        )
+        mcp_status["filesystem"] = "connected"
+    except Exception as e:
+        mcp_status["filesystem"] = f"failed: {str(e)[:100]}"
+        logger.error("MCP Filesystem Server failed", error=str(e))
+    
+    logger.info("MCP Server Status", **mcp_status)
     
     # === SUPEROS: Proactive Heartbeat (The 10 Elon Musks) ===
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
     from app.services.activity_stream import activity_stream
     
     scheduler = AsyncIOScheduler()
@@ -121,29 +193,48 @@ async def lifespan(app: FastAPI):
     # --- AGENT TASKS ---
 
     async def run_content_agent(startup, context):
-        """Generate daily content ideas"""
-        from app.agents.content_agent import content_agent
-        from app.models.growth import ContentPlatform
+        """Generate daily content ideas (GrowthSuperAgent)"""
+        from app.agents.growth import growth_agent
         
-        # Generate 3 ideas for LinkedIn
-        await content_agent.generate_ideas(startup_context=context, count=3)
+        # Mission: Viral Campaign / Content
+        await growth_agent.run(
+            mission="viral_campaign", 
+            target={"topic": "industry_trends"}, 
+            user_id=str(startup.owner_id)
+        )
 
     async def run_sdr_agent(startup, context):
-        """Draft outreach for new leads"""
-        # In a real impl, this would query triggers or new leads
-        pass 
+        """Draft outreach for new leads (GrowthSuperAgent)"""
+        from app.agents.growth import growth_agent
+        
+        # Mission: Sales Hunt
+        await growth_agent.run(
+            mission="sales_hunt",
+            target={"criteria": "new_leads"},
+            user_id=str(startup.owner_id)
+        )
 
     async def run_competitor_intel(startup, context):
-        """Scan competitors"""
-        from app.agents.competitor_intel_agent import competitor_intel_agent
-        # Trigger scan
-        pass
+        """Scan competitors (GrowthSuperAgent)"""
+        from app.agents.growth import growth_agent
+        
+        # Mission: Competitor Intel (routed via viral/market mission)
+        await growth_agent.run(
+            mission="market_scan",
+            target={"competitors": "top_3"},
+            user_id=str(startup.owner_id)
+        )
 
     async def run_growth_hacker(startup, context):
-        """Weekly growth report"""
-        from app.agents.growth_hacker_agent import growth_hacker_agent
-        # Generate report
-        pass
+        """Weekly growth report (GrowthSuperAgent)"""
+        from app.agents.growth import growth_agent
+        
+        # Mission: Growth Audit
+        await growth_agent.run(
+            mission="growth_audit",
+            target={"scope": "weekly_metrics"},
+            user_id=str(startup.owner_id)
+        )
 
     # --- SCHEDULE ---
     
@@ -181,14 +272,54 @@ async def lifespan(app: FastAPI):
             for startup in result.scalars().all():
                 await evaluate_triggers(db, str(startup.id))
 
-    # 6. Morning Brief (The 'AI CEO' Report): Daily at 6:00 AM UTC
+    # 6. Morning Brief (using scheduler.py's autonomy-aware implementation)
+    from app.scheduler import run_morning_briefing, run_trend_scan
+    
     @scheduler.scheduled_job(CronTrigger(hour=6, minute=0), id='morning_brief')
     async def schedule_morning_brief():
-        from app.services.morning_brief import morning_brief_service
-        await morning_brief_service.generate_daily_brief()
+        await run_morning_briefing()
+
+    # 6b. Executive Assistant (The "Proactive Agent"): Daily at 8:00 AM UTC
+    # Checks MCP tools (Calendar, Email, DB, Files) and emails a briefing
+    @scheduler.scheduled_job(CronTrigger(hour=8, minute=0), id='executive_briefing')
+    async def schedule_executive_briefing():
+        from app.services.executive_assistant import executive_assistant
+        await executive_assistant.run_daily_briefing()
+
+    # 6c. "Hair on Fire" Daemon (Crisis Monitor): Every 1 minute
+    @scheduler.scheduled_job(IntervalTrigger(minutes=1), id='hair_on_fire_daemon')
+    async def schedule_hair_on_fire():
+        from app.services.executive_assistant import executive_assistant
+        await executive_assistant.check_urgent_comms()
+
+    # 6d. Trend Scan (from scheduler.py — autonomy-aware): Every hour
+    @scheduler.scheduled_job(IntervalTrigger(hours=1), id='trend_scan')
+    async def schedule_trend_scan():
+        await run_trend_scan()
+
+    # 7. OpenClaw Heartbeat Engine: Every 30 minutes
+    @scheduler.scheduled_job(IntervalTrigger(minutes=30), id='openclaw_heartbeat')
+    async def schedule_openclaw_heartbeat():
+        """Run all configured agent heartbeats (OpenClaw-inspired autonomy)"""
+        from app.services.heartbeat_engine import run_all_heartbeats
+        await run_all_heartbeats()
+
+    # 8. AI Character Factory Heartbeat: ENABLED
+    # Runs to evaluate the status of deployed characters
+    @scheduler.scheduled_job(IntervalTrigger(minutes=60), id='character_heartbeat')
+    async def schedule_character_heartbeat():
+        """Run the Character Factory heartbeat"""
+        from app.services.heartbeat_engine import run_heartbeat_for_agent, load_heartbeat_configs
+        
+        configs = load_heartbeat_configs()
+        char_config = next((c for c in configs if c.get("agent_id") == "character_agent"), None)
+        
+        if char_config:
+            await run_heartbeat_for_agent(char_config)
 
     scheduler.start()
-    logger.info("🚀 SuperOS Heartbeat Scheduler: ACTIVE (runs every 60 min)")
+    logger.info("🚀 SuperOS Heartbeat Scheduler: ACTIVE", jobs=len(scheduler.get_jobs()))
+    logger.info("🧬 OpenClaw Heartbeat Engine: ACTIVE (runs every 30 min)")
     # === END SUPEROS ===
     
     yield
@@ -197,6 +328,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down MomentAIc API")
     scheduler.shutdown(wait=False)
     await close_db()
+    await mcp_service.cleanup()
 
 
 # Create FastAPI app
@@ -329,12 +461,48 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Health check endpoint
 @app.get("/api/v1/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint — checks real dependencies"""
+    checks = {}
+    overall = "healthy"
+    
+    # Check Database
+    try:
+        from app.core.database import async_session_maker
+        from sqlalchemy import text
+        async with async_session_maker() as db:
+            await db.execute(text("SELECT 1"))
+        checks["database"] = "connected"
+    except Exception as e:
+        checks["database"] = f"error: {str(e)[:100]}"
+        overall = "degraded"
+    
+    # Check Redis
+    try:
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+        await r.ping()
+        await r.aclose()
+        checks["redis"] = "connected"
+    except Exception as e:
+        checks["redis"] = f"error: {str(e)[:100]}"
+        overall = "degraded"
+    
+    # Check LLM availability (lightweight — just verify key exists)
+    checks["llm"] = "configured" if settings.google_api_key else "no_api_key"
+    if not settings.google_api_key:
+        overall = "degraded"
+    
+    # Check MCP servers
+    from app.services.mcp_client import mcp_service
+    mcp_servers = list(mcp_service._sessions.keys())
+    checks["mcp_servers"] = mcp_servers if mcp_servers else "none_connected"
+    
     return {
-        "status": "healthy",
+        "status": overall,
         "app": settings.app_name,
-        "version": "1.0.0",
+        "version": "5.0.0",
         "environment": settings.app_env,
+        "checks": checks,
     }
 
 
@@ -365,12 +533,45 @@ async def root_llms_full_txt():
     return Response(content=content, media_type="text/plain")
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.is_development,
-        workers=settings.workers if settings.is_production else 1,
-    )
+
+# ==========================================
+# FRONTEND SERVING (SPA)
+# ==========================================
+# Must be AFTER API routes to avoid conflict
+
+# 1. Mount assets (JS, CSS)
+frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "momentaic-frontend", "dist")
+assets_dir = os.path.join(frontend_dist, "assets")
+
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+# 2. Mount other static files in root of dist (favicon, robots, etc)
+# We can't mount root "/" directly or it blocks API. 
+# So we serve specific files or let the catch-all handle index.html
+
+# 3. SPA Catch-all
+from fastapi.responses import FileResponse
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """
+    Serve the frontend Svelte/React app.
+    If file exists in dist, serve it.
+    Otherwise serve index.html for client-side routing.
+    """
+    # Skip API routes just in case (though they should be matched first if defined above)
+    if full_path.startswith("api/"):
+        return JSONResponse(status_code=404, content={"message": "Not Found"})
+
+    # Check if file exists in dist (e.g. favicon.png, logo.png)
+    file_path = os.path.join(frontend_dist, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # Fallback to index.html for SPA routing
+    index_path = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return JSONResponse(status_code=404, content={"message": "Frontend not built"})

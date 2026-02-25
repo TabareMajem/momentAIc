@@ -151,6 +151,11 @@ class ContentPlatform(str, enum.Enum):
     NEWSLETTER = "newsletter"
     PRODUCTHUNT = "producthunt"
     HACKERNEWS = "hackernews"
+    TIKTOK = "tiktok"
+    INSTAGRAM = "instagram"
+    YOUTUBE = "youtube"
+    FACEBOOK = "facebook"
+    THREADS = "threads"
 
 
 class ContentStatus(str, enum.Enum):

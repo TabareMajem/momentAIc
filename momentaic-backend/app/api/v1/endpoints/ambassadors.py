@@ -307,11 +307,39 @@ async def get_ambassador_earnings(
             detail="You are not an ambassador"
         )
     
-    # Aggregate monthly earnings (Mock logic for now, or SQL group by)
-    # For now returning placeholder structure
+    # Aggregate monthly earnings
+    from sqlalchemy import func, extract
+    
+    monthly_earnings_query = db.query(
+        func.to_char(AmbassadorConversion.created_at, 'Mon YYYY').label('month'),
+        func.sum(AmbassadorConversion.commission_amount).label('earnings'),
+        func.count(AmbassadorConversion.id).label('conversions')
+    ).filter(
+        AmbassadorConversion.ambassador_id == ambassador.id
+    ).group_by(
+        func.to_char(AmbassadorConversion.created_at, 'Mon YYYY'),
+        extract('year', AmbassadorConversion.created_at),
+        extract('month', AmbassadorConversion.created_at)
+    ).order_by(
+        extract('year', AmbassadorConversion.created_at).desc(),
+        extract('month', AmbassadorConversion.created_at).desc()
+    ).limit(12)
+    
+    results = monthly_earnings_query.all()
+    
     monthly_earnings = [
-        {"month": "Dec 2024", "earnings": 0.0, "conversions": 0},
+        {
+            "month": row.month,
+            "earnings": float(row.earnings or 0),
+            "conversions": int(row.conversions or 0)
+        }
+        for row in results
     ]
+    
+    if not monthly_earnings:
+        monthly_earnings = [
+            {"month": datetime.utcnow().strftime("%b %Y"), "earnings": 0.0, "conversions": 0}
+        ]
     
     return {
         "total_earnings": ambassador.total_earnings,

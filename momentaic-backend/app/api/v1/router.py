@@ -18,12 +18,28 @@ from app.api.v1.endpoints import (
     mcp_tools,
     import_flows,
     social,
-    # growth_analytics, # Disabled due to import errors
+    growth_analytics,
     growth_monitor,
     llm_optimization,
+    social_ugc,
+    a2a,
+    characters,
+    webhooks,
 )
 
 api_router = APIRouter()
+
+# A2A Protocol (Heartbeat + Messages + Pulse + Company DNA)
+api_router.include_router(
+    a2a.router,
+    tags=["A2A Protocol"],
+)
+
+# AI Character Factory
+api_router.include_router(
+    characters.router,
+    tags=["AI Character Factory"],
+)
 
 # Auth endpoints
 api_router.include_router(
@@ -86,6 +102,13 @@ api_router.include_router(
     integrations.router,
     prefix="/integrations",
     tags=["Integrations"],
+)
+
+# Webhooks (External System Ingestion)
+api_router.include_router(
+    webhooks.router,
+    prefix="/webhooks",
+    tags=["Webhooks"],
 )
 
 # Proactive Triggers
@@ -163,7 +186,7 @@ api_router.include_router(
     tags=["Ambassadors"],
 )
 
-# Viral Campaign Engine (Soul Cards, etc.)
+# Viral Campaign Engine (Soul Cards, AI Agents, etc.)
 from app.api.v1.endpoints import viral
 api_router.include_router(
     viral.router,
@@ -291,20 +314,19 @@ api_router.include_router(
     tags=["Social OAuth"],
 )
 
-# Guerrilla Growth (Phase 11)
-# from app.api.v1.endpoints import guerrilla
-# api_router.include_router(
-#     guerrilla.router,
-#     prefix="/guerrilla",
-#     tags=["Guerrilla Growth"],
-# )
+# Guerrilla Growth (Phase 11) - UGC & Campaigns
+api_router.include_router(
+    social_ugc.router,
+    prefix="/social/ugc",
+    tags=["Social UGC & Gorilla"],
+)
 
 # Growth Analytics (Phase 12)
-# api_router.include_router(
-#     growth_analytics.router,
-#     prefix="/growth-analytics",
-#     tags=["Growth Analytics"],
-# )
+api_router.include_router(
+    growth_analytics.router,
+    prefix="/growth-analytics",
+    tags=["Growth Analytics"],
+)
 
 # AgentForge Integration (Deep Dive)
 from app.api.v1.endpoints import agentforge
@@ -391,4 +413,60 @@ api_router.include_router(
     google_analytics.router,
     prefix="/integrations",
     tags=["Google Analytics"],
+)
+
+# Operations Center (Finance & Legal)
+from app.api.v1.endpoints import operations
+api_router.include_router(
+    operations.router,
+    prefix="/operations",
+    tags=["Operations Center"],
+)
+
+# Product Factory (PM, Design, Tech)
+from app.api.v1.endpoints import product
+api_router.include_router(
+    product.router,
+    prefix="/product",
+    tags=["Product Factory"],
+)
+
+# OpenClaw Headless Browser Proxy
+from app.api.v1 import openclaw
+api_router.include_router(
+    openclaw.router,
+    prefix="/openclaw",
+    tags=["OpenClaw"],
+)
+
+# AstroTurf Community GTM Agent
+from app.api.v1 import astroturf
+api_router.include_router(
+    astroturf.router,
+    prefix="/astroturf",
+    tags=["AstroTurf GTM"],
+)
+
+# Synthetic Call Center Voice Webhooks
+from app.api.v1.endpoints import voice_webhooks
+api_router.include_router(
+    voice_webhooks.router,
+    prefix="/voice/webhooks",
+    tags=["Voice Webhooks"],
+)
+
+# AgentForge / Yokaizen Core Integrations
+from app.api.v1.integrations import yokaizen
+api_router.include_router(
+    yokaizen.router,
+    prefix="/integrations/yokaizen",
+    tags=["Yokaizen"],
+)
+
+# Global Multilingual Campaign
+from app.api.v1.endpoints import global_campaign
+api_router.include_router(
+    global_campaign.router,
+    prefix="/campaigns/global",
+    tags=["Global Campaign"],
 )

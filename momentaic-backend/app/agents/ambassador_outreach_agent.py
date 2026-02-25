@@ -27,8 +27,10 @@ class AmbassadorOutreachAgent:
         # We will initialize the LLM lazily within the methods to avoid event loop issues
         pass
     
+    
     def _get_llm(self):
-        return get_llm("gemini-2.5-pro", temperature=0.7)
+        # Use GPT-4o for complex reasoning and creative drafting (Gemini had region availability issues)
+        return get_llm("gpt-4o", temperature=0.7)
     
     async def analyze_candidate(
         self,

@@ -19,6 +19,8 @@ from app.agents.base import (
     linkedin_search,
     company_research,
     draft_email,
+    BaseAgent,
+    safe_parse_json,
 )
 from app.models.conversation import AgentType
 from app.models.growth import Lead, LeadStatus
@@ -26,18 +28,17 @@ from app.models.growth import Lead, LeadStatus
 logger = structlog.get_logger()
 
 
-@dataclass
 class SalesAgentState(AgentState):
     """Extended state for Sales Agent"""
-    lead_info: Dict[str, Any] = None
-    research_results: Dict[str, Any] = None
-    outreach_strategy: Dict[str, Any] = None
-    draft_message: Dict[str, Any] = None
-    approval_status: str = "pending"  # pending, approved, rejected
-    approval_feedback: Optional[str] = None
+    lead_info: Dict[str, Any]
+    research_results: Dict[str, Any]
+    outreach_strategy: Dict[str, Any]
+    draft_message: Dict[str, Any]
+    approval_status: str # pending, approved, rejected
+    approval_feedback: Optional[str]
 
 
-class SalesAgent:
+class SalesAgent(BaseAgent):
     """
     Sales Hunter Agent - Autonomous lead research and outreach
     
@@ -94,7 +95,7 @@ class SalesAgent:
             {
                 "approved": "execute",
                 "rejected": END,
-                "pending": "human_review",  # Wait
+                "pending": END,  # Stop and wait for external input
             }
         )
         
@@ -114,9 +115,9 @@ class SalesAgent:
         
         # Execute research tools
         research_results = {
-            "company_research": company_research.invoke(company_name),
-            "contact_linkedin": linkedin_search.invoke(contact_name, company_name),
-            "recent_news": web_search.invoke(f"{company_name} recent news"),
+            "company_research": await company_research.ainvoke(company_name),
+            "contact_linkedin": await linkedin_search.ainvoke({"person_name": contact_name, "company": company_name}),
+            "recent_news": await web_search.ainvoke(f"{company_name} recent news"),
             "researched_at": datetime.utcnow().isoformat(),
         }
         
@@ -176,14 +177,23 @@ Respond in JSON format."""
                 HumanMessage(content=prompt)
             ])
             
-            # Parse response (in production, use structured output)
-            strategy = {
-                "hook": "Recent company achievement",
-                "angle": "Solution alignment",
-                "tone": "professional",
-                "key_points": response.content.split("\n")[:3],
-                "raw_response": response.content,
-            }
+            parsed = safe_parse_json(response.content)
+            if parsed:
+                strategy = {
+                    "hook": parsed.get("hook", "Recent company achievement"),
+                    "angle": parsed.get("angle", "Solution alignment"),
+                    "tone": parsed.get("tone", "professional"),
+                    "key_points": parsed.get("key_points", response.content.split("\n")[:3]),
+                    "raw_response": response.content,
+                }
+            else:
+                strategy = {
+                    "hook": "Recent company achievement",
+                    "angle": "Solution alignment",
+                    "tone": "professional",
+                    "key_points": response.content.split("\n")[:3],
+                    "raw_response": response.content,
+                }
         
         state["outreach_strategy"] = strategy
         state["messages"].append(
@@ -394,8 +404,6 @@ Return as JSON with 'subject' and 'body' fields."""
         else:
             return {"status": "rejected", "feedback": feedback}
 
-        return {"leads": results}
-
     async def _deep_scrape_lead(self, url: str) -> Dict[str, str]:
         """
         [REALITY UPGRADE] Visit the actual website to extract About Us and Contact info.
@@ -414,7 +422,7 @@ Return as JSON with 'subject' and 'body' fields."""
             scrape_results = await web_search.ainvoke(query)
             
             return {"scraped_data": scrape_results}
-        except:
+        except Exception:
             return {}
 
     async def auto_hunt(self, startup_context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
@@ -462,11 +470,9 @@ Return as JSON with 'subject' and 'body' fields."""
                 SystemMessage(content="You are a data extraction expert. Return ONLY valid JSON."),
                 HumanMessage(content=extract_prompt)
             ])
-            import json
-            import re
             content = extraction_response.content
-            match = re.search(r'\[.*\]', content, re.DOTALL)
-            real_leads = json.loads(match.group(0)) if match else []
+            parsed = safe_parse_json(content)
+            real_leads = parsed if isinstance(parsed, list) else []
         except Exception as e:
              logger.error("SalesAgent: Extraction failed", error=str(e))
              real_leads = []
@@ -499,7 +505,7 @@ Return as JSON with 'subject' and 'body' fields."""
                 try:
                     response = await self.llm.ainvoke(prompt)
                     email_draft = response.content
-                except:
+                except Exception:
                     pass
             
             results.append({

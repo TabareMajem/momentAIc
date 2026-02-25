@@ -1,0 +1,35 @@
+agent_id: technical_copilot
+
+heartbeat:
+  enabled: true
+  interval_minutes: 180
+  priority: high
+  autonomy_level: L2
+
+  checklist:
+    - check: dependency_vulnerabilities
+      description: Scan dependencies for known CVEs
+      action: log_vulnerability_report
+      escalate_if: critical_cve_found
+
+    - check: infrastructure_health
+      description: Monitor server uptime, error rates, response times
+      threshold: error_rate > 5%
+      action: generate_infra_alert
+      escalate_if: downtime_detected
+
+    - check: code_quality
+      description: Review recent commits for anti-patterns
+      action: draft_code_review
+      escalate_if: security_issue_detected
+
+  budget:
+    max_tokens_per_heartbeat: 4000
+    max_daily_spend_usd: 2.00
+    model_override: gemini-2.0-flash
+
+  quiet_hours:
+    enabled: true
+    timezone: UTC
+    start: "23:00"
+    end: "06:00"

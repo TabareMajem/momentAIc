@@ -97,13 +97,20 @@ class EmailService:
                 recipients.extend(bcc)
             
             # Send via SMTP
+            # Hostinger and modern SMTP: 
+            # Port 465 -> use_tls=True, start_tls=False (Implicit SSL/TLS)
+            # Port 587 -> use_tls=False, start_tls=True (STARTTLS)
+            use_tls = int(self.smtp_port) == 465
+            start_tls = int(self.smtp_port) == 587
+            
             await aiosmtplib.send(
                 message,
                 hostname=self.smtp_host,
                 port=self.smtp_port,
                 username=self.smtp_user,
                 password=self.smtp_password,
-                use_tls=True,
+                use_tls=use_tls,
+                start_tls=start_tls,
             )
             
             logger.info("Email sent", to=to_email, subject=subject)

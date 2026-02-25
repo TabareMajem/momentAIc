@@ -184,7 +184,7 @@ Focus on modern aesthetics (Glassmorphism, Bento grids, etc.) but prioritize usa
             safe_name = archetype_name.replace(" ", "+")
             return f"https://placehold.co/400x600/1a1a1a/FFF?text={safe_name}&font=montserrat"
 
-                return f"https://placehold.co/400x600/1a1a1a/FFF?text={safe_name}&font=montserrat"
+
 
     async def generate_video(
         self,

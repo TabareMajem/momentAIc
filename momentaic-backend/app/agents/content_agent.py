@@ -14,6 +14,8 @@ from app.agents.base import (
     web_search,
     get_trending_topics,
     generate_hashtags,
+    BaseAgent,
+    safe_parse_json,
 )
 from app.models.conversation import AgentType
 from app.models.growth import ContentPlatform
@@ -63,7 +65,7 @@ PLATFORM_CONSTRAINTS = {
 }
 
 
-class ContentAgent:
+class ContentAgent(BaseAgent):
     """
     Content Creator Agent - Generates viral, platform-optimized content
     
@@ -385,16 +387,13 @@ Format as JSON:
                 HumanMessage(content=prompt),
             ])
             
-            import json
-            import re
-            json_match = re.search(r'\{[\s\S]*\}', response.content)
-            if json_match:
-                repurposed = json.loads(json_match.group())
+            parsed = safe_parse_json(response.content)
+            if parsed:
                 return {
                     "success": True,
                     "source_format": source_format,
-                    "repurposed": repurposed,
-                    "count": len(repurposed),
+                    "repurposed": parsed,
+                    "count": len(parsed),
                     "agent": AgentType.CONTENT_CREATOR.value
                 }
             else:
@@ -500,12 +499,82 @@ Format as JSON."""
 
         try:
             response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            import json, re
-            json_match = re.search(r'\{[\s\S]*\}', response.content)
-            if json_match:
-                return json.loads(json_match.group())
+            parsed = safe_parse_json(response.content)
+            if parsed:
+                return parsed
             return {"raw_analysis": response.content}
         except Exception as e:
+            return {"error": str(e)}
+
+    async def auto_generate_daily(
+        self,
+        startup_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Autonomous Mode: Generate a daily content post for a startup.
+        Called by the scheduler — no human prompt needed.
+        
+        Flow:
+        1. Scan trends in the startup's industry
+        2. Pick the best topic
+        3. Generate platform-optimized content (LinkedIn by default)
+        4. Return ready-to-schedule content
+        """
+        logger.info("ContentAgent: Auto-generating daily content", startup=startup_context.get("name"))
+        
+        if not self.llm:
+            return {"error": "LLM not initialized"}
+        
+        try:
+            industry = startup_context.get("industry", "Technology")
+            
+            # 1. Find trending topic
+            try:
+                trends = await get_trending_topics.ainvoke({"industry": industry, "platform": "linkedin"})
+            except Exception:
+                trends = [f"Latest {industry} innovations", "AI transformation", "Growth strategies"]
+            
+            # 2. Pick best topic via LLM
+            topic_prompt = f"""Pick the ONE most viral topic for a {industry} startup from these trends:
+{chr(10).join(f'- {t}' for t in trends[:10])}
+
+Startup: {startup_context.get('name', 'Our Startup')} - {startup_context.get('description', '')}
+
+Return ONLY the topic (max 8 words)."""
+            
+            try:
+                topic_resp = await self.llm.ainvoke([HumanMessage(content=topic_prompt)])
+                topic = topic_resp.content.strip().strip('"')
+            except Exception:
+                topic = trends[0] if trends else f"The Future of {industry}"
+            
+            # 3. Generate content for LinkedIn (highest B2B ROI)
+            result = await self.generate(
+                platform=ContentPlatform.LINKEDIN,
+                topic=topic,
+                startup_context=startup_context,
+                content_type="post",
+                tone="professional",
+                trend_based=False,
+            )
+            
+            if result.get("success"):
+                content = result.get("content", {})
+                return {
+                    "success": True,
+                    "topic": topic,
+                    "platform": "linkedin",
+                    "title": content.get("title", ""),
+                    "full_body": content.get("full_body", ""),
+                    "hashtags": content.get("hashtags", []),
+                    "char_count": content.get("char_count", 0),
+                    "agent": "content_agent",
+                }
+            else:
+                return {"error": result.get("error", "Generation failed")}
+                
+        except Exception as e:
+            logger.error("ContentAgent: Auto-generate failed", error=str(e))
             return {"error": str(e)}
 
 

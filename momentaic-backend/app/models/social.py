@@ -20,6 +20,8 @@ class SocialPlatform(str, enum.Enum):
     LINKEDIN = "linkedin"
     INSTAGRAM = "instagram"
     FACEBOOK = "facebook"
+    TIKTOK = "tiktok"
+    YOUTUBE_SHORTS = "youtube_shorts"
 
 class SocialPost(Base):
     """

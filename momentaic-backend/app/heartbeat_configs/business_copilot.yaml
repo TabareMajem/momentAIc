@@ -1,0 +1,35 @@
+agent_id: business_copilot
+
+heartbeat:
+  enabled: true
+  interval_minutes: 120
+  priority: high
+  autonomy_level: L2
+
+  checklist:
+    - check: revenue_health
+      description: Review MRR trends and revenue anomalies
+      threshold: mrr_change > 10%
+      action: generate_insight_report
+      escalate_if: revenue_drop > 15%
+
+    - check: sprint_progress
+      description: Check progress against weekly sprint goals
+      action: generate_progress_summary
+      escalate_if: goal_at_risk
+
+    - check: strategic_alignment
+      description: Verify active work aligns with quarterly OKRs
+      action: flag_misalignment
+      escalate_if: major_pivot_detected
+
+  budget:
+    max_tokens_per_heartbeat: 5000
+    max_daily_spend_usd: 3.00
+    model_override: gemini-2.0-flash
+
+  quiet_hours:
+    enabled: true
+    timezone: UTC
+    start: "22:00"
+    end: "07:00"

@@ -4,7 +4,10 @@ Foundation for LangGraph-based agents
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, TypedDict, Annotated
+import json
+import re
+from typing import Any, Dict, List, Optional, TypedDict, Annotated, TypeVar, Type
+from pydantic import BaseModel, ValidationError
 from dataclasses import dataclass
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -14,11 +17,87 @@ import httpx
 import structlog
 
 from app.core.config import settings
-from app.core.config import settings
 from app.models.conversation import AgentType
 from app.services.activity_stream import activity_stream
 
 logger = structlog.get_logger()
+
+T = TypeVar("T", bound=BaseModel)
+
+def safe_parse_json(response_text: str) -> Dict[str, Any]:
+    """Robustly extract JSON from an LLM response."""
+    try:
+         return json.loads(response_text)
+    except json.JSONDecodeError:
+         pass
+         
+    # Extract markdown json block
+    if "```json" in response_text:
+         content = response_text.split("```json")[1].split("```")[0].strip()
+    elif "```" in response_text:
+         content = response_text.split("```")[1].split("```")[0].strip()
+    else:
+         content = response_text
+         
+    try:
+         return json.loads(content)
+    except json.JSONDecodeError:
+         pass
+         
+    # Ultimate fallback regex hack
+    match = re.search(r'\{[\s\S]*\}', content)
+    if match:
+         try:
+             return json.loads(match.group(0))
+         except json.JSONDecodeError:
+             pass
+             
+    # Try array fallback
+    arr_match = re.search(r'\[[\s\S]*\]', content)
+    if arr_match:
+         try:
+             return json.loads(arr_match.group(0))
+         except json.JSONDecodeError:
+             pass
+             
+    return {} # Return empty struct if all fails
+
+
+class BaseAgent(ABC):
+    """
+    Base Agent class that cognitive agents should inherit from.
+    Provides structured output mapping and common utilities.
+    """
+    
+    async def structured_llm_call(
+        self, 
+        prompt: str, 
+        response_model: Type[T] = None,
+        model_name: str = "gemini-flash",
+        temperature: float = 0.7
+    ) -> Any:
+        """
+        Make a call to the LLM and guarantee structured output.
+        If response_model is provided, returns Pydantic object.
+        Otherwise returns a parsed Dict.
+        """
+        llm = get_llm(model_name, temperature=temperature)
+        if response_model and hasattr(llm, "with_structured_output"):
+             structured_llm = llm.with_structured_output(response_model)
+             return await structured_llm.ainvoke(prompt)
+             
+        response = await llm.ainvoke(prompt)
+        parsed_dict = safe_parse_json(response.content)
+        
+        if response_model:
+             try:
+                  return response_model.model_validate(parsed_dict)
+             except ValidationError as e:
+                  logger.error("Structured LLM call failed validation", error=str(e), data=parsed_dict)
+                  # If we failed to validate, just return raw dictionary as fallback
+                  return parsed_dict
+        return parsed_dict
+
 
 
 # ==================
@@ -76,9 +155,10 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
 # Given I cannot easily refactor 42 agents to inherit from a new class right now without risk,
 # I will modifying `main.py` to handle the reporting wrapper.
 
-# Wait, `ContentAgent` and others seem to be standalone classes.
-# I can just import `activity_stream` in `main.py` and wrap the calls.
-
+# Wait, `ContentAgent` and others seem to be standalondef get_llm(model: str = "gemini-2.5-pro", temperature: float = 0.7):
+    """
+    Get LLM instance based on model name
+    """
     if model.startswith("gemini"):
         if not settings.google_api_key:
             logger.warning("Gemini API key not configured, using mock")
@@ -86,7 +166,7 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
         # Default to 2.0 Flash for "gemini-3" or generic "gemini-flash" requests for speed/cost
         model_name = "gemini-2.0-flash" 
         if "pro" in model:
-            model_name = "gemini-1.5-pro"
+            model_name = "gemini-2.5-pro"
         
         return ChatGoogleGenerativeAI(
             model=model_name,
@@ -100,6 +180,16 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
         return ChatAnthropic(
             model="claude-3-5-sonnet-20241022",
             anthropic_api_key=settings.anthropic_api_key,
+            temperature=temperature,
+        )
+    elif model.startswith("gpt") or model.startswith("openai"):
+        if not settings.openai_api_key:
+            logger.warning("OpenAI API key not configured")
+            return None
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=model if model.startswith("gpt") else "gpt-4-turbo",
+            api_key=settings.openai_api_key,
             temperature=temperature,
         )
     elif model.startswith("deepseek") or (settings.deepseek_api_key and not settings.google_api_key):
@@ -315,15 +405,7 @@ async def analyze_sentiment(text: str) -> Dict[str, Any]:
         response = await llm.ainvoke(
             f"Analyze the sentiment of this text. Return strictly JSON with keys: sentiment (positive/negative/neutral), confidence (0.0-1.0), and score (-1.0 to 1.0). Text: {text[:500]}"
         )
-        # Parse JSON from response
-        import json
-        content = response.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0]
-            
-        return json.loads(content)
+        return safe_parse_json(response.content)
     except Exception as e:
         return {"sentiment": "neutral", "confidence": 0.5, "error": str(e)}
 
@@ -345,13 +427,7 @@ async def get_trending_topics(industry: str, platform: str = "twitter") -> List[
         response = await llm.ainvoke(
             f"List 5 currently trending topics or news themes for the '{industry}' industry on {platform}. Return strictly a JSON list of strings, e.g. [\"Topic A\", \"Topic B\"]."
         )
-        import json
-        content = response.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0]
-        return json.loads(content)
+        return safe_parse_json(response.content)
     except Exception as e:
         return [f"{industry} Trends", "Innovation", "Growth"]
 
@@ -373,13 +449,7 @@ async def generate_hashtags(topic: str, platform: str) -> List[str]:
         response = await llm.ainvoke(
             f"Generate 5 relevant, high-visibility hashtags for the topic '{topic}' on {platform}. Return strictly a JSON list of strings including the # symbol."
         )
-        import json
-        content = response.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0]
-        return json.loads(content)
+        return safe_parse_json(response.content)
     except Exception as e:
         return ["#Innovation", "#Tech", "#Growth"]
     return [f"#{word.capitalize()}" for word in topic_words] + [f"#{tag}" for tag in base_tags]
@@ -661,6 +731,7 @@ def build_system_prompt(agent_type: AgentType, startup_context: Dict[str, Any]) 
     base_prompt = config["system_prompt"]
     
     # Context Injection
+    locale = startup_context.get('locale', 'en')
     context_str = f"""
 === STARTUP CONTEXT ===
 Name: {startup_context.get('name', 'Stealth Mode Startup')}
@@ -668,9 +739,11 @@ Description: {startup_context.get('description', 'N/A')}
 Industry: {startup_context.get('industry', 'Technology')}
 Stage: {startup_context.get('stage', 'Idea')}
 Strategic Insight: {startup_context.get('insight', 'N/A')}
+Target Localization Code: {locale}
 =======================
 
 You are operating with full awareness of this context. 
+CRITICAL DIRECTIVE: You ABSOLUTELY MUST communicate, format, and generate all output entirely in the language corresponding to the Target Localization Code ({locale}).
 """
     
     # Specific instructions for personas to use context

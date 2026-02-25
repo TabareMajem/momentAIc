@@ -75,7 +75,7 @@ class TrendSurferAgent:
                 content = analysis_response.content
                 match = re.search(r'\[.*\]', content, re.DOTALL)
                 trend_topics = json.loads(match.group(0)) if match else []
-            except:
+            except Exception:
                 trend_topics = []
             
             # 3. Generate Hot Takes

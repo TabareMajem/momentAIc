@@ -8,15 +8,20 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+from sqlalchemy import select, desc
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+from app.models.viral import ViralAsset, ViralAssetStatus
 from app.schemas.viral import (
     SoulCardGenerateRequest,
     SoulCardResponse,
     AnimeArchetype,
 )
 from app.agents.base import get_llm
+from app.agents.viral_content_agent import viral_content_agent
+import datetime
 
 import structlog
 
@@ -214,8 +219,75 @@ async def list_archetypes():
                 "key": key,
                 "name": data["archetype_name"],
                 "title": data["archetype_title"],
-                "anime": data["anime_reference"],
             }
             for key, data in ARCHETYPE_DATABASE.items()
         ]
     }
+
+class ViralGenerateRequest(BaseModel):
+    topic: str
+
+class ViralAssetResponse(BaseModel):
+    id: str
+    campaign_topic: str
+    hook_text: str
+    image_url: Optional[str] = None
+    status: ViralAssetStatus
+    created_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+@router.post("/generate", response_model=list[ViralAssetResponse])
+async def generate_viral_assets(
+    request: ViralGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Generate 3 viral hooks and corresponding images utilizing the Viral Content Agent and DALL-E 3.
+    Requires Tier 2 credits or higher (placeholder check).
+    """
+    try:
+        # Trigger the Viral Swarm Agent
+        results = await viral_content_agent.generate_viral_campaign(request.topic)
+        
+        # Store the assets in DB
+        assets = []
+        for res in results:
+            asset = ViralAsset(
+                campaign_topic=request.topic,
+                hook_text=res["hook"],
+                image_url=res.get("image_url"),
+                status=ViralAssetStatus.APPROVED
+            )
+            db.add(asset)
+            assets.append(asset)
+            
+        await db.commit()
+        for asset in assets:
+            await db.refresh(asset)
+            
+        return assets
+    except Exception as e:
+        await db.rollback()
+        logger.error("Failed to generate viral assets", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate viral campaign: {str(e)}"
+        )
+
+@router.get("/history", response_model=list[ViralAssetResponse])
+async def get_viral_history(
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Get the history of generated viral assets.
+    """
+    stmt = select(ViralAsset).order_by(desc(ViralAsset.created_at)).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    assets = result.scalars().all()
+    return assets

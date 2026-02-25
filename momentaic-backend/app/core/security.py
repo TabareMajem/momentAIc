@@ -71,6 +71,32 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
+def create_password_reset_token(user_id: str) -> str:
+    """Create a JWT token for password reset (expires in 1 hour)"""
+    expire = datetime.utcnow() + timedelta(hours=1)
+    to_encode = {
+        "sub": user_id,
+        "exp": expire,
+        "type": "password_reset"
+    }
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def verify_password_reset_token(token: str) -> Optional[str]:
+    """Verify a password reset token and return the user ID"""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+        if payload.get("type") != "password_reset":
+            return None
+        return payload.get("sub")
+    except JWTError as e:
+        logger.warning("Password reset token decode error", error=str(e))
+        return None
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),

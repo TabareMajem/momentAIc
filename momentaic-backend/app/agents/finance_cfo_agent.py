@@ -13,6 +13,7 @@ from app.agents.base import (
     get_llm,
     get_agent_config,
     web_search,
+    BaseAgent,
 )
 from app.models.conversation import AgentType
 from app.services.deliverable_service import deliverable_service
@@ -21,7 +22,7 @@ from app.services.live_data_service import live_data_service
 logger = structlog.get_logger()
 
 
-class FinanceCFOAgent:
+class FinanceCFOAgent(BaseAgent):
     """
     Finance CFO Agent - Expert in startup finance and fundraising
     

@@ -12,13 +12,14 @@ from app.agents.base import (
     get_llm,
     get_agent_config,
     web_search,
+    BaseAgent,
 )
 from app.models.conversation import AgentType
 
 logger = structlog.get_logger()
 
 
-class LegalCounselAgent:
+class LegalCounselAgent(BaseAgent):
     """
     Legal Counsel Agent - Expert in startup legal matters
     

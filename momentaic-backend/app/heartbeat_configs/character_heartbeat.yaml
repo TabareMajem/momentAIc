@@ -1,0 +1,44 @@
+agent_id: character_agent
+heartbeat:
+  interval_minutes: 60
+  description: "AI Character Factory - Autonomous content generation for virtual influencers"
+
+  checklist:
+    - key: active_characters
+      prompt: "Are there active characters that need content generated?"
+      data_source: "characters table WHERE status = 'active'"
+
+    - key: trending_content
+      prompt: "Are there trending topics/sounds the characters should use?"
+      data_source: "LLM web search for platform trends"
+
+    - key: posting_queue
+      prompt: "Is the posting queue healthy? Are scheduled posts going out on time?"
+      data_source: "character_content table WHERE status = 'scheduled'"
+
+    - key: engagement_metrics
+      prompt: "How did recent content perform? Any learnings to apply?"
+      data_source: "character_content.engagement_metrics for last 24h"
+
+    - key: budget_check
+      prompt: "Are any characters approaching their daily/monthly budget?"
+      data_source: "characters.total_spent_usd vs daily_budget_usd/monthly_budget_usd"
+
+  evaluation_prompt: |
+    You are the Character Factory Heartbeat Engine.
+
+    Review each active character and decide:
+    1. GREEN: Character is posting on schedule, engagement is healthy, budget is fine
+    2. YELLOW: Content queue is running low, or engagement is declining
+    3. RED: Character has stopped posting, budget exceeded, or engagement crashed
+
+    For YELLOW/RED, recommend specific actions:
+    - Generate emergency content if queue is empty
+    - Pause character if budget exceeded
+    - Adjust content strategy if engagement is declining
+    - Alert founder if manual intervention needed
+
+  actions:
+    on_green: "Log status, continue normal operations"
+    on_yellow: "Generate extra content, adjust posting cadence"
+    on_red: "Alert founder via notification, consider pausing character"

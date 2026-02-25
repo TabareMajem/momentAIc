@@ -413,7 +413,7 @@ What would you like me to do?""",
             # We also wait for selector to ensure results loaded
             try:
                 await self._page.wait_for_selector('div.g', timeout=5000)
-            except:
+            except Exception:
                 pass # Proceed anyway to try extraction
             
             results = await self._page.evaluate("""

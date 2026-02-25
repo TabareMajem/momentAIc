@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     stripe_starter_price_id: Optional[str] = None
     stripe_growth_price_id: Optional[str] = None
     stripe_god_mode_price_id: Optional[str] = None
+    stripe_founders_club_price_id: Optional[str] = None
     
     # Stripe Connect (for Ambassador Program)
     stripe_connect_client_id: Optional[str] = None
@@ -141,7 +142,7 @@ class Settings(BaseSettings):
     credit_cost_video_gen: int = 25
     
     # PiAPI (Kling/Sora)
-    piapi_api_key: Optional[str] = "1a78bf48121261edfbe12611c5a67aa7963d607ffad1843edef129498dc59933"
+    piapi_api_key: Optional[str] = None
     
     # CrossPost Integration
     crosspost_api_key: Optional[str] = None
@@ -160,7 +161,7 @@ class Settings(BaseSettings):
         return v
 
     # Voice / TTS (Qwen3)
-    DASHSCOPE_API_KEY: str = "sk-10431e0bd8034ef5b4c0687bc121d0f5"
+    DASHSCOPE_API_KEY: str = ""
     
     # Sentry
     sentry_dsn: Optional[str] = None
@@ -175,14 +176,14 @@ class Settings(BaseSettings):
     # AgentForge Config
     agentforge_base_url: str = "https://api.agentforgeai.com/api/v1"
     agentforge_voice_url: str = "https://vibevoice-gpu-507305692088.us-central1.run.app"
-    agentforge_api_key: Optional[str] = "af_live_99d3e8774c1b8f2a5678api2026"
+    agentforge_api_key: Optional[str] = None
     
     # OpenClaw Integration (The "Hands")
     openclaw_api_url: Optional[str] = "http://localhost:8888"
     openclaw_api_key: Optional[str] = None
     
     # Yokaizen Config
-    momentaic_master_key: Optional[str] = "mk_live_1f45e6f3b16d3dece67b1a0e1a0339bd8e2707ae376073fcf38714ac93519cc4"
+    momentaic_master_key: Optional[str] = None
     symbiotask_api_url: str = "https://symbiotask.com/api/v1"
     mangaka_api_url: str = "https://mangaka.yokaizen.com/api/v1"
 

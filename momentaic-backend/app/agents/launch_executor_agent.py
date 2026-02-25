@@ -276,7 +276,7 @@ class LaunchExecutorAgent:
                             element = await self._page.wait_for_selector(sel.strip(), timeout=3000)
                             if element:
                                 break
-                        except:
+                        except Exception:
                             continue
                     
                     if element:
@@ -335,7 +335,7 @@ class LaunchExecutorAgent:
                             await submit_btn.click()
                             submitted = True
                             break
-                    except:
+                    except Exception:
                         continue
                 
                 if not submitted:
@@ -363,7 +363,7 @@ class LaunchExecutorAgent:
                                 if elem:
                                     success = True
                                     break
-                            except:
+                            except Exception:
                                 pass
                 
                 # Capture post-submit screenshot

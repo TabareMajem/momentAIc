@@ -14,13 +14,15 @@ from app.agents.base import (
     web_search,
     read_url_content,
     get_trending_topics,
+    BaseAgent,
+    safe_parse_json,
 )
 from app.models.conversation import AgentType
 
 logger = structlog.get_logger()
 
 
-class GrowthHackerAgent:
+class GrowthHackerAgent(BaseAgent):
     """
     Growth Hacker Agent - Expert in startup growth strategies
     
@@ -372,11 +374,9 @@ Provide:
             response = await self.llm.ainvoke(prompt)
             content = response.content
             
-            # Simple cleanup to ensure JSON
-            import re
-            json_match = re.search(r'\{[\s\S]*\}', content)
-            if json_match:
-                return json.loads(json_match.group())
+            parsed = safe_parse_json(content)
+            if parsed:
+                return parsed
             else:
                 return {
                     "target_audience": "Early Adopters",
@@ -464,13 +464,8 @@ Provide:
                     analysis_msg = await self.llm.ainvoke([HumanMessage(content=prompt)])
                     analysis_text = analysis_msg.content
                     
-                    # Clean JSON markdown if present
-                    json_match = re.search(r'\{[\s\S]*\}', analysis_text)
-                    if json_match:
-                        import json
-                        data = json.loads(json_match.group(0))
-                        
-                        if data.get("relevant"):
+                    data = safe_parse_json(analysis_text)
+                    if data and data.get("relevant"):
                             opportunities.append({
                                 "url": url,
                                 "summary": data.get("summary"),
@@ -539,13 +534,11 @@ Format as JSON."""
                 HumanMessage(content=prompt),
             ])
             
-            import json, re
-            json_match = re.search(r'\{[\s\S]*\}', response.content)
-            if json_match:
-                report = json.loads(json_match.group())
+            parsed = safe_parse_json(response.content)
+            if parsed:
                 return {
                     "success": True,
-                    "report": report,
+                    "report": parsed,
                     "generated_at": datetime.now().isoformat(),
                     "agent": AgentType.GROWTH_HACKER.value
                 }
@@ -601,10 +594,9 @@ Return a JSON heatmap:
 
         try:
             response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            import json, re
-            json_match = re.search(r'\{[\s\S]*\}', response.content)
-            if json_match:
-                return {"success": True, **json.loads(json_match.group())}
+            parsed = safe_parse_json(response.content)
+            if parsed:
+                return {"success": True, **parsed}
             return {"raw": response.content}
         except Exception as e:
             return {"error": str(e)}
@@ -643,10 +635,9 @@ Identify:
 Format as JSON with 'steal_this' array."""
 
             response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            import json, re
-            json_match = re.search(r'\{[\s\S]*\}', response.content)
-            if json_match:
-                return {"success": True, **json.loads(json_match.group())}
+            parsed = safe_parse_json(response.content)
+            if parsed:
+                return {"success": True, **parsed}
             return {"raw": response.content}
         except Exception as e:
             return {"error": str(e)}

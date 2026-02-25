@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Header, HTTPException, Depends, Request, BackgroundTasks
-from typing import Optional
+from fastapi import APIRouter, Header, HTTPException, Depends, Request, BackgroundTasks, Body
+from typing import Optional, Any, Dict
 from app.schemas.integrations import AgentForgeWebhookPayload, AgentForgeEventType
 from app.core.config import settings
 import structlog
+import httpx
+import os
+from pydantic import BaseModel
+from app.api.deps import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -111,3 +116,82 @@ async def trigger_voice(
     # stored in their profile. For now, it triggers the ecosystem method.
     response = await ecosystem_service.synthesize_voice(text, action)
     return response
+
+# ==========================================
+# AGENTFORGE OUTBOUND PROXY / INTEGRATION
+# ==========================================
+
+# In a real environment, this would come from a secure vault or integration table per user.
+AGENTFORGE_API_URL = os.environ.get("AGENTFORGE_API_URL", "https://api.agentforge.studio/api/v1")
+AGENTFORGE_API_KEY = os.environ.get("AGENTFORGE_API_KEY", "af_live_demo_key_123")
+
+class WebhookTriggerRequest(BaseModel):
+    trigger_url: str
+    payload: Dict[str, Any]
+
+class DirectAgentRequest(BaseModel):
+    agent_type: str  # e.g., 'orchestrator', 'voice', 'research', 'dev'
+    payload: Dict[str, Any]
+
+@router.post("/trigger-workflow")
+async def trigger_agentforge_workflow(
+    request: WebhookTriggerRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Proxies a webhook trigger from Momentaic to an AgentForge Workflow.
+    AgentForge Webhooks generally don't require Auth headers, just the unique URL.
+    """
+    logger.info(f"Triggering AgentForge Webhook for user {current_user.id}", trigger_url=request.trigger_url)
+    
+    url = f"{AGENTFORGE_API_URL}/webhooks/{request.trigger_url}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=request.payload, timeout=30.0)
+            response.raise_for_status()
+            
+            return {
+                "status": "success",
+                "message": "Workflow triggered successfully",
+                "data": response.json() if response.content else None
+            }
+    except httpx.HTTPStatusError as e:
+        logger.error("AgentForge Webhook Error", status_code=e.response.status_code, response=e.response.text)
+        raise HTTPException(status_code=502, detail=f"AgentForge responded with error: {e.response.text}")
+    except Exception as e:
+        logger.error("AgentForge Connection Error", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to connect to AgentForge")
+
+@router.post("/direct-agent")
+async def trigger_direct_agent(
+    request: DirectAgentRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Directly triggers a specialized AgentForge agent (e.g., orchestrator, research) 
+    using the master API key.
+    """
+    logger.info(f"Triggering Direct AgentForge Agent for user {current_user.id}", agent_type=request.agent_type)
+    
+    url = f"{AGENTFORGE_API_URL}/agent/{request.agent_type}"
+    headers = {
+        "Authorization": f"Bearer {AGENTFORGE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=request.payload, headers=headers, timeout=60.0)
+            response.raise_for_status()
+            
+            return {
+                "status": "success",
+                "data": response.json()
+            }
+    except httpx.HTTPStatusError as e:
+        logger.error("AgentForge Direct Agent Error", status_code=e.response.status_code, response=e.response.text)
+        raise HTTPException(status_code=502, detail=f"AgentForge agent error: {e.response.text}")
+    except Exception as e:
+        logger.error("AgentForge Connection Error", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to connect to AgentForge")

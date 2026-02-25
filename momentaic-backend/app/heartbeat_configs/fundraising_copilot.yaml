@@ -1,0 +1,35 @@
+agent_id: fundraising_copilot
+
+heartbeat:
+  enabled: true
+  interval_minutes: 720
+  priority: medium
+  autonomy_level: L2
+
+  checklist:
+    - check: runway_health
+      description: Calculate current runway based on burn rate and cash reserves
+      threshold: runway_months < 6
+      action: generate_runway_alert
+      escalate_if: runway_months < 3
+
+    - check: investor_update_due
+      description: Check if monthly investor update is due
+      action: draft_investor_update
+      escalate_if: update_overdue > 7_days
+
+    - check: fundraising_signals
+      description: Monitor market conditions and competitor raises
+      action: compile_fundraising_intel
+      escalate_if: competitor_raised_large_round
+
+  budget:
+    max_tokens_per_heartbeat: 6000
+    max_daily_spend_usd: 1.50
+    model_override: gemini-2.0-flash
+
+  quiet_hours:
+    enabled: true
+    timezone: UTC
+    start: "22:00"
+    end: "08:00"

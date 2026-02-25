@@ -10,7 +10,12 @@ import io
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import structlog
-from fpdf import FPDF
+try:
+    from fpdf import FPDF  # fpdf2 (maintained fork) shares the same namespace
+    import warnings
+    warnings.filterwarnings("ignore", message=".*PyFPDF.*fpdf2.*")
+except ImportError:
+    from fpdf import FPDF
 
 # Try to import docx, but fail gracefully if not installed
 try:
@@ -273,7 +278,7 @@ class DeliverableService:
             multiples = await live_data_service.get_saas_multiples()
             fin_metrics["valuation_multiple"] = multiples["median_arr_multiple"]
             fin_metrics["valuation_note"] = "Live SaaS Index"
-        except:
+        except Exception:
             pass
             
         deliverables.append(await self.generate_financial_model_csv(fin_metrics, company_name))

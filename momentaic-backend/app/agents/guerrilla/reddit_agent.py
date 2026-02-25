@@ -78,7 +78,7 @@ class RedditSleeperAgent:
                     content = analysis_response.content
                     match = re.search(r'\[.*\]', content, re.DOTALL)
                     threads = json.loads(match.group(0)) if match else []
-                except:
+                except Exception:
                     threads = []
                 
                 # 3. Draft Responses for high relevance threads

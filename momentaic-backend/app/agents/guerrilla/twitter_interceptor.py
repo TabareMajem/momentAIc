@@ -77,7 +77,7 @@ class TwitterInterceptorAgent:
                     content = analysis_response.content
                     match = re.search(r'\[.*\]', content, re.DOTALL)
                     tweets = json.loads(match.group(0)) if match else []
-                except:
+                except Exception:
                     tweets = []
                 
                 # 3. Draft Intercepts

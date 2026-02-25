@@ -78,7 +78,7 @@ class AmbassadorAgent:
         if "Subject:" in proposal_text:
              try:
                  subject = proposal_text.split("Subject:")[1].split("\n")[0].strip()
-             except:
+             except Exception:
                  pass
 
         try:

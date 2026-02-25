@@ -326,3 +326,13 @@ class EmpireStepUpdate(BaseModel):
     step: int = Field(..., ge=0, le=4)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     complete: bool = False
+
+
+class ViralCampaignRequest(BaseModel):
+    """Request to trigger the Viral Growth Engine"""
+    campaign_type: str = Field(default="exit_survey", pattern="^(exit_survey|wedding_vows|stats_card|roast)$")
+    target_audience: Optional[str] = None
+    tone: Optional[str] = "humorous"
+    variations: int = Field(default=1, ge=1, le=5)
+    platform: ContentPlatform = ContentPlatform.TIKTOK
+    additional_context: Dict[str, Any] = Field(default_factory=dict)

@@ -5,7 +5,7 @@ Connect and manage external services
 
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.integration import (
     Integration, IntegrationData, IntegrationProvider, IntegrationStatus
 )
+from app.integrations.slack import SlackIntegration
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -69,6 +70,14 @@ class EcosystemConnectRequest(BaseModel):
 class EcosystemStatusResponse(BaseModel):
     """Status of ecosystem connections"""
     connections: dict
+
+
+class OAuthUrlResponse(BaseModel):
+    url: str
+
+class OAuthCallbackRequest(BaseModel):
+    code: str
+    startup_id: UUID
 
 
 
@@ -335,6 +344,84 @@ async def get_integration_data(
             synced_at=d.synced_at.isoformat(),
         )
     ]
+
+
+# ==================
+# OAuth Flows (Slack)
+# ==================
+
+@router.get("/oauth/slack/url", response_model=OAuthUrlResponse)
+async def get_slack_oauth_url(
+    startup_id: UUID,
+    redirect_uri: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the Slack OAuth URL for a startup"""
+    await verify_startup_access(startup_id, current_user, db)
+    
+    slack = SlackIntegration()
+    # Pass startup_id in state to retrieve during callback
+    state = str(startup_id)
+    url = await slack.get_auth_url(redirect_uri=redirect_uri, state=state)
+    
+    return OAuthUrlResponse(url=url)
+
+
+@router.post("/oauth/slack/callback", response_model=IntegrationResponse)
+async def slack_oauth_callback(
+    request: OAuthCallbackRequest,
+    redirect_uri: str = Query(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Handle the Slack OAuth callback and create the integration"""
+    startup_id = request.startup_id
+    await verify_startup_access(startup_id, current_user, db)
+    
+    # Check if already connected
+    existing = await db.execute(
+        select(Integration).where(
+            Integration.startup_id == startup_id,
+            Integration.provider == IntegrationProvider.SLACK,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slack is already connected"
+        )
+
+    slack = SlackIntegration()
+    try:
+        creds = await slack.exchange_code(request.code, redirect_uri)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth failed: {str(e)}"
+        )
+
+    # Save to db
+    integration = Integration(
+        user_id=current_user.id,
+        startup_id=startup_id,
+        provider=IntegrationProvider.SLACK,
+        name="Slack Workspace",
+        access_token=creds.access_token,
+        status=IntegrationStatus.ACTIVE,
+    )
+    
+    db.add(integration)
+    await db.commit()
+    await db.refresh(integration)
+    
+    return IntegrationResponse(
+        id=integration.id,
+        provider=integration.provider,
+        name=integration.name,
+        status=integration.status,
+        config=integration.config,
+    )
 
 
 # ==================

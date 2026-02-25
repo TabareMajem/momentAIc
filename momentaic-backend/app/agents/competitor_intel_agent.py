@@ -350,7 +350,7 @@ What would you like to know about your competitive landscape?""",
                 content = response.content
                 match = re.search(r'\[.*\]', content, re.DOTALL)
                 new_competitors = json.loads(match.group(0)) if match else []
-            except:
+            except Exception:
                 new_competitors = []
 
             return {

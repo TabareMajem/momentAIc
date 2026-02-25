@@ -68,6 +68,10 @@ celery_app.conf.update(
             "task": "app.tasks.growth.process_autopilot_leads",
             "schedule": 3600.0,  # Hourly
         },
+        "sweep-message-bus": {
+            "task": "app.tasks.message_bus_worker.sweep_message_bus",
+            "schedule": 10.0,  # Every 10 seconds for real-time AI debates
+        },
     },
 )
 

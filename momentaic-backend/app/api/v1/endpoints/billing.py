@@ -356,11 +356,6 @@ async def create_checkout_session(
             detail=f"Stripe error: {str(e)}"
         )
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Stripe error: {str(e)}"
-        )
-
 
 @router.post("/checkout/founders-club", response_model=CheckoutSessionResponse)
 async def create_founders_club_checkout(

@@ -19,6 +19,9 @@ from app.schemas.auth import (
     UpdateProfileRequest,
     CreditBalanceResponse,
     OAuthStatusResponse,
+    PasswordResetRequest,
+    PasswordResetConfirm,
+    FirebaseTokenRequest,
 )
 from app.models.user import User
 
@@ -163,3 +166,91 @@ async def get_oauth_status(
         linkedin_connected=bool(current_user.linkedin_token),
         gmail_connected=bool(current_user.gmail_token),
     )
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(
+    request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Request a password reset email.
+    Always returns success to prevent email enumeration.
+    """
+    from sqlalchemy import select
+    from app.services.email_service import get_email_service
+    from app.core.security import create_password_reset_token
+    from app.core.config import settings
+    
+    # Find user
+    result = await db.execute(
+        select(User).where(User.email == request.email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if user:
+        # Generate reset token
+        reset_token = create_password_reset_token(str(user.id))
+        reset_link = f"{settings.frontend_url}/reset-password?token={reset_token}"
+        
+        # Send email
+        email_service = get_email_service()
+        await email_service.send_password_reset_email(
+            to_email=user.email,
+            full_name=user.full_name,
+            reset_link=reset_link,
+        )
+    
+    # Always return success to prevent email enumeration
+    return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    request: PasswordResetConfirm,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reset password using the token from email.
+    """
+    from sqlalchemy import select
+    from app.core.security import verify_password_reset_token, get_password_hash
+    
+    # Verify token
+    user_id = verify_password_reset_token(request.token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Find user
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found"
+        )
+    
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+    await db.commit()
+    
+    return {"message": "Password has been reset successfully. Please login with your new password."}
+
+
+@router.post("/firebase-oauth", response_model=AuthResponse)
+async def firebase_oauth(
+    request: FirebaseTokenRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Authenticate user via Firebase ID Token
+    """
+    from app.services.firebase_auth import FirebaseAuthService
+    service = FirebaseAuthService(db)
+    return await service.verify_and_login(request.id_token)

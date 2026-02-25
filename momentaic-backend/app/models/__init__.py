@@ -69,6 +69,7 @@ from app.models.trigger import (
     TriggerType,
     TriggerOperator,
     TriggerLog,
+    AgentAction,
 )
 
 from app.models.workflow import (
@@ -89,6 +90,64 @@ from app.models.conversation import (
     MessageRole,
     AgentType,
     AgentMemory,
+)
+
+from app.models.agent_memory import (
+    AgentOutcome,
+    AgentMemoryEntry,
+    LeadFingerprint,
+)
+
+from app.models.autonomy import (
+    StartupAutonomySettings,
+    ProactiveActionLog,
+)
+
+from app.models.heartbeat_ledger import (
+    HeartbeatLedger,
+    HeartbeatResult,
+)
+
+from app.models.agent_message import (
+    AgentMessage,
+    A2AMessageType,
+    MessagePriority,
+    MessageStatus,
+)
+
+from app.models.character import (
+    Character,
+    CharacterContent,
+    CharacterStatus,
+    CharacterContentType,
+    CharacterContentStatus,
+    FunnelStage,
+    CharacterPlatform,
+)
+
+from app.models.astroturf import (
+    AstroTurfMention,
+    MentionStatus,
+)
+
+from app.models.telecom import (
+    TelecomProvider,
+    ProvisionedNumber,
+)
+
+from app.models.viral import (
+    ViralAsset,
+    ViralAssetStatus,
+)
+
+from app.models.push_subscription import (
+    PushSubscription,
+)
+
+from app.models.referral import (
+    Referral,
+    ReferralReward,
+    ReferralStats,
 )
 
 __all__ = [
@@ -151,9 +210,39 @@ __all__ = [
     "TriggerType",
     "TriggerOperator",
     "TriggerLog",
+    "AgentAction",
     # Action Items
     "ActionItem",
     "ActionStatus",
     "ActionPriority",
+    # Heartbeat & A2A (OpenClaw)
+    "HeartbeatLedger",
+    "HeartbeatResult",
+    "AgentMessage",
+    "A2AMessageType",
+    "MessagePriority",
+    "MessageStatus",
+    # AI Character Factory
+    "Character",
+    "CharacterContent",
+    "CharacterStatus",
+    "CharacterContentType",
+    "CharacterContentStatus",
+    "FunnelStage",
+    "CharacterPlatform",
+    # AstroTurf
+    "AstroTurfMention",
+    "MentionStatus",
+    # Telecom
+    "TelecomProvider",
+    "ProvisionedNumber",
+    # Viral
+    "ViralAsset",
+    "ViralAssetStatus",
+    # Push
+    "PushSubscription",
+    # Referrals
+    "Referral",
+    "ReferralReward",
+    "ReferralStats",
 ]
-

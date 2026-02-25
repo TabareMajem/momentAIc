@@ -42,6 +42,7 @@ class AgentType(str, enum.Enum):
     BROWSER = "browser"  # Web automation
     QA_TESTER = "qa_tester"  # App auditing & automated testing
     GENERAL = "general"  # General assistant
+    PLANNING_AGENT = "planning_agent" # Decomposes complex goals
     # Personas
     ELON_MUSK = "elon_musk" # First principles, hardcore
     PAUL_GRAHAM = "paul_graham" # YC Founder wisdom

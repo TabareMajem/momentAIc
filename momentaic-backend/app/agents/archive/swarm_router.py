@@ -36,7 +36,7 @@ class SwarmRouter:
     """
     
     def __init__(self):
-        self.llm = get_llm("gemini-2.5-pro", temperature=0.1) # Low temp for routing logic
+        self.llm = get_llm("gemini-1.5-pro", temperature=0.1) # Low temp for routing logic
         
     async def route_task(self, task_description: str, context: Dict[str, Any] = {}) -> Dict[str, Any]:
         """
@@ -109,6 +109,11 @@ Return JSON format:
                     target_swarm = SwarmType.SIREN
                 elif "builder" in content_lower or "code" in content_lower or "dev" in content_lower:
                     target_swarm = SwarmType.BUILDER
+                # Explicit keyword routing for unmapped domains
+                elif "legal" in content_lower or "contract" in content_lower:
+                    target_swarm = SwarmType.BUILDER # Legal is under Builder swarm in _run_builder_swarm
+                elif "fundrais" in content_lower or "investor" in content_lower or "pitch" in content_lower:
+                    target_swarm = SwarmType.HUNTER # We'll route Fundraising to Hunter for now as it's "Sales" of equity
                 
                 if not target_swarm:
                      # Default to Hunter if vague for now, or error

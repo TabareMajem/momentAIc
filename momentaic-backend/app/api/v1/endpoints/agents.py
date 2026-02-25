@@ -10,7 +10,7 @@ import json
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -188,6 +188,7 @@ async def delete_conversation(
 @router.post("/chat", response_model=AgentChatResponse)
 async def chat(
     chat_request: AgentChatRequest,
+    request: Request,
     current_user: User = Depends(require_credits(settings.credit_cost_agent_chat, "Agent chat")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -250,7 +251,18 @@ async def chat(
         "industry": startup.industry,
         "stage": startup.stage.value,
         "metrics": startup.metrics,
-    } if chat_request.include_context else {}
+        "locale": request.headers.get("accept-language", "en"),
+    } if chat_request.include_context else {"locale": request.headers.get("accept-language", "en")}
+
+    # Inject Agent Memory Context
+    from app.services.agent_memory_service import agent_memory_service
+    memory_context = await agent_memory_service.recall_as_context(
+        startup_id=str(chat_request.startup_id),
+        agent_name=chat_request.agent_type.value,
+        limit=5
+    )
+    if memory_context:
+        startup_context["agent_memory"] = memory_context
     
     # Route through supervisor
     from app.agents.supervisor import supervisor_agent
@@ -315,7 +327,7 @@ async def _get_agent_response(
     from app.agents import (
         sales_agent, content_agent, tech_lead_agent,
         finance_cfo_agent, legal_counsel_agent, growth_hacker_agent,
-        product_pm_agent,
+        product_pm_agent, planning_agent,
     )
     
     # Map agent types to instances
@@ -327,6 +339,7 @@ async def _get_agent_response(
         AgentType.LEGAL_COUNSEL: legal_counsel_agent,
         AgentType.GROWTH_HACKER: growth_hacker_agent,
         AgentType.PRODUCT_PM: product_pm_agent,
+        AgentType.PLANNING_AGENT: planning_agent,
     }
     
     agent = agent_map.get(agent_type)
@@ -362,6 +375,8 @@ Startup Context:
 - Industry: {startup_context.get('industry')}
 - Stage: {startup_context.get('stage')}
 - Description: {startup_context.get('description', '')}
+
+{startup_context.get('agent_memory', '')}
 """
     
     prompt = f"""{context_section}
@@ -386,6 +401,7 @@ Provide a helpful, actionable response."""
 @router.post("/chat/stream")
 async def chat_stream(
     chat_request: AgentChatRequest,
+    request: Request,
     current_user: User = Depends(require_credits(settings.credit_cost_agent_chat, "Agent chat")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -412,7 +428,18 @@ async def chat_stream(
         "industry": startup.industry,
         "stage": startup.stage.value,
         "metrics": startup.metrics,
-    } if chat_request.include_context else {}
+        "locale": request.headers.get("accept-language", "en"),
+    } if chat_request.include_context else {"locale": request.headers.get("accept-language", "en")}
+
+    # Inject Agent Memory Context
+    from app.services.agent_memory_service import agent_memory_service
+    memory_context = await agent_memory_service.recall_as_context(
+        startup_id=str(chat_request.startup_id),
+        agent_name=chat_request.agent_type.value,
+        limit=5
+    )
+    if memory_context:
+        startup_context["agent_memory"] = memory_context
 
     async def event_generator():
         # 1. Supervisor Routing (Synchronous Step)
@@ -437,7 +464,7 @@ async def chat_stream(
             # specialized agent streaming
             from app.agents import (
                 growth_hacker_agent, sales_agent, content_agent, 
-                tech_lead_agent, finance_cfo_agent, legal_counsel_agent, product_pm_agent
+                tech_lead_agent, finance_cfo_agent, legal_counsel_agent, product_pm_agent, planning_agent
             )
             agent_map = {
                 AgentType.GROWTH_HACKER: growth_hacker_agent,
@@ -447,6 +474,7 @@ async def chat_stream(
                 AgentType.FINANCE_CFO: finance_cfo_agent,
                 AgentType.LEGAL_COUNSEL: legal_counsel_agent,
                 AgentType.PRODUCT_PM: product_pm_agent,
+                AgentType.PLANNING_AGENT: planning_agent,
             }
             agent = agent_map.get(routed_to)
             
@@ -465,7 +493,7 @@ async def chat_stream(
             llm = get_llm("gemini-2.0-flash") # Use fast model
             if llm:
                 config = get_agent_config(AgentType.SUPERVISOR)
-                prompt = f"""Startup Context: {json.dumps(startup_context)}\n\nUser Question: {chat_request.message}"""
+                prompt = f"""Startup Context: {json.dumps({k:v for k,v in startup_context.items() if k != 'agent_memory'})}\n{startup_context.get('agent_memory', '')}\nUser Question: {chat_request.message}"""
                 
                 async for chunk in llm.astream([
                     SystemMessage(content=config["system_prompt"]),
@@ -581,7 +609,7 @@ Generate 5-10 user stories."""
             if json_match:
                 try:
                     result["user_stories"] = json.loads(json_match.group())
-                except:
+                except Exception:
                     result["user_stories"] = [{"raw": pm_response.content}]
         
         # Step 2: Architect - Database Schema
@@ -632,7 +660,7 @@ Format as OpenAPI-style JSON:
                 json_match = re.search(r'\{[\s\S]*\}', api_response.content)
                 if json_match:
                     result["api_specification"] = json.loads(json_match.group())
-            except:
+            except Exception:
                 result["api_specification"] = {"raw": api_response.content}
         
         # Step 4: Generate Code Files

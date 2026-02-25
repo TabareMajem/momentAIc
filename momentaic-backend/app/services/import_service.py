@@ -92,7 +92,7 @@ class ImportService:
             if "www." in domain:
                 domain = domain.replace("www.", "")
             return domain.split(".")[0].title()
-        except:
+        except Exception:
             return "Unknown Website"
 
 import_service = ImportService()

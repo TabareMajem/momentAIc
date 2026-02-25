@@ -320,7 +320,7 @@ CREDITS: [estimated number]"""
             for i, (nid, ntype, nlabel, nconfig) in enumerate(node_lines):
                 try:
                     node_type = NodeType(ntype.lower())
-                except:
+                except Exception:
                     node_type = NodeType.AI
                 
                 nodes.append(NodeConfig(

@@ -269,7 +269,7 @@ class MarketingAgent:
         try:
             search_query = f"trending news items {industry} {date_str}"
             search_results = await web_search.ainvoke(search_query)
-        except:
+        except Exception:
              search_results = "AI Agents, Remote Work, Tech Layoffs" # Fallback if search fails completely
              
         # Pick best topic via LLM
@@ -285,7 +285,7 @@ class MarketingAgent:
         try:
              topic_response = await self.llm.ainvoke(selector_prompt)
              topic = topic_response.content.strip().replace('"','')
-        except:
+        except Exception:
              topic = "The Future of AI"
         
         # 2. Draft Content

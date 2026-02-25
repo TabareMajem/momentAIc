@@ -1,342 +1,322 @@
 """
-KOL Headhunter Agent - War Room Elite Class
-Identifies High-Leverage Influencers across global markets.
+KOL Headhunter Agent
+Identifies high-leverage influencers for partnership using Serper API for real search.
+
+Architecture: 
+  1. scan_region() does the actual Serper API searches programmatically (no LLM needed for search)
+  2. The LLM is used only for ANALYSIS: scoring relevance, generating outreach scripts
 """
 
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
-from langchain_core.tools import tool
-from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import structlog
+from typing import Dict, Any, Optional, List
 import asyncio
+import json
+import re
+import structlog
+import httpx
 
-# Standalone agent - no base class needed
+from pydantic import BaseModel, Field
+
 from app.core.config import settings
 
 logger = structlog.get_logger()
 
 
+# ==================
+# Models
+# ==================
+
 class KOLProfile(BaseModel):
-    """Profile of a Key Opinion Leader."""
-    name: str
-    platform: str  # youtube, twitter, linkedin
-    handle: str
-    followers: int
-    engagement_rate: float
-    region: str  # US, LatAm, Europe, Asia
-    niche: List[str]
-    email: Optional[str] = None
+    """Represents a Key Opinion Leader profile."""
+    name: str = ""
+    platform: str = ""
+    handle: str = ""
+    followers: int = 0
+    engagement_rate: float = 0.0
+    region: str = ""
+    niche: List[str] = Field(default_factory=list)
     last_posts: List[str] = Field(default_factory=list)
-    outreach_script: Optional[str] = None
-    score: float = 0.0  # Calculated priority score
+    outreach_script: str = ""
+    priority_score: float = 0.0
+    profile_url: str = ""
+    source: str = ""
 
 
 class HitList(BaseModel):
-    """Collection of KOL targets for outreach."""
-    region: str
-    total_found: int
-    targets: List[KOLProfile]
-    generated_at: str
-    filters_applied: Dict[str, Any]
+    """Prioritized list of KOL targets."""
+    region: str = ""
+    total_found: int = 0
+    targets: List[KOLProfile] = Field(default_factory=list)
+    generated_at: str = ""
+    filters_applied: Dict[str, Any] = Field(default_factory=dict)
 
+
+# ==================
+# Serper API Helper
+# ==================
+
+async def _serper_search(query: str, num: int = 10) -> List[Dict]:
+    """
+    Execute a Google search via the Serper API.
+    Returns a list of dicts with keys: title, link, snippet.
+    """
+    if not settings.serper_api_key:
+        logger.warning("Serper API key not configured")
+        return []
+    
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                "https://google.serper.dev/search",
+                json={"q": query, "num": num},
+                headers={"X-API-KEY": settings.serper_api_key},
+            )
+            data = response.json()
+            
+            results = []
+            for item in data.get("organic", []):
+                results.append({
+                    "title": item.get("title", ""),
+                    "link": item.get("link", ""),
+                    "snippet": item.get("snippet", ""),
+                })
+            
+            return results
+            
+    except Exception as e:
+        logger.error("Serper search failed", error=str(e))
+        return []
+
+
+async def _search_platform(keyword: str, platform: str, region: str) -> List[Dict]:
+    """Search a specific platform for a keyword using Serper API."""
+    
+    site_filters = {
+        "youtube": "site:youtube.com",
+        "twitter": "site:twitter.com OR site:x.com",
+        "linkedin": "site:linkedin.com/in/",
+    }
+    
+    site_filter = site_filters.get(platform, "")
+    query = f"{site_filter} {keyword} {region}"
+    
+    results = await _serper_search(query, num=10)
+    
+    creators = []
+    for r in results:
+        title = r.get("title", "")
+        link = r.get("link", "")
+        snippet = r.get("snippet", "")
+        
+        # Platform-specific filtering
+        if platform == "youtube" and "/watch" in link:
+            continue  # Skip individual videos
+        if platform == "twitter" and "/status/" in link:
+            continue  # Skip individual tweets
+        
+        # Clean up titles
+        title = title.replace(" - YouTube", "").replace(" on X", "").replace(" | Twitter", "")
+        
+        creators.append({
+            "name": title.split("|")[0].split("-")[0].strip()[:60],
+            "platform": platform.capitalize(),
+            "link": link,
+            "snippet": snippet[:200],
+            "keyword_matched": keyword,
+        })
+    
+    return creators
+
+
+# ==================
+# KOL Headhunter Agent
+# ==================
 
 class KOLHeadhunterAgent:
     """
-    War Room Agent: KOL Headhunter
+    KOL Headhunter Agent - Identifies high-leverage influencers for partnership.
     
-    Mission: Identify and profile high-leverage influencers for partnership.
-    
-    Capabilities:
-    - Scrapes YouTube/Twitter/LinkedIn for relevant creators
-    - Filters for "High Engagement, Mid-Size Audience" (10k-100k)
-    - Generates personalized outreach scripts
-    - Produces actionable Hit Lists by region
+    Uses a two-phase approach:
+    Phase 1: Programmatic search via Serper API (fast, reliable)
+    Phase 2: LLM analysis to score, deduplicate, and draft outreach
     """
     
+    # Target profile parameters
+    FOLLOWER_RANGE = (10000, 100000)
+    MIN_ENGAGEMENT_RATE = 0.03
     SEARCH_KEYWORDS = [
-        "AI tools for entrepreneurs",
-        "SaaS growth hacking",
-        "No-code automation",
-        "Passive income business",
-        "Startup founder tips",
-        "Solo entrepreneur",
-        "AI business automation",
-        "Side hustle automation"
+        "indie maker", "bootstrapped founder", "no-code entrepreneur",
+        "solopreneur", "AI tools review", "startup without funding"
     ]
-    
-    REGIONS = {
-        "US": ["en", "United States", "USA"],
-        "LatAm": ["es", "pt", "Brazil", "Mexico", "Argentina", "Colombia"],
-        "Europe": ["en", "de", "fr", "UK", "Germany", "France", "Spain"],
-        "Asia": ["en", "ja", "ko", "Japan", "Korea", "Singapore", "Philippines"]
-    }
-    
-    FOLLOWER_RANGE = (10000, 100000)  # Sweet spot: hungry creators
-    MIN_ENGAGEMENT_RATE = 0.03  # 3% minimum engagement
+    PLATFORMS = ["youtube", "twitter", "linkedin"]
     
     def __init__(self):
-        super().__init__()
         self.name = "KOL Headhunter"
         self.description = "Identifies high-leverage influencers for partnership"
-        self._tools = self._create_tools()
     
-    def _create_tools(self) -> List:
-        """Create headhunter-specific tools."""
+    async def _gather_raw_results(
+        self, 
+        keywords: List[str], 
+        region: str
+    ) -> List[Dict]:
+        """
+        Phase 1: Search all platforms for all keywords concurrently.
+        Returns a deduplicated list of raw search results.
+        """
+        tasks = []
+        for keyword in keywords:
+            for platform in self.PLATFORMS:
+                tasks.append(_search_platform(keyword, platform, region))
         
-        @tool
-        async def search_youtube_creators(
-            keywords: str,
-            region: str,
-            max_results: int = 50
-        ) -> List[Dict]:
-            """
-            Search YouTube for relevant content creators.
-            """
-            from app.agents.browser_agent import browser_agent
-            
-            # [REALITY UPGRADE] Real scraping via Google
-            query = f"site:youtube.com/c/ OR site:youtube.com/@ {keywords} {region} \"subscribers\""
-            logger.info("KOL Headhunter: Searching YouTube (Real)", query=query)
-            
-            results = await browser_agent.search_google(query)
-            
-            creators = []
-            for r in results:
-                title = r.get('title', '').replace(" - YouTube", "")
-                link = r.get('link', '')
-                snippet = r.get('snippet', '')
-                
-                # Basic parsing attempt
-                if "/watch" in link: continue # Skip videos, want channels
-                
-                creators.append({
-                    "channel_name": title,
-                    "link": link,
-                    "description": snippet,
-                    "subscribers": "Unknown (Visit profile to see)",
-                    "avg_views": "Unknown",
-                    "source": "Real Google Search"
-                })
-            
-            # [RESILIENT FALLBACK] If scraping is blocked (common in cloud IPs), return demo data
-            if not creators:
-                 logger.warning("KOL Headhunter: Scraping blocked/empty. Reverting to DEMO data.")
-                 return [
-                    {
-                        "channel_name": f"AI Entrepreneur {region} (Demo)",
-                        "link": "https://youtube.com/demo",
-                        "description": "Scraping connection failed. This is a placeholder.",
-                        "subscribers": "50k",
-                        "avg_views": "10k",
-                        "source": "Demo Fallback"
-                    }
-                 ]
-                
-            return creators[:max_results]
+        all_results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        @tool
-        async def search_twitter_creators(
-            keywords: str,
-            region: str,
-            max_results: int = 50
-        ) -> List[Dict]:
-            """
-            Search Twitter/X for relevant creators.
-            """
-            from app.agents.browser_agent import browser_agent
-            
-            query = f"site:twitter.com OR site:x.com {keywords} {region} \"followers\""
-            logger.info("KOL Headhunter: Searching Twitter (Real)", query=query)
-            
-            results = await browser_agent.search_google(query)
-            
-            creators = []
-            for r in results:
-                title = r.get('title', '').replace(" on X", "").replace(" | Twitter", "")
-                link = r.get('link', '')
-                snippet = r.get('snippet', '')
-                
-                if "/status/" in link: continue # Skip individual tweets
-                
-                creators.append({
-                    "handle": title.split("(")[0].strip(),
-                    "link": link,
-                    "bio": snippet,
-                    "source": "Real Google Search"
-                })
-                
-            if not creators:
-                 logger.warning("KOL Headhunter: Scraping blocked/empty. Reverting to DEMO data.")
-                 return [
-                    {
-                        "handle": "SaaS_Founder_Demo",
-                        "link": "https://twitter.com/demo",
-                        "bio": "Scraping connection failed. Placeholder profile.",
-                        "source": "Demo Fallback"
-                    }
-                 ]
-            
-            return creators[:max_results]
+        # Flatten and deduplicate by URL
+        seen_urls = set()
+        unique_results = []
+        for batch in all_results:
+            if isinstance(batch, Exception):
+                logger.warning("Search task failed", error=str(batch))
+                continue
+            for item in batch:
+                url = item.get("link", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_results.append(item)
         
-        @tool
-        async def search_linkedin_creators(
-            keywords: str,
-            region: str,
-            max_results: int = 50
-        ) -> List[Dict]:
-            """
-            Search LinkedIn for B2B influencers.
-            """
-            from app.agents.browser_agent import browser_agent
+        logger.info(
+            f"Phase 1 complete: {len(unique_results)} unique results "
+            f"from {len(tasks)} searches across {len(keywords)} keywords × {len(self.PLATFORMS)} platforms"
+        )
+        return unique_results
+    
+    async def _analyze_with_llm(
+        self,
+        raw_results: List[Dict],
+        region: str,
+        keywords: List[str],
+        max_targets: int
+    ) -> List[KOLProfile]:
+        """
+        Phase 2: Use LLM to analyze and score raw search results.
+        Returns structured KOLProfile objects.
+        """
+        from app.agents.base import get_llm
+        
+        llm = get_llm("gpt-4o", temperature=0.3)
+        
+        # Format results for the LLM
+        results_text = json.dumps(raw_results[:80], indent=2)  # Cap input to avoid token limits
+        
+        prompt = f"""You are an elite KOL Headhunter for MomentAIc, an AI Operating System for bootstrap founders.
+
+I searched Google for people critical of Y Combinator and VC funding. Below are the raw search results.
+
+Your job:
+1. Identify REAL people/creators from these results
+2. Estimate their follower count (use context clues from snippets)
+3. Score their relevance to our "anti-YC/VC" campaign (0-100)
+4. Draft a brief, personalized outreach message for each
+
+Target profile: Independent creators, 10k-100k followers, critical of traditional VC/accelerator models.
+
+Region: {region}
+Keywords used: {', '.join(keywords)}
+
+RAW SEARCH RESULTS:
+{results_text}
+
+OUTPUT RULES:
+- Return a JSON array of the top {max_targets} most relevant targets
+- Each object MUST have these exact fields:
+  "name", "platform", "handle", "followers" (integer estimate), 
+  "engagement_rate" (float estimate), "niche" (array of strings),
+  "last_posts" (array of topic strings from snippets), 
+  "outreach_script" (personalized message string),
+  "priority_score" (float 0-100), "profile_url" (string)
+- Output ONLY the JSON array, no other text
+- If fewer than {max_targets} quality targets exist, return fewer
+
+JSON:"""
+        
+        try:
+            response = await llm.ainvoke(prompt)
+            content = response.content if hasattr(response, 'content') else str(response)
             
-            query = f"site:linkedin.com/in/ {keywords} {region}"
-            logger.info("KOL Headhunter: Searching LinkedIn (Real)", query=query)
-            
-            results = await browser_agent.search_google(query)
-            
-            creators = []
-            for r in results:
-                title = r.get('title', '').split("|")[0].split("-")[0].strip()
-                link = r.get('link', '')
-                snippet = r.get('snippet', '')
+            # Extract JSON from response
+            json_match = re.search(r'\[\s*\{.*?\}\s*\]', content, re.DOTALL)
+            if json_match:
+                raw_targets = json.loads(json_match.group())
+                targets = []
+                for t in raw_targets:
+                    targets.append(KOLProfile(
+                        name=str(t.get("name", "Unknown")),
+                        platform=str(t.get("platform", "Unknown")),
+                        handle=str(t.get("handle", "")),
+                        followers=int(t.get("followers", 0)),
+                        engagement_rate=float(t.get("engagement_rate", 0.0)),
+                        region=region,
+                        niche=t.get("niche", []),
+                        last_posts=t.get("last_posts", []),
+                        outreach_script=str(t.get("outreach_script", "")),
+                        priority_score=float(t.get("priority_score", 0.0)),
+                        profile_url=str(t.get("profile_url", "")),
+                        source="Serper API + GPT-4o"
+                    ))
+                logger.info(f"Phase 2 complete: LLM identified {len(targets)} targets")
+                return targets
+            else:
+                logger.warning("LLM did not return valid JSON array")
+                return []
                 
-                creators.append({
-                    "name": title,
-                    "link": link,
-                    "headline": snippet,
-                    "source": "Real Google Search"
-                })
-            
-            if not creators:
-                 return [{
-                    "name": "LinkedIn User (Demo)",
-                    "link": "https://linkedin.com/in/demo",
-                    "headline": "Scraping connection failed.",
-                    "source": "Demo Fallback"
-                 }]
-            
-            return creators[:max_results]
-        
-        @tool
-        def generate_outreach_script(
-            creator_name: str,
-            platform: str,
-            recent_content: List[str],
-            region: str
-        ) -> str:
-            """
-            Generate a personalized outreach script for a KOL.
-            """
-            # LLM will craft this based on context
-            return f"""
-            Personalized outreach for {creator_name}:
-            
-            Observation: I noticed your recent work: {recent_content[0] if recent_content else 'your content'}
-            
-            Script:
-            "Hey {creator_name}! I've been following your content on {platform} and loved your insights.
-            
-            I'm building MomentAIc - the AI operating system for entrepreneurs. We're looking for partners like you to get exclusive early access + 40% lifetime commissions.
-            
-            Would love to give you a white-label version for your community. Interested?"
-            """
-        
-        @tool
-        def calculate_kol_score(
-            followers: int,
-            engagement_rate: float,
-            content_relevance: float,
-            region_priority: str
-        ) -> float:
-            """
-            Calculate priority score for a KOL target.
-            """
-            region_multiplier = {"high": 1.5, "medium": 1.0, "low": 0.7}
-            
-            # Prefer mid-size creators with high engagement
-            follower_score = min(followers / 100000, 1.0) * 30
-            engagement_score = min(engagement_rate / 0.1, 1.0) * 40
-            relevance_score = content_relevance * 30
-            
-            base_score = follower_score + engagement_score + relevance_score
-            return base_score * region_multiplier.get(region_priority, 1.0)
-            
-        return [
-            search_youtube_creators,
-            search_twitter_creators,
-            search_linkedin_creators,
-            generate_outreach_script,
-            calculate_kol_score
-        ]
+        except Exception as e:
+            logger.error(f"LLM analysis failed: {e}")
+            return []
     
     async def scan_region(
         self,
         region: str,
-        max_targets: int = 50
+        max_targets: int = 50,
+        custom_keywords: List[str] = None
     ) -> HitList:
         """
-        Scan a region for KOL targets.
+        Scan a region for KOL targets using a two-phase approach.
         
-        Args:
-            region: Target region (US, LatAm, Europe, Asia)
-            max_targets: Maximum targets to return
-        
-        Returns:
-            HitList with prioritized KOL targets
+        Phase 1: Programmatic Serper API search (fast, concurrent)
+        Phase 2: LLM analysis for scoring and outreach generation
         """
-        logger.info(f"KOL Headhunter scanning region: {region}")
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an elite KOL Headhunter for MomentAIc.
-
-Your mission is to identify high-leverage influencers for partnership.
-
-Target Profile:
-- Followers: 10,000 - 100,000 (hungry creators, not celebrities)
-- Engagement Rate: >3%
-- Niche: AI tools, SaaS, no-code, entrepreneur tips, passive income
-- Region: {region}
-
-For each target, you must:
-1. Search across YouTube, Twitter, and LinkedIn
-2. Calculate their priority score
-3. Generate a personalized outreach script based on their recent content
-
-Output a prioritized Hit List ready for the Dealmaker agent."""),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ("user", """Scan {region} for KOL targets.
-            
-Search keywords: {keywords}
-
-Return the top {max_targets} targets with:
-- Their profile details
-- Priority score
-- Personalized outreach script""")
-        ])
-        
-        # Execute the agent
-        result = await self._execute_with_tools(
-            prompt,
-            {
-                "region": region,
-                "keywords": ", ".join(self.SEARCH_KEYWORDS),
-                "max_targets": max_targets
-            }
-        )
-        
-        # Parse and structure results
         from datetime import datetime
+        
+        logger.info(f"KOL Headhunter scanning region: {region}")
+        keywords_to_use = custom_keywords if custom_keywords else self.SEARCH_KEYWORDS
+        
+        # Phase 1: Gather raw search results
+        print(f"[Phase 1] Searching {len(keywords_to_use)} keywords × {len(self.PLATFORMS)} platforms...")
+        raw_results = await self._gather_raw_results(keywords_to_use, region)
+        print(f"[Phase 1] Found {len(raw_results)} unique results across all searches")
+        
+        if not raw_results:
+            logger.warning("No search results from Serper API. Check API key or network.")
+            return HitList(
+                region=region,
+                total_found=0,
+                targets=[],
+                generated_at=datetime.utcnow().isoformat(),
+                filters_applied={"keywords": keywords_to_use}
+            )
+        
+        # Phase 2: LLM analysis
+        print(f"[Phase 2] Analyzing {len(raw_results)} results with GPT-4o...")
+        targets = await self._analyze_with_llm(raw_results, region, keywords_to_use, max_targets)
+        print(f"[Phase 2] Identified {len(targets)} high-quality targets")
         
         return HitList(
             region=region,
-            total_found=max_targets,
-            targets=[],  # Populated by LLM execution
+            total_found=len(targets),
+            targets=targets[:max_targets],
             generated_at=datetime.utcnow().isoformat(),
             filters_applied={
                 "follower_range": self.FOLLOWER_RANGE,
                 "min_engagement": self.MIN_ENGAGEMENT_RATE,
-                "keywords": self.SEARCH_KEYWORDS
+                "keywords": keywords_to_use
             }
         )
     
@@ -352,25 +332,6 @@ Return the top {max_targets} targets with:
             for region, result in zip(regions, results)
             if not isinstance(result, Exception)
         }
-    
-    async def _execute_with_tools(
-        self,
-        prompt: ChatPromptTemplate,
-        inputs: Dict[str, Any]
-    ) -> str:
-        """Execute agent with tools."""
-        from langchain_openai import ChatOpenAI
-        
-        llm = ChatOpenAI(
-            model=settings.default_model,
-            temperature=0.3
-        )
-        
-        agent = create_openai_functions_agent(llm, self._tools, prompt)
-        executor = AgentExecutor(agent=agent, tools=self._tools, verbose=True)
-        
-        result = await executor.ainvoke(inputs)
-        return result.get("output", "")
 
 
 # Singleton instance

@@ -182,17 +182,47 @@ class StripeIntegration(BaseIntegration):
         except Exception as e:
             logger.error("Customer counting failed", error=str(e))
             return {"total": 0, "new_this_month": 0}
-            logger.error("Customer count failed", error=str(e))
-            return {"total": 0, "new_this_month": 0}
     
     async def _get_subscription_stats(self) -> Dict[str, Any]:
-        """Get subscription statistics"""
-        return {
-            "active": 50,
-            "trialing": 5,
-            "canceled_this_month": 2,
-            "churn_rate": 4.0,
-        }
+        """Get real subscription statistics from Stripe"""
+        try:
+            stats = {"active": 0, "trialing": 0, "canceled_this_month": 0, "churn_rate": 0.0}
+            
+            for status in ["active", "trialing"]:
+                response = await self.http_client.get(
+                    f"{self.base_url}/subscriptions",
+                    params={"status": status, "limit": 1},
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    # Use total_count from Stripe's list if available, else count
+                    stats[status] = data.get("total_count", len(data.get("data", [])))
+            
+            # Canceled in last 30 days
+            thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+            response = await self.http_client.get(
+                f"{self.base_url}/subscriptions",
+                params={
+                    "status": "canceled",
+                    "created[gte]": thirty_days_ago,
+                    "limit": 100,
+                },
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            if response.status_code == 200:
+                canceled = response.json().get("data", [])
+                stats["canceled_this_month"] = len(canceled)
+            
+            # Calculate churn rate
+            total_subs = stats["active"] + stats["canceled_this_month"]
+            if total_subs > 0:
+                stats["churn_rate"] = round((stats["canceled_this_month"] / total_subs) * 100, 1)
+            
+            return stats
+        except Exception as e:
+            logger.error("Subscription stats failed", error=str(e))
+            return {"active": 0, "trialing": 0, "canceled_this_month": 0, "churn_rate": 0.0}
     
     async def _get_balance(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get Stripe balance"""
@@ -268,7 +298,7 @@ class StripeIntegration(BaseIntegration):
         except Exception as e:
             logger.error("Stripe Checkout error", error=str(e))
             return {"error": str(e)}
-        return ["mrr", "arr", "customers", "subscriptions", "charges"]
+    
     
     def get_supported_actions(self) -> List[Dict[str, Any]]:
         return [

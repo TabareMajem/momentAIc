@@ -845,6 +845,10 @@ async def get_lead_velocity(
         "trend": "up" if len(velocity_data) > 1 and velocity_data[-1]["count"] >= velocity_data[0]["count"] else "down"
     }
 
+
+    return plan
+
+
 class CampaignGenerateRequest(BaseModel):
     template_id: str
     template_name: str
@@ -863,7 +867,6 @@ async def generate_campaign(
     from app.models.startup import Startup
     
     # 1. Fetch User's Startup Context
-    # (Assuming user has one active startup for this MVP, or we pick the first)
     result = await db.execute(select(Startup).where(Startup.user_id == current_user.id))
     startups = result.scalars().all()
     
@@ -885,3 +888,80 @@ async def generate_campaign(
     )
     
     return plan
+
+
+from app.schemas.growth import ViralCampaignRequest
+
+@router.post("/campaigns/viral", response_model=List[ContentResponse])
+async def create_viral_campaign(
+    startup_id: UUID,
+    request: ViralCampaignRequest,
+    current_user: User = Depends(require_credits(settings.credit_cost_content_gen, "Viral Campaign")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger the Viral Growth Engine for a campaign.
+    Uses GrowthSuperAgent -> ViralCampaignAgent.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    # 1. Fetch Startup
+    startup_result = await db.execute(select(Startup).where(Startup.id == startup_id))
+    startup = startup_result.scalar_one()
+    
+    startup_context = {
+        "name": startup.name,
+        "description": startup.description,
+        "industry": startup.industry,
+        "target_audience": request.target_audience or startup.target_audience,
+        "tone": request.tone
+    }
+    
+    # 2. Call GrowthSuperAgent
+    from app.agents.growth import growth_agent
+    
+    # Prepare target dict for the agent
+    target = {
+        "type": request.campaign_type,
+        "platform": request.platform,
+        "variations": request.variations,
+        "user_data": request.additional_context
+    }
+    
+    result = await growth_agent.run(
+        mission="viral_campaign",
+        target=target,
+        startup_context=startup_context,
+        user_id=str(current_user.id)
+    )
+    
+    # 3. Process Results & Persist to DB
+    # The agent returns {"content": {"assets": [...]}} or similar structure
+    content_data = result.get("content", {})
+    assets = content_data.get("assets", [])
+    
+    saved_items = []
+    for asset in assets:
+        content_item = ContentItem(
+            startup_id=startup_id,
+            title=asset.get("title", f"Viral {request.campaign_type}"),
+            platform=request.platform,
+            content_type="video" if "video" in request.campaign_type else "post",
+            body=asset.get("script", asset.get("body", "")),
+            hook=asset.get("hook", ""),
+            cta=asset.get("cta", ""),
+            hashtags=asset.get("hashtags", []),
+            status=ContentStatus.DRAFTING,
+            ai_generated=True,
+            generation_context={
+                "campaign_type": request.campaign_type,
+                "agent": "GrowthSuperAgent"
+            }
+        )
+        db.add(content_item)
+        saved_items.append(content_item)
+        
+    await db.flush()
+    
+    # Return validated models
+    return [ContentResponse.model_validate(item) for item in saved_items]

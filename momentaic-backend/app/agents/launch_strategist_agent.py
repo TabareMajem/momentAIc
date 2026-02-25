@@ -268,7 +268,7 @@ Keep it under 100 characters. Be punchy and platform-appropriate."""
                     
                     response = await llm.ainvoke(prompt)
                     custom_copy = response.content.strip()[:120] if hasattr(response, 'content') else ""
-                except:
+                except Exception:
                     pass
             
             # Determine timing

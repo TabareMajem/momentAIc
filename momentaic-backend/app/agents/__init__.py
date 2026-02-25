@@ -111,6 +111,11 @@ class LazyAgents:
         return design_agent
 
     @property
+    def planning(self):
+        from app.agents.planning_agent import planning_agent
+        return planning_agent
+
+    @property
     def lead_scraper(self):
         from app.agents.lead_scraper_agent import lead_scraper_agent
         return lead_scraper_agent
@@ -232,6 +237,11 @@ class _AgentsModule(sys.modules[__name__].__class__):
     def design_agent(self):
         from app.agents.design_agent import design_agent
         return design_agent
+
+    @property
+    def planning_agent(self):
+        from app.agents.planning_agent import planning_agent
+        return planning_agent
 
     @property
     def lead_scraper_agent(self):
@@ -358,6 +368,7 @@ __all__ = [
     "strategy_agent",
     "browser_agent",
     "design_agent",
+    "planning_agent",
     # Tools
     "web_search",
     "linkedin_search",

@@ -140,7 +140,6 @@ class MorningBriefService:
                             priority="high",
                             payload=intel_result,
                             status="pending"
-                            status="pending"
                         ))
                         
         except Exception as e:
