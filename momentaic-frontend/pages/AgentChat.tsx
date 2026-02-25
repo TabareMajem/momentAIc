@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 // ... imports
-import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2 } from 'lucide-react';
+import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 // ... inside AgentChat component
 // ...
@@ -61,6 +61,48 @@ function PlayVoiceButton({ text }: { text: string }) {
 
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/Toast';
+
+function FeedbackWidget({ messageId, agentType, startupId }: { messageId: string, agentType: string, startupId: string }) {
+  const [submitted, setSubmitted] = React.useState<'up' | 'down' | null>(null);
+
+  const handleFeedback = async (isPositive: boolean) => {
+    if (submitted) return;
+    setSubmitted(isPositive ? 'up' : 'down');
+    try {
+      await api.submitAgentFeedback({
+        startup_id: startupId,
+        agent_type: agentType,
+        message_id: messageId,
+        is_positive: isPositive,
+      });
+    } catch (e) {
+      console.error("Failed to submit feedback", e);
+    }
+  };
+
+  if (!startupId || !agentType) return null;
+
+  return (
+    <div className="flex items-center gap-1 mt-3 pt-2 border-t border-white/5 self-start">
+      <button
+        onClick={() => handleFeedback(true)}
+        disabled={!!submitted}
+        className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", submitted === 'up' ? "text-green-400 bg-green-400/10" : "text-gray-500")}
+        title="Good Response"
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={() => handleFeedback(false)}
+        disabled={!!submitted}
+        className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", submitted === 'down' ? "text-red-400 bg-red-400/10" : "text-gray-500")}
+        title="Bad Response"
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 const AGENTS: { id: AgentType, name: string, tier: SubscriptionTier }[] = [
   { id: 'orchestrator', name: 'Orchestrator', tier: 'starter' },
@@ -256,6 +298,14 @@ export default function AgentChat() {
                 {msg.content}
                 {msg.isStreaming && (
                   <span className="inline-block w-2 h-4 ml-1 bg-[#00f0ff] animate-pulse align-middle" />
+                )}
+
+                {!msg.isStreaming && msg.role === 'assistant' && (startupIdParam || currentStartupId) && (
+                  <FeedbackWidget
+                    messageId={msg.id}
+                    agentType={msg.agent_used || currentAgent}
+                    startupId={startupIdParam || currentStartupId || ''}
+                  />
                 )}
               </div>
 

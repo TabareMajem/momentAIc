@@ -127,6 +127,15 @@ class AvailableAgentsResponse(BaseModel):
     agents: List[AgentInfoResponse]
 
 
+class AgentFeedbackRequest(BaseModel):
+    """Submit feedback for an agent's response"""
+    startup_id: UUID
+    agent_type: AgentType
+    message_id: Optional[UUID] = None
+    is_positive: bool
+    feedback_text: Optional[str] = None
+    
+
 # ==================
 # Tool Schemas
 # ==================

@@ -543,6 +543,43 @@ async def get_available_agents():
     
     return AvailableAgentsResponse(agents=agents)
 
+# ==================
+# Agent Feedback
+# ==================
+
+@router.post("/feedback")
+async def submit_agent_feedback(
+    request: AgentFeedbackRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Submit user feedback for an agent output to fuel the Feedback Learning System.
+    Stores the feedback in the agent's persistent memory.
+    """
+    await verify_startup_access(request.startup_id, current_user, db)
+    
+    from app.services.agent_memory_service import AgentMemoryService
+    
+    memory_service = AgentMemoryService()
+    
+    # Store explicit text feedback as a preference
+    if request.feedback_text:
+        await memory_service.remember(
+            startup_id=str(request.startup_id),
+            agent_name=request.agent_type.value,
+            key=f"user_preference_{uuid.uuid4().hex[:8]}",
+            value=f"{'POSITIVE' if request.is_positive else 'NEGATIVE'} FEEDBACK: {request.feedback_text}",
+            memory_type="preference",
+            importance=8 if not request.is_positive else 6, # Negative feedback is more important to correct
+            metadata={
+                "message_id": str(request.message_id) if request.message_id else None,
+                "is_positive": request.is_positive
+            }
+        )
+    
+    return {"status": "success", "message": "Feedback recorded."}
+
 
 # ==================
 # Vision Portal (Code Generation)

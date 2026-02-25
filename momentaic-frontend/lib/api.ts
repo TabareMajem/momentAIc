@@ -425,6 +425,11 @@ class ApiClient {
     return data;
   }
 
+  async submitAgentFeedback(payload: { startup_id: string; agent_type: string; message_id?: string; is_positive: boolean; feedback_text?: string }) {
+    const { data } = await this.client.post('/api/v1/agents/feedback', payload);
+    return data;
+  }
+
   // === MOMENTUM AI ===
   async createSprint(startupId: string, payload: { weekly_goal: string; key_metric_name?: string; key_metric_start?: number }): Promise<WeeklySprint> {
     const { data } = await this.client.post(`/api/v1/startups/${startupId}/sprints`, payload);
