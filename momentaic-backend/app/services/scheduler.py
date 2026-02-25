@@ -163,11 +163,20 @@ class SchedulerService:
             description="Weekly automated QA audit of startup websites",
         )
         
+        # Autonomous System Loop - proactive agent scans (Every hour)
+        self.add_interval_job(
+            job_id="autonomous_loop",
+            func=self._run_autonomous_loop,
+            hours=1,
+            description="Autonomous agent opportunity scan",
+        )
+        
         all_jobs = [
             "isp_daily_driver", "isp_weekly_reports",
             "evaluate_triggers", "sync_integrations", "daily_summary", "hourly_hunter",
             "content_daily_post", "competitor_weekly_scan", "growth_social_scan",
             "overdue_goals_nag", "reddit_sniper_scan", "morning_brief", "qa_weekly_audit",
+            "autonomous_loop",
         ]
         logger.info("Default jobs registered", jobs=all_jobs, total=len(all_jobs))
     
@@ -989,6 +998,17 @@ class SchedulerService:
 
         except Exception as e:
             logger.error("QA Weekly Audit failed", error=str(e))
+
+    async def _run_autonomous_loop(self):
+        """
+        Execute the Autonomous System Loop for proactive agent actions.
+        """
+        logger.info("=== Autonomous System Loop Triggered ===")
+        try:
+            from app.services.autonomous_loop import autonomous_loop
+            await autonomous_loop.run_scan_cycle()
+        except Exception as e:
+            logger.error("Autonomous System Loop failed", error=str(e))
 
 
 # Singleton instance

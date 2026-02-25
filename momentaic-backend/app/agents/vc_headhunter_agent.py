@@ -16,6 +16,8 @@ import httpx
 
 from pydantic import BaseModel, Field
 from app.core.config import settings
+from app.agents.base import get_llm, BaseAgent
+from app.services.agent_memory_service import agent_memory_service
 
 logger = structlog.get_logger()
 
@@ -38,6 +40,11 @@ class VCProfile(BaseModel):
     priority_score: float = 0.0
     profile_url: str = ""
     source: str = ""
+
+
+class VCProfileList(BaseModel):
+    """Wrapper for structured LLM response of multiple VC profiles."""
+    profiles: List[VCProfile] = Field(default_factory=list)
 
 
 class DealFlowList(BaseModel):
@@ -119,7 +126,7 @@ async def _search_platform(keyword: str, platform: str) -> List[Dict]:
 # VC Headhunter Agent
 # ==================
 
-class VCHeadhunterAgent:
+class VCHeadhunterAgent(BaseAgent):
     """
     VC Headhunter Agent - Identifies investors for MomentAIc.
     """
@@ -170,7 +177,8 @@ class VCHeadhunterAgent:
         """Phase 2: LLM analysis to identify REAL investors and draft pitches."""
         from app.agents.base import get_llm
         
-        llm = get_llm("gpt-4o", temperature=0.3)
+        # Inject memory context
+        memory_context = await agent_memory_service.recall_as_context("system")
         
         # Cap input
         results_text = json.dumps(raw_results[:80], indent=2)
@@ -179,6 +187,8 @@ class VCHeadhunterAgent:
 
 Your goal: Identify ACTIVE INVESTORS (VCs/Angels) from search results who would be interested in a high-traction, capital-efficient AI startup.
 MomentAIc is an "Anti-YC" play: We help founders scale without employees.
+
+{'Memory Context from previous investor interactions: ' + memory_context if memory_context else ''}
 
 Analyze these search results:
 {results_text}
@@ -191,47 +201,27 @@ Task:
    - Value: "Building the AI OS for bootstrap founders. Profitable growth. Not looking for hand-holding, just strategic capital."
 4. Score them 0-100 on fit.
 
-OUTPUT: JSON Array of top {max_targets} investors.
-Fields: "name", "firm", "role", "platform", "handle", "focus_area" (list), "thesis_match", "recent_investments" (from snippets), "cold_pitch", "priority_score", "profile_url".
-
-JSON ONLY:"""
+OUTPUT: Provide the list of top {max_targets} investors."""
         
         try:
-            response = await llm.ainvoke(prompt)
-            content = response.content if hasattr(response, 'content') else str(response)
+            result = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=VCProfileList,
+                model_name="gemini-pro",
+                temperature=0.3
+            )
             
-            # Extract JSON
-            json_match = re.search(r'\[\s*\{.*?\}\s*\]', content, re.DOTALL)
-            if json_match:
-                raw_targets = json.loads(json_match.group())
-                targets = []
-                for t in raw_targets:
-                    # Robust handling for list fields
-                    recent_inv = t.get("recent_investments", [])
-                    if isinstance(recent_inv, str):
-                        recent_inv = [x.strip() for x in recent_inv.split(",")]
-                    
-                    focus = t.get("focus_area", [])
-                    if isinstance(focus, str):
-                        focus = [x.strip() for x in focus.split(",")]
-
-                    targets.append(VCProfile(
-                        name=str(t.get("name", "Unknown")),
-                        firm=str(t.get("firm", "Unknown")),
-                        role=str(t.get("role", "Investor")),
-                        platform=str(t.get("platform", "Unknown")),
-                        handle=str(t.get("handle", "")),
-                        focus_area=focus,
-                        recent_investments=recent_inv,
-                        thesis_match=str(t.get("thesis_match", "")),
-                        cold_pitch=str(t.get("cold_pitch", "")),
-                        priority_score=float(t.get("priority_score", 0.0)),
-                        profile_url=str(t.get("profile_url", "")),
-                        source="Serper API + GPT-4o"
-                    ))
-                return targets
+            if isinstance(result, VCProfileList):
+                for p in result.profiles:
+                    p.source = "Serper API + Gemini 2.0 Pro"
+                return result.profiles
+            elif isinstance(result, dict) and "profiles" in result:
+                profiles = [VCProfile(**p) for p in result["profiles"]]
+                for p in profiles:
+                    p.source = "Serper API + Gemini 2.0 Pro"
+                return profiles
             else:
-                logger.warning("LLM did not return valid JSON array")
+                logger.warning("LLM did not return expected VCProfileList format")
                 return []
                 
         except Exception as e:

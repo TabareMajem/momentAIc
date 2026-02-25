@@ -16,7 +16,7 @@ import datetime
 import json
 import re
 
-from app.agents.base import get_llm
+from app.agents.base import get_llm, BaseAgent, safe_parse_json
 
 logger = structlog.get_logger()
 
@@ -59,7 +59,7 @@ class WeddingEmbed(BaseModel):
 # GUERRILLA CAMPAIGN AGENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class GuerrillaCampaignAgent:
+class GuerrillaCampaignAgent(BaseAgent):
     """
     Guerrilla Campaign Agent - Physical/Digital Bridge Marketing
     
@@ -153,16 +153,14 @@ Return as JSON with these exact keys:
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are creating viral guerrilla marketing concepts. Make them realistic and shareable."),
-                HumanMessage(content=prompt)
-            ])
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return ProductMockupConcept(**data)
+            result = await self.structured_llm_call(
+                prompt=f"You are creating viral guerrilla marketing concepts. Make them realistic and shareable.\n\n{prompt}",
+                response_model=ProductMockupConcept
+            )
+            if isinstance(result, ProductMockupConcept):
+                return result
+            elif isinstance(result, dict):
+                return ProductMockupConcept(**result)
                 
         except Exception as e:
             logger.error("Product mockup generation failed", error=str(e))
@@ -268,17 +266,16 @@ Return as JSON with these exact keys:
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are writing humorous faux-official documents. Balance humor with official-sounding language."),
-                HumanMessage(content=prompt)
-            ])
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                data['date_issued'] = datetime.datetime.now().strftime("%m/%d/%Y")
-                return ParkingTicket(**data)
+            result = await self.structured_llm_call(
+                prompt=f"You are writing humorous faux-official documents. Balance humor with official-sounding language.\n\n{prompt}",
+                response_model=ParkingTicket
+            )
+            if isinstance(result, ParkingTicket):
+                result.date_issued = datetime.datetime.now().strftime("%m/%d/%Y")
+                return result
+            elif isinstance(result, dict):
+                result['date_issued'] = datetime.datetime.now().strftime("%m/%d/%Y")
+                return ParkingTicket(**result)
                 
         except Exception as e:
             logger.error("Parking ticket generation failed", error=str(e))
@@ -407,15 +404,12 @@ Return as JSON:
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are creating fun wedding content. Keep it celebratory and appropriate for all guests."),
-                HumanMessage(content=prompt)
-            ])
+            result = await self.structured_llm_call(
+                prompt=f"You are creating fun wedding content. Keep it celebratory and appropriate for all guests.\n\n{prompt}"
+            )
             
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
+            data = result if isinstance(result, dict) else safe_parse_json(str(result))
+            if data:
                 
                 # Generate embed code
                 game_id = f"wedding-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"

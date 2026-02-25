@@ -434,6 +434,35 @@ async def update_metrics(
     
     return StartupResponse.model_validate(startup)
 
+
+@router.get("/{startup_id}/live-revenue")
+async def get_live_revenue_dashboard(
+    startup_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    💰 [KILL SHOT 1] "Show Me The Money" Dashboard Endpoint
+    Fetches real-time revenue MRR, subscriptions, and churn from the connected Stripe integration.
+    """
+    await verify_startup_access(startup_id, current_user, db)
+    
+    from app.services.live_data_service import live_data_service
+    revenue_data = await live_data_service.get_live_revenue(str(startup_id), db)
+    
+    if not revenue_data:
+        return {
+            "status": "not_connected",
+            "message": "No active Stripe integration found for this startup.",
+            "data": None
+        }
+        
+    return {
+        "status": "active",
+        "data": revenue_data
+    }
+
+
 @router.get("/{startup_id}/benchmarks")
 async def get_startup_benchmarks(
     startup_id: UUID,

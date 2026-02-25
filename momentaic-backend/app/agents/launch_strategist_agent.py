@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 import structlog
 import re
 
-from app.agents.base import get_llm
+from app.agents.base import get_llm, BaseAgent
+from app.services.agent_memory_service import agent_memory_service
 from app.data.launch_platforms import (
     get_platforms_for_segment,
     get_all_segments,
@@ -126,7 +127,7 @@ class LaunchStrategy:
         }
 
 
-class LaunchStrategistAgent:
+class LaunchStrategistAgent(BaseAgent):
     """
     Launch Strategist Agent - AI-powered product launch planning
     
@@ -499,9 +500,12 @@ Format exactly as above with labels."""
         description = startup_context.get("description", message)
         target = startup_context.get("target_audience", "early adopters")
         
+        # Inject memory context
+        memory_context = await agent_memory_service.recall_as_context(user_id)
+        
         strategy = await self.generate_launch_strategy(
             product_name=product_name,
-            description=description,
+            description=f"{description}\n\nMemory Context: {memory_context}" if memory_context else description,
             target_audience=target,
         )
         

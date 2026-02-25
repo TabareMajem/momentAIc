@@ -2,18 +2,29 @@
 SDR (Sales Development Rep) Agent
 Automated email sequences and follow-up campaigns
 Part of "The Hunter" Swarm
+Upgraded to BaseAgent with structured outputs and memory context.
 """
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from enum import Enum
 import structlog
+from pydantic import BaseModel, Field
 
-from app.agents.base import get_llm, get_agent_config, draft_email
+from app.agents.base import get_llm, get_agent_config, draft_email, BaseAgent, safe_parse_json
 from app.models.conversation import AgentType
 from app.models.growth import Lead, LeadStatus, OutreachMessage
+from app.services.agent_memory_service import agent_memory_service
 
 logger = structlog.get_logger()
+
+
+# Pydantic Structured Outputs
+class SpamAnalysis(BaseModel):
+    score: int = Field(description="Spam score from 0 (clean) to 10 (spam)")
+    risk_level: str = Field(description="Low, Medium, or High")
+    triggers: List[str] = Field(description="List of spam trigger issues found")
+    suggestions: List[str] = Field(description="How to fix the issues")
 
 
 class OutreachSequenceType(str, Enum):
@@ -25,9 +36,10 @@ class OutreachSequenceType(str, Enum):
     NURTURE = "nurture"
 
 
-class SDRAgent:
+class SDRAgent(BaseAgent):
     """
-    SDR Agent - Automated sales outreach and follow-up
+    SDR Agent - Automated sales outreach and follow-up.
+    Upgraded to BaseAgent with cognitive memory and structured outputs.
     
     Capabilities:
     - Generate personalized email sequences
@@ -38,7 +50,7 @@ class SDRAgent:
     
     def __init__(self):
         self.config = get_agent_config(AgentType.SALES_HUNTER)
-        self.llm = get_llm("gemini-2.5-pro", temperature=0.7)
+        self.llm = get_llm("gemini-2.0-flash", temperature=0.7)
         
         # Default follow-up cadence (days after initial outreach)
         self.default_cadence = [3, 7, 14, 21]
@@ -375,7 +387,7 @@ BODY:
     
     async def check_spam_score(self, email_content: str) -> Dict[str, Any]:
         """
-        Analyze email content for spam triggers.
+        Analyze email content for spam triggers using structured output.
         """
         if not self.llm:
             return {"score": 0, "analysis": "AI Unavailable"}
@@ -389,26 +401,16 @@ Rate from 0-10 (0=Clean, 10=Spam) based on:
 - Trigger words (free, urgent, $$$)
 - Formatting (ALL CAPS, excessive !!!)
 - Domain reputation risks
-- Authentication risks (implied)
-
-Return JSON:
-{{
-    "score": <int>,
-    "risk_level": "Low"|"Medium"|"High",
-    "triggers": ["list", "of", "issues"],
-    "suggestions": ["how", "to", "fix"]
-}}"""
+- Authentication risks (implied)"""
         
         try:
-            response = await self.llm.ainvoke(prompt)
-            # In production, use JSON output parser
-            # Simple heuristic parsing
-            text = response.content.lower()
-            score = 0
-            if "score" in text and ":" in text:
-                 # Extract number after "score":
-                 pass
-            return {"score": 0, "analysis": response.content}
+            result = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=SpamAnalysis
+            )
+            if isinstance(result, SpamAnalysis):
+                return result.model_dump()
+            return result if isinstance(result, dict) else {"score": 0, "analysis": str(result)}
         except Exception:
             return {"score": 0, "error": "Check failed"}
 

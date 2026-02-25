@@ -5,15 +5,23 @@ Identifies viral trends and generates product-aligned "hot takes".
 
 from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 import structlog
 import datetime
 
-from app.agents.base import get_llm, web_search
-from app.models.conversation import AgentType
+from app.agents.base import BaseAgent, web_search
 
 logger = structlog.get_logger()
 
-class TrendSurferAgent:
+class TrendItem(BaseModel):
+    topic: str = Field(description="Trend Name")
+    context: str = Field(description="Why it's trending")
+    angle: str = Field(description="How to connect it to the startup")
+
+class TrendListResponse(BaseModel):
+    trends: List[TrendItem] = Field(description="List of identified actionable trends")
+
+class TrendSurferAgent(BaseAgent):
     """
     Trend Surfer Agent
     - Scans for global/tech trends
@@ -21,9 +29,7 @@ class TrendSurferAgent:
     - Generates controversial/insightful takes connecting trend to product
     """
     
-    @property
-    def llm(self):
-        return get_llm("gemini-flash", temperature=0.8)
+    # Uses BaseAgent inheritance
     
     async def surf_trends(
         self,
@@ -64,18 +70,16 @@ class TrendSurferAgent:
             ]
             """
             
-            analysis_response = await self.llm.ainvoke([
-                SystemMessage(content="You are a viral marketing expert."),
-                HumanMessage(content=prompt)
-            ])
-            
-            import json
-            import re
             try:
-                content = analysis_response.content
-                match = re.search(r'\[.*\]', content, re.DOTALL)
-                trend_topics = json.loads(match.group(0)) if match else []
-            except Exception:
+                analysis_response = await self.structured_llm_call(
+                    prompt=prompt,
+                    response_model=TrendListResponse,
+                    model_name="gemini-1.5-flash",
+                    temperature=0.7
+                )
+                trend_topics = [{"topic": t.topic, "context": t.context, "angle": t.angle} for t in analysis_response.trends]
+            except Exception as e:
+                logger.error("Trend analysis failed", error=str(e))
                 trend_topics = []
             
             # 3. Generate Hot Takes
@@ -109,5 +113,5 @@ class TrendSurferAgent:
             
         return trends
 
-# Singleton
+# Singleton instance (for backward compatibility if needed, but AgentRegistry preferred)
 trend_agent = TrendSurferAgent()

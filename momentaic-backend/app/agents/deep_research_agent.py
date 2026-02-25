@@ -5,23 +5,22 @@ Conducts in-depth research by reading multiple sources and synthesizing comprehe
 
 from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 import structlog
 import asyncio
 
-from app.agents.base import get_llm, web_search, read_url_content
+from app.agents.base import BaseAgent, web_search, read_url_content
 
 logger = structlog.get_logger()
 
-class DeepResearchAgent:
+class UrlListResponse(BaseModel):
+    urls: List[str] = Field(description="A list of promising URLs to read for a deep technical/market report")
+
+class DeepResearchAgent(BaseAgent):
     """
     Deep Research Agent - Generates "State of the Union" reports
     """
-    
-    @property
-    def llm(self):
-        # Use a model with large context window for synthesis
-        # 1.5-pro was 404ing, switching to flash which has 1M context too
-        return get_llm("gemini-flash", temperature=0.4)
+    # Uses BaseAgent inheritance
 
     async def research_topic(
         self,
@@ -51,18 +50,16 @@ class DeepResearchAgent:
             Return ONLY a JSON list of valid URL strings. ex: ["http://...", "http://..."]
             """
             
-            urls = []
             try:
-                msg = await self.llm.ainvoke([HumanMessage(content=pick_url_prompt)])
-                import json
-                import re
-                match = re.search(r'\[.*\]', msg.content, re.DOTALL)
-                if match:
-                    urls = json.loads(match.group(0))
+                response = await self.structured_llm_call(
+                    prompt=pick_url_prompt,
+                    response_model=UrlListResponse,
+                    model_name="gemini-1.5-flash",
+                    temperature=0.4
+                )
+                urls = response.urls
             except Exception as e:
                 logger.warning("DeepResearch: URL parsing failed", error=str(e))
-            
-            if not urls:
                 # Fallback: regex find urls in search result text
                 import re
                 urls = re.findall(r'https?://[^\s\)]+', search_results)[:depth]
@@ -112,14 +109,20 @@ class DeepResearchAgent:
             {full_context}
             """
             
-            report_response = await self.llm.ainvoke([
-                SystemMessage(content="You produce high-quality, dense, and factual research reports."),
-                HumanMessage(content=report_prompt)
-            ])
+            try:
+                report_response = await self.llm.ainvoke([
+                    SystemMessage(content="You produce high-quality, dense, and factual research reports."),
+                    HumanMessage(content=report_prompt)
+                ])
+                report_content = report_response.content
+            except Exception as e:
+                # Fallback if synthesis model fails (e.g. rate limit, context size limit)
+                logger.error("Synthesis LLM call failed", error=str(e))
+                report_content = f"Failed to synthesize report due to error: {str(e)}"
             
             return {
                 "topic": topic,
-                "report": report_response.content,
+                "report": report_content,
                 "sources_read": len(knowledge_base),
                 "agent": "deep_research"
             }
@@ -128,5 +131,5 @@ class DeepResearchAgent:
             logger.error("Deep research failed", error=str(e))
             return {"error": str(e), "report": f"Research failed due to error: {str(e)}"}
 
-# Singleton
+# Singleton instance (for backward compatibility if needed, but AgentRegistry preferred)
 deep_research_agent = DeepResearchAgent()

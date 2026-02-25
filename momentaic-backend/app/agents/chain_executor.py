@@ -380,6 +380,107 @@ class AgentChainExecutor:
             r if isinstance(r, dict) else {"error": str(r)}
             for r in results
         ]
+        
+    async def execute_dag(
+        self,
+        dag: Dict[str, Dict[str, Any]],
+        initial_context: Dict[str, Any],
+        stop_on_error: bool = True,
+        timeout_per_step: float = 300.0,
+    ) -> Dict[str, Any]:
+        """
+        Execute a Directed Acyclic Graph (DAG) of agents.
+        Allows passing outputs of Agent A directly to Agent B autonomously.
+        
+        DAG Format:
+        {
+            "step_id_1": {
+                "agent": "researcher",
+                "depends_on": []
+            },
+            "step_id_2": {
+                "agent": "writer",
+                "depends_on": ["step_id_1"]
+            }
+        }
+        """
+        chain_id = str(uuid4())
+        started_at = datetime.utcnow()
+        logger.info(f"DAG execution started {chain_id}")
+        
+        # State tracking
+        node_outputs: Dict[str, Any] = {}
+        node_tasks: Dict[str, asyncio.Task] = {}
+        events: Dict[str, asyncio.Event] = {node: asyncio.Event() for node in dag.keys()}
+        
+        async def run_node(node_id: str, node_config: Dict[str, Any]):
+            # Wait for dependencies
+            depends_on = node_config.get("depends_on", [])
+            for dep in depends_on:
+                if dep in events:
+                    await events[dep].wait()
+                    # If dependency failed and stop_on_error is True, cascade failure
+                    if stop_on_error and isinstance(node_outputs.get(dep), Exception):
+                        raise Exception(f"Dependency {dep} failed")
+            
+            # Build accumulated context from dependencies
+            accumulated_context = dict(initial_context)
+            for dep in depends_on:
+                if dep in node_outputs and isinstance(node_outputs[dep], dict):
+                    # Output of Agent A directly injected into Agent B's context payload
+                    accumulated_context[f"{dep}_output"] = node_outputs[dep]
+                    # Also merge flat for seamless extraction
+                    accumulated_context.update(node_outputs[dep])
+            
+            agent_id = node_config["agent"]
+            agent = self._get_agent(agent_id)
+            if not agent:
+                raise ValueError(f"Agent not found: {agent_id}")
+                
+            # Execute
+            try:
+                output = await self._execute_agent(
+                    agent=agent,
+                    agent_id=agent_id,
+                    context=accumulated_context,
+                    timeout=timeout_per_step
+                )
+                node_outputs[node_id] = output
+                return output
+            except Exception as e:
+                node_outputs[node_id] = e
+                logger.error(f"DAG Node {node_id} failed", error=str(e))
+                if stop_on_error:
+                    raise e
+                return {"error": str(e)}
+            finally:
+                events[node_id].set()
+
+        # Fire off all node tasks concurrently; they will wait on their respective events
+        for node_id, config in dag.items():
+            node_tasks[node_id] = asyncio.create_task(run_node(node_id, config))
+            
+        # Wait for all the graph nodes to finish
+        results = await asyncio.gather(*node_tasks.values(), return_exceptions=not stop_on_error)
+        
+        completed_at = datetime.utcnow()
+        duration = (completed_at - started_at).total_seconds()
+        
+        # Formulate final output payload
+        final_status = ChainStatus.COMPLETED
+        for r in results:
+            if isinstance(r, Exception):
+                final_status = ChainStatus.FAILED
+                
+        logger.info(f"DAG execution finished {chain_id}", status=final_status.value, duration=duration)
+        
+        return {
+            "chain_id": chain_id,
+            "status": final_status.value,
+            "final_outputs": {k: (str(v) if isinstance(v, Exception) else v) for k, v in node_outputs.items()},
+            "duration_seconds": duration,
+            "platform": "momentaic_dag",
+        }
     
     def get_chain_status(self, chain_id: str) -> Optional[Dict[str, Any]]:
         """Get the current status of a running chain"""

@@ -5,15 +5,45 @@ Tracks and analyzes competitors for strategic insights
 
 from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 import structlog
 
-from app.agents.base import get_llm, web_search
-from app.models.conversation import AgentType
+from app.agents.base import BaseAgent, web_search
 
 logger = structlog.get_logger()
 
+class CompetitorInfo(BaseModel):
+    name: str = Field(description="Company Name")
+    url: str = Field(description="Website URL")
+    description: str = Field(description="Brief description (1 sentence)")
+    reason: str = Field(description="Why they are a competitor")
+    target_market: str = Field(description="Their apparent target market")
 
-class CompetitorIntelAgent:
+class CompetitorListResponse(BaseModel):
+    competitors: List[CompetitorInfo] = Field(description="List of identified competitors")
+
+class CompetitorAnalysisResponse(BaseModel):
+    overview: str = Field(description="What they do, founding date, funding")
+    target_market: str = Field(description="Who are their customers?")
+    key_features: str = Field(description="What are their main product features?")
+    pricing_model: str = Field(description="How do they charge? Price points?")
+    strengths: str = Field(description="What do they do well?")
+    weaknesses: str = Field(description="Where are they vulnerable?")
+    positioning: str = Field(description="How do they position themselves?")
+    recent_news: str = Field(description="Any recent developments?")
+
+class BattleCardResponse(BaseModel):
+    quick_facts: Dict[str, str] = Field(description="Key comparison points")
+    when_they_say: str = Field(description="Common objections and how to respond")
+    our_advantages: List[str] = Field(description="Our advantages over them")
+    their_weaknesses: List[str] = Field(description="Their weaknesses to exploit")
+    red_flags: List[str] = Field(description="Situations where the competitor wins")
+
+class CompetitorAlert(BaseModel):
+    has_news: bool = Field(description="Is there any SIGNIFICANT news?")
+    alert_summary: str = Field(description="1-sentence summary of the alert if there is news, else empty string")
+
+class CompetitorIntelAgent(BaseAgent):
     """
     Competitor Intelligence Agent - Tracks and analyzes competitors
     
@@ -25,9 +55,7 @@ class CompetitorIntelAgent:
     - Generate competitive battle cards
     """
     
-    @property
-    def llm(self):
-        return get_llm("gemini-flash", temperature=0.5)
+    # Uses BaseAgent inheritance
     
     async def identify_competitors(
         self,
@@ -72,13 +100,18 @@ Here are some search results for context:
 
 Use this information to provide accurate, real competitor data."""
 
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are an expert competitive intelligence analyst. Be factual and specific."),
-                HumanMessage(content=enhanced_prompt)
-            ])
+            response = await self.structured_llm_call(
+                prompt=enhanced_prompt,
+                response_model=CompetitorListResponse,
+                model_name="gemini-1.5-flash",
+                temperature=0.4
+            )
+            
+            # Format nicely for the output
+            formatted = "\n".join([f"- **{c.name}** ({c.url}): {c.description}" for c in response.competitors])
             
             return {
-                "competitors": response.content,
+                "competitors": formatted,
                 "agent": "competitor_intel",
                 "search_performed": True
             }
@@ -120,22 +153,14 @@ Return ONLY a JSON array with this exact format:
 
 Be specific. Name REAL companies. If you can't find real ones, make educated guesses based on the industry."""
 
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a competitive intelligence expert. Return valid JSON only."),
-                HumanMessage(content=prompt)
-            ])
+            response = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=CompetitorListResponse,
+                model_name="gemini-1.5-flash",
+                temperature=0.3
+            )
             
-            import re
-            import json
-            content = response.content
-            content = re.sub(r'```json\s*', '', content)
-            content = re.sub(r'```\s*', '', content)
-            
-            match = re.search(r'\[.*\]', content, re.DOTALL)
-            if match:
-                competitors = json.loads(match.group())
-                return competitors[:limit]
-            return []
+            return [{"name": c.name, "url": c.url, "description": c.description} for c in response.competitors[:limit]]
             
         except Exception as e:
             logger.error("Auto discover failed", error=str(e))
@@ -155,35 +180,41 @@ Be specific. Name REAL companies. If you can't find real ones, make educated gue
         
         try:
             # Search for competitor info
-            search_results = await web_search.ainvoke(f"{competitor_name} company product features pricing")
+            response = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=CompetitorAnalysisResponse,
+                model_name="gemini-1.5-flash",
+                temperature=0.3
+            )
             
-            prompt = f"""Analyze this competitor in detail:
+            formatted_analysis = f"""
+### 📊 Overview
+{response.overview}
 
-Company: {competitor_name}
-Website: {competitor_url or 'Unknown'}
+### 🎯 Target Market
+{response.target_market}
 
-Search Results:
-{search_results}
+### ⚙️ Key Features
+{response.key_features}
 
-Provide a comprehensive analysis including:
-1. **Overview**: What they do, founding date, funding
-2. **Target Market**: Who are their customers?
-3. **Key Features**: What are their main product features?
-4. **Pricing Model**: How do they charge? Price points?
-5. **Strengths**: What do they do well?
-6. **Weaknesses**: Where are they vulnerable?
-7. **Positioning**: How do they position themselves?
-8. **Recent News**: Any recent developments?
+### 💰 Pricing Model
+{response.pricing_model}
 
-Be specific and factual. If information is unavailable, say so."""
+### 💪 Strengths
+{response.strengths}
 
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are an expert competitive intelligence analyst. Provide actionable insights."),
-                HumanMessage(content=prompt)
-            ])
+### ⚖️ Weaknesses
+{response.weaknesses}
+
+### 🗺️ Positioning
+{response.positioning}
+
+### 📰 Recent News
+{response.recent_news}
+"""
             
             return {
-                "analysis": response.content,
+                "analysis": formatted_analysis,
                 "competitor": competitor_name,
                 "agent": "competitor_intel"
             }
@@ -247,13 +278,34 @@ Generate a battle card with:
 
 Make it practical and actionable for sales conversations."""
 
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a sales enablement expert creating competitive battle cards."),
-                HumanMessage(content=prompt)
-            ])
+            response = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=BattleCardResponse,
+                model_name="gemini-1.5-flash",
+                temperature=0.4
+            )
+            
+            formatted_battle_card = f"""
+## Quick Facts
+{chr(10).join(f"- **{k}**: {v}" for k,v in response.quick_facts.items())}
+
+## Talk Tracks
+
+### When They Say...
+{response.when_they_say}
+
+### Our Advantages
+{chr(10).join(f"- {adv}" for adv in response.our_advantages)}
+
+### Their Weaknesses to Exploit
+{chr(10).join(f"- {weakness}" for weakness in response.their_weaknesses)}
+
+### Red Flags (When NOT to compete)
+{chr(10).join(f"- {flag}" for flag in response.red_flags)}
+"""
             
             return {
-                "battle_card": response.content,
+                "battle_card": formatted_battle_card.strip(),
                 "competitor": competitor_name,
                 "agent": "competitor_intel"
             }
@@ -334,29 +386,39 @@ What would you like to know about your competitive landscape?""",
         # 1. Discovery Mode (If no competitors known)
         if not known_competitors:
             logger.info("CompetitorIntel: Starting auto-discovery")
-            discovery = await self.identify_competitors(startup_context, num_competitors=3)
             
-            # Parse the text response into a list of names (naive or LLM based)
-            # For robustness, let's ask LLM to give us just the names list
+            industry = startup_context.get("industry", "Technology")
+            description = startup_context.get("description", "")
+            
             try:
-                parser_prompt = f"""
-                Extract just the company names from this list as a JSON array of strings:
-                {discovery.get('competitors')}
-                """
-                from langchain_core.messages import HumanMessage
-                response = await self.llm.ainvoke([HumanMessage(content=parser_prompt)])
-                import json
-                import re
-                content = response.content
-                match = re.search(r'\[.*\]', content, re.DOTALL)
-                new_competitors = json.loads(match.group(0)) if match else []
-            except Exception:
+                search_query = f"{industry} {description[:100]} alternatives competitors startups"
+                search_results = await web_search.ainvoke(search_query)
+                
+                prompt = f"""Find 3 competitors for a startup in {industry}.
+
+Startup description: "{description}"
+
+Search Results for context:
+{search_results}"""
+                
+                response = await self.structured_llm_call(
+                    prompt=prompt,
+                    response_model=CompetitorListResponse,
+                    model_name="gemini-1.5-flash",
+                    temperature=0.3
+                )
+                new_competitors = [c.name for c in response.competitors]
+                summary = "\n".join([f"- {c.name}: {c.description}" for c in response.competitors])
+                
+            except Exception as e:
+                logger.error("Competitor discovery failed", error=str(e))
                 new_competitors = []
+                summary = "Failed to discover competitors"
 
             return {
                 "mode": "discovery",
                 "new_competitors": new_competitors,
-                "summary": discovery.get("competitors")
+                "summary": summary
             }
 
         # 2. Surveillance Mode (If competitors exist)
@@ -376,16 +438,17 @@ What would you like to know about your competitive landscape?""",
                 
                 Search Results:
                 {search_results}
-                
-                If NO significant news, return "NONE".
-                If YES, return a 1-sentence summary of the alert.
                 """
                 
-                resp = await self.llm.ainvoke([HumanMessage(content=analysis_prompt)])
-                alert = resp.content.strip()
+                resp = await self.structured_llm_call(
+                    prompt=analysis_prompt,
+                    response_model=CompetitorAlert,
+                    model_name="gemini-1.5-flash",
+                    temperature=0.1
+                )
                 
-                if "NONE" not in alert and len(alert) > 10:
-                    updates.append(f"⚠️ {comp}: {alert}")
+                if resp.has_news and resp.alert_summary.strip():
+                    updates.append(f"⚠️ {comp}: {resp.alert_summary}")
                     
             except Exception as e:
                 logger.error(f"Failed to scan {comp}", error=str(e))
@@ -396,5 +459,5 @@ What would you like to know about your competitive landscape?""",
             "checked_count": len(known_competitors)
         }
 
-# Singleton
+# Singleton instance (for backward compatibility if needed, but AgentRegistry preferred)
 competitor_intel_agent = CompetitorIntelAgent()

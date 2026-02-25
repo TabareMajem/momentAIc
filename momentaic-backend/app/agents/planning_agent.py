@@ -49,8 +49,18 @@ class PlanningAgent(BaseAgent):
         """Process a high-level goal and return a structured plan."""
         
         logger.info("PlanningAgent processing goal", user_id=user_id)
+        from app.agents.base import web_search
         
-        # Build prompt with context + memory
+        # [KILL SHOT 4] Predictive War Gaming (Live Search Inject)
+        search_query = f"{startup_context.get('name', 'Startup')} {startup_context.get('industry', 'Technology')} {message} trends competitors"
+        try:
+            logger.info("PlanningAgent: Executing Predictive War Gaming search...")
+            market_intel = await web_search.ainvoke(search_query)
+        except Exception as e:
+            logger.warning("Predictive War Gaming search failed", error=str(e))
+            market_intel = "Market intelligence currently unavailable due to search failure."
+        
+        # Build prompt with context + memory + intel
         context_str = ""
         if startup_context:
             context_str = f"""
@@ -58,6 +68,9 @@ Startup: {startup_context.get('name', 'Unknown')}
 Industry: {startup_context.get('industry', 'Unknown')}
 Stage: {startup_context.get('stage', 'Unknown')}
 {startup_context.get('agent_memory', '')}
+
+[PREDICTIVE WAR GAMING INTEL - LIVE MARKET DATA]:
+{market_intel}
 """
         
         prompt = f"""
@@ -82,11 +95,12 @@ Available Agents:
 - devops_agent (Deployment, infrastructure)
 """
         try:
-            # Leverage BaseAgent structured output
-            structured_plan: GoalDecomposition = await self.structured_llm_call(
+            # Leverage BaseAgent structured output + Agent Replay tracing
+            structured_plan, chain_of_thought = await self.structured_llm_call(
                 prompt=prompt,
                 response_model=GoalDecomposition,
-                model_name="gemini-pro"
+                model_name="gemini-pro",
+                include_cot=True
             )
             
             # Format the response beautifully for the chat UI
@@ -131,6 +145,7 @@ Available Agents:
             return {
                 "response": response_md,
                 "structured_plan": structured_plan.model_dump(),
+                "chain_of_thought": chain_of_thought,
                 "agent_used": AgentType.PLANNING_AGENT.value
             }
             

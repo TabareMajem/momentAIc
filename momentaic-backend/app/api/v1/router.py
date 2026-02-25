@@ -27,6 +27,7 @@ from app.api.v1.endpoints import (
     intelligence,
     playbooks,
     ws,
+    a2a,
 )
 
 api_router = APIRouter()

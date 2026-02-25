@@ -11,12 +11,11 @@ Campaigns:
 from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+from app.agents.base import get_llm, BaseAgent
 import structlog
 import datetime
 import json
 import re
-
-from app.agents.base import get_llm
 
 logger = structlog.get_logger()
 
@@ -58,7 +57,7 @@ class RelationshipStatsCard(BaseModel):
 # VIRAL CAMPAIGN AGENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class ViralCampaignAgent:
+class ViralCampaignAgent(BaseAgent):
     """
     Viral Campaign Agent - Growth Hack Orchestrator
     
@@ -70,15 +69,6 @@ class ViralCampaignAgent:
     2. Wedding Vows - AI-powered, gamified wedding vows
     3. Stats Cards - "Character sheets" for relationships
     """
-    
-    @property
-    def llm(self):
-        return get_llm("gemini-flash", temperature=0.8)
-    
-    @property
-    def creative_llm(self):
-        """Higher creativity for viral content"""
-        return get_llm("gemini-flash", temperature=0.9)
     
     # ═══════════════════════════════════════════════════════════════════════════
     # CAMPAIGN 1: EXIT SURVEY ("THE EX-FILES")
@@ -171,17 +161,17 @@ Return as JSON with fields:
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a viral content creator. Make it funny, shareable, and slightly edgy."),
-                HumanMessage(content=prompt)
-            ])
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return ExitSurveyContent(**data)
-            
+            result = await self.structured_llm_call(
+                prompt=f"You are a viral content creator. Make it funny, shareable, and slightly edgy.\n\n{prompt}",
+                response_model=ExitSurveyContent,
+                model_name="gemini-pro",
+                temperature=0.9
+            )
+            if isinstance(result, ExitSurveyContent):
+                return result
+            elif isinstance(result, dict):
+                return ExitSurveyContent(**result)
+                
         except Exception as e:
             logger.error("Exit survey generation failed", error=str(e))
         
@@ -280,23 +270,22 @@ Return JSON:
 """
 
         try:
-            response = await self.creative_llm.ainvoke([
-                SystemMessage(content="You are a creative writer specializing in heartfelt, personalized wedding content."),
-                HumanMessage(content=prompt)
-            ])
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return WeddingVow(**data)
+            result = await self.structured_llm_call(
+                prompt=f"You are a creative writer specializing in heartfelt, personalized wedding content.\n\n{prompt}",
+                response_model=WeddingVow,
+                model_name="gemini-pro",
+                temperature=0.9
+            )
+            if isinstance(result, WeddingVow):
+                return result
+            elif isinstance(result, dict):
+                return WeddingVow(**result)
             else:
-                # Use raw response as vow
                 return WeddingVow(
                     opening_line="I found my Player 2.",
-                    body=content,
+                    body=str(result),
                     closing_promise="I promise to always respawn beside you.",
-                    full_vow=content,
+                    full_vow=str(result),
                     gaming_references=["Player 2", "respawn", "co-op mode"]
                 )
                 
@@ -405,16 +394,16 @@ Return as JSON with all fields.
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are creating fun, shareable character sheets for relationships. Make it playful and positive."),
-                HumanMessage(content=prompt)
-            ])
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return RelationshipStatsCard(**data)
+            result = await self.structured_llm_call(
+                prompt=f"You are creating fun, shareable character sheets for relationships. Make it playful and positive.\n\n{prompt}",
+                response_model=RelationshipStatsCard,
+                model_name="gemini-flash",
+                temperature=0.7
+            )
+            if isinstance(result, RelationshipStatsCard):
+                return result
+            elif isinstance(result, dict):
+                return RelationshipStatsCard(**result)
                 
         except Exception as e:
             logger.error("Stats card generation failed", error=str(e))

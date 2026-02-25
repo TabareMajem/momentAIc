@@ -4,9 +4,11 @@ Fetches real-time benchmarks and data for Active OS templates.
 Falls back to curated industry benchmarks when live APIs are unavailable.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import structlog
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 logger = structlog.get_logger()
 
@@ -80,6 +82,60 @@ class LiveDataService:
             "source": data.get("source", "Curated Benchmark"),
             "note": f"Industry benchmark for {industry}. Connect Stripe/Mixpanel for your actual data.",
         }
+
+    async def get_live_revenue(self, startup_id: str, db: AsyncSession) -> Optional[Dict[str, Any]]:
+        """
+        Fetch live revenue metrics (MRR, subscriptions, churn) from a connected Stripe integration.
+        Returns None if Stripe is not connected.
+        """
+        from app.models.integration import Integration, IntegrationProvider, IntegrationStatus
+        from app.integrations.stripe import StripeIntegration
+        from app.integrations.base import IntegrationCredentials
+        
+        # Check for active Stripe integration
+        result = await db.execute(
+            select(Integration).where(
+                Integration.startup_id == startup_id,
+                Integration.provider == IntegrationProvider.STRIPE,
+                Integration.status == IntegrationStatus.ACTIVE
+            )
+        )
+        integration = result.scalar_one_or_none()
+        
+        if not integration or not integration.api_key:
+            return None
+            
+        try:
+            # Initialize credentials and client
+            creds = IntegrationCredentials(api_key=integration.api_key)
+            stripe_client = StripeIntegration(credentials=creds, config=integration.config)
+            
+            # Perform live sync
+            sync_result = await stripe_client.sync_data(data_types=["mrr", "customers", "subscriptions"])
+            
+            if sync_result.success:
+                data = sync_result.data
+                mrr = data.get("mrr", 0.0)
+                arr = data.get("arr", 0.0)
+                subs = data.get("subscriptions", {})
+                
+                return {
+                    "monthly_recurring_revenue": mrr,
+                    "annual_recurring_revenue": arr,
+                    "active_subscriptions": subs.get("active", 0),
+                    "churn_rate_percent": subs.get("churn_rate", 0.0),
+                    "recent_cancellations": subs.get("canceled_this_month", 0),
+                    "total_customers": data.get("customers", {}).get("total", 0),
+                    "source": "Stripe Live Data",
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                logger.error("Live revenue sync failed", errors=sync_result.errors)
+                return None
+                
+        except Exception as e:
+            logger.error("Error fetching live Stripe data", error=str(e))
+            return None
 
 
 # Singleton

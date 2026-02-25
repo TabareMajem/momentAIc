@@ -31,10 +31,9 @@ from app.schemas.agent import (
     ConversationListResponse, MessageCreate, MessageResponse,
     AgentChatRequest, AgentChatResponse, AgentInfoResponse, AvailableAgentsResponse,
     VisionPortalRequest, VisionPortalResponse, VisionPortalStatusResponse,
-    VisionPortalRequest, VisionPortalResponse, VisionPortalStatusResponse,
-    VisionPortalRequest, VisionPortalResponse, VisionPortalStatusResponse,
     BuilderChatRequest, GenerateImageRequest, ImageGenerationResponse,
     GenerateVideoRequest, VideoGenerationResponse,
+    AgentFeedbackRequest,
 )
 
 router = APIRouter()
@@ -295,12 +294,18 @@ async def chat(
         
         # Get response from specialized agent
         agent_response = await _get_agent_response(
-            agent_type=routed_to,
+            agent_type=routed_to or conversation.agent_type,
             message=chat_request.message,
             startup_context=startup_context,
             user_id=str(current_user.id),
+            db=db,
         )
         response_text = agent_response.get("response", response_text)
+    
+    # [KILL SHOT 2] Ensure Agent Replay data persists 
+    msg_meta = {"routed_to": routed_to.value if routed_to else None}
+    if agent_response and "chain_of_thought" in agent_response:
+        msg_meta["chain_of_thought"] = agent_response["chain_of_thought"]
     
     # Save assistant message
     assistant_message = Message(
@@ -308,7 +313,7 @@ async def chat(
         role=MessageRole.ASSISTANT,
         content=response_text,
         agent_type=routed_to or conversation.agent_type,
-        metadata={"routed_to": routed_to.value if routed_to else None},
+        message_meta=msg_meta,
     )
     db.add(assistant_message)
     conversation.message_count += 1
@@ -332,16 +337,34 @@ async def _get_agent_response(
     message: str,
     startup_context: dict,
     user_id: str,
+    db: AsyncSession = None,
 ) -> dict:
     """
     Get response from a specialized agent.
     Routes to the appropriate agent instance based on type.
     """
+    from app.services.live_data_service import live_data_service
     from app.agents import (
         sales_agent, content_agent, tech_lead_agent,
         finance_cfo_agent, legal_counsel_agent, growth_hacker_agent,
         product_pm_agent, planning_agent,
     )
+    
+    # 💰 [KILL SHOT 1] Inject Real-time Revenue Data
+    if db and startup_context and startup_context.get("startup_id"):
+        try:
+            live_revenue = await live_data_service.get_live_revenue(startup_context["startup_id"], db)
+            if live_revenue:
+                # Merge into metrics block
+                if "metrics" not in startup_context:
+                    startup_context["metrics"] = {}
+                startup_context["metrics"]["mrr"] = live_revenue["monthly_recurring_revenue"]
+                startup_context["metrics"]["churn"] = live_revenue["churn_rate_percent"]
+                startup_context["metrics"]["live_revenue_data"] = live_revenue
+        except Exception as e:
+            import structlog
+            logger = structlog.get_logger()
+            logger.error("Failed to inject live revenue", error=str(e))
     
     # Map agent types to instances
     agent_map = {
@@ -523,7 +546,7 @@ async def chat_stream(
                     yield f"data: {json.dumps({'chunk': chunk, 'is_final': False})}\n\n"
             else:
                 # Fallback to non-streaming if method missing
-                result = await _get_agent_response(routed_to, chat_request.message, startup_context, str(current_user.id))
+                result = await _get_agent_response(routed_to, chat_request.message, startup_context, str(current_user.id), db=db)
                 yield f"data: {json.dumps({'chunk': result.get('response', ''), 'is_final': False})}\n\n"
         else:
             # 3. Generic LLM Fallback (Streaming)

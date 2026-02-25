@@ -17,6 +17,8 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.agents.base import get_llm, BaseAgent
+from app.services.agent_memory_service import agent_memory_service
 
 logger = structlog.get_logger()
 
@@ -39,6 +41,14 @@ class KOLProfile(BaseModel):
     priority_score: float = 0.0
     profile_url: str = ""
     source: str = ""
+
+
+    source: str = ""
+
+
+class KOLProfileList(BaseModel):
+    """Wrapper for structured LLM response of multiple KOL profiles."""
+    profiles: List[KOLProfile] = Field(default_factory=list)
 
 
 class HitList(BaseModel):
@@ -131,7 +141,7 @@ async def _search_platform(keyword: str, platform: str, region: str) -> List[Dic
 # KOL Headhunter Agent
 # ==================
 
-class KOLHeadhunterAgent:
+class KOLHeadhunterAgent(BaseAgent):
     """
     KOL Headhunter Agent - Identifies high-leverage influencers for partnership.
     
@@ -201,7 +211,8 @@ class KOLHeadhunterAgent:
         """
         from app.agents.base import get_llm
         
-        llm = get_llm("gpt-4o", temperature=0.3)
+        # Inject memory context
+        memory_context = await agent_memory_service.recall_as_context("system", limit=2)
         
         # Format results for the LLM
         results_text = json.dumps(raw_results[:80], indent=2)  # Cap input to avoid token limits
@@ -209,6 +220,8 @@ class KOLHeadhunterAgent:
         prompt = f"""You are an elite KOL Headhunter for MomentAIc, an AI Operating System for bootstrap founders.
 
 I searched Google for people critical of Y Combinator and VC funding. Below are the raw search results.
+
+{'Memory Context on previous influencer outreach: ' + memory_context if memory_context else ''}
 
 Your job:
 1. Identify REAL people/creators from these results
@@ -225,46 +238,30 @@ RAW SEARCH RESULTS:
 {results_text}
 
 OUTPUT RULES:
-- Return a JSON array of the top {max_targets} most relevant targets
-- Each object MUST have these exact fields:
-  "name", "platform", "handle", "followers" (integer estimate), 
-  "engagement_rate" (float estimate), "niche" (array of strings),
-  "last_posts" (array of topic strings from snippets), 
-  "outreach_script" (personalized message string),
-  "priority_score" (float 0-100), "profile_url" (string)
-- Output ONLY the JSON array, no other text
-- If fewer than {max_targets} quality targets exist, return fewer
-
-JSON:"""
+- Return the top {max_targets} most relevant targets
+- If fewer than {max_targets} quality targets exist, return fewer"""
         
         try:
-            response = await llm.ainvoke(prompt)
-            content = response.content if hasattr(response, 'content') else str(response)
+            result = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=KOLProfileList,
+                model_name="gemini-pro",
+                temperature=0.3
+            )
             
-            # Extract JSON from response
-            json_match = re.search(r'\[\s*\{.*?\}\s*\]', content, re.DOTALL)
-            if json_match:
-                raw_targets = json.loads(json_match.group())
-                targets = []
-                for t in raw_targets:
-                    targets.append(KOLProfile(
-                        name=str(t.get("name", "Unknown")),
-                        platform=str(t.get("platform", "Unknown")),
-                        handle=str(t.get("handle", "")),
-                        followers=int(t.get("followers", 0)),
-                        engagement_rate=float(t.get("engagement_rate", 0.0)),
-                        region=region,
-                        niche=t.get("niche", []),
-                        last_posts=t.get("last_posts", []),
-                        outreach_script=str(t.get("outreach_script", "")),
-                        priority_score=float(t.get("priority_score", 0.0)),
-                        profile_url=str(t.get("profile_url", "")),
-                        source="Serper API + GPT-4o"
-                    ))
-                logger.info(f"Phase 2 complete: LLM identified {len(targets)} targets")
-                return targets
+            if isinstance(result, KOLProfileList):
+                for p in result.profiles:
+                    p.source = "Serper API + Gemini 2.0 Pro"
+                logger.info(f"Phase 2 complete: LLM identified {len(result.profiles)} targets")
+                return result.profiles
+            elif isinstance(result, dict) and "profiles" in result:
+                profiles = [KOLProfile(**p) for p in result["profiles"]]
+                for p in profiles:
+                    p.source = "Serper API + Gemini 2.0 Pro"
+                logger.info(f"Phase 2 complete: LLM identified {len(profiles)} targets")
+                return profiles
             else:
-                logger.warning("LLM did not return valid JSON array")
+                logger.warning("LLM did not return expected KOLProfileList format")
                 return []
                 
         except Exception as e:

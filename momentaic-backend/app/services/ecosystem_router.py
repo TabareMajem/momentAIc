@@ -63,11 +63,7 @@ class EcosystemRouter:
     """
     
     def __init__(self):
-        self.http_client = httpx.AsyncClient(timeout=60.0)
-        
-        # Platform endpoints (configurable)
-        self.agentforge_url = getattr(settings, "agentforge_api_url", "https://api.agentforgeai.com")
-        self.yokaizen_url = getattr(settings, "yokaizen_api_url", "https://api.yokaizen.com")
+        pass
     
     def determine_platform(self, category: TaskCategory) -> Platform:
         """Determine which platform should handle a task"""
@@ -119,24 +115,34 @@ class EcosystemRouter:
         """Route to local MomentAIc agents"""
         from app.agents.chain_executor import chain_executor
         
-        # Map category to agent chain
-        category_chains = {
-            TaskCategory.FINANCE: ["finance_cfo"],
-            TaskCategory.LEGAL: ["legal_counsel"],
-            TaskCategory.RECRUITING: ["hr_operations"],
-            TaskCategory.CONTENT: ["content", "marketing"],
+        initial_context = {
+            "message": task,
+            **(context or {}),
         }
         
-        chain = category_chains.get(category, ["supervisor"])
-        
-        result = await chain_executor.execute_chain(
-            agent_chain=chain,
-            initial_context={
-                "message": task,
-                **(context or {}),
-            },
-            stop_on_error=False,
-        )
+        # [KILL SHOT 3] Autonomous Squad Composability (DAGs)
+        if context and "dag_config" in context:
+            logger.info("Executing composite Agent DAG", dag_nodes=list(context["dag_config"].keys()))
+            result = await chain_executor.execute_dag(
+                dag=context["dag_config"],
+                initial_context=initial_context,
+                stop_on_error=False,
+            )
+        else:
+            # Legacy simple tracking
+            category_chains = {
+                TaskCategory.FINANCE: ["finance_cfo"],
+                TaskCategory.LEGAL: ["legal_counsel"],
+                TaskCategory.RECRUITING: ["hr_operations"],
+                TaskCategory.CONTENT: ["content", "marketing"],
+            }
+            chain = category_chains.get(category, ["supervisor"])
+            
+            result = await chain_executor.execute_chain(
+                agent_chain=chain,
+                initial_context=initial_context,
+                stop_on_error=False,
+            )
         
         return {
             "success": result.get("status") == "completed",
@@ -151,36 +157,25 @@ class EcosystemRouter:
         user_id: str,
     ) -> Dict[str, Any]:
         """Route to AgentForge for complex workflows"""
-        try:
-            # AgentForge API call
-            response = await self.http_client.post(
-                f"{self.agentforge_url}/v1/orchestrate",
-                json={
-                    "task": task,
-                    "context": context or {},
-                    "user_id": user_id,
-                    "source": "momentaic",
-                },
-                headers={
-                    "Authorization": f"Bearer {getattr(settings, 'agentforge_api_key', '')}",
-                    "Content-Type": "application/json",
-                },
-            )
-            
-            if response.status_code == 200:
-                return {
-                    "success": True,
-                    "platform": "agentforge",
-                    "result": response.json(),
-                }
-            else:
-                logger.warning("AgentForge API call failed", status=response.status_code)
-                # Fallback to local
-                return await self._route_to_momentaic(task, TaskCategory.WORKFLOW, context)
-                
-        except Exception as e:
-            logger.error("AgentForge routing error", error=str(e))
-            # Fallback to local execution
+        from app.integrations.agentforge_client import agentforge_client
+        
+        logger.info("Sending orchestration request to AgentForge API")
+        
+        result = await agentforge_client.orchestrate(
+            task=task,
+            context=context,
+            user_id=user_id,
+        )
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "platform": "agentforge",
+                "result": result.get("result", {}),
+            }
+        else:
+            logger.warning("AgentForge API call failed", error=result.get("error"))
+            # Fallback to local
             return await self._route_to_momentaic(task, TaskCategory.WORKFLOW, context)
     
     async def _route_to_yokaizen(
@@ -191,36 +186,26 @@ class EcosystemRouter:
         user_id: str,
     ) -> Dict[str, Any]:
         """Route to Yokaizen for Sales/Marketing/Ops"""
-        try:
-            # Yokaizen API call
-            response = await self.http_client.post(
-                f"{self.yokaizen_url}/v1/swarm/dispatch",
-                json={
-                    "task": task,
-                    "swarm_type": category.value,
-                    "context": context or {},
-                    "user_id": user_id,
-                    "source": "momentaic",
-                },
-                headers={
-                    "Authorization": f"Bearer {getattr(settings, 'yokaizen_api_key', '')}",
-                    "Content-Type": "application/json",
-                },
-            )
-            
-            if response.status_code == 200:
-                return {
-                    "success": True,
-                    "platform": "yokaizen",
-                    "result": response.json(),
-                }
-            else:
-                logger.warning("Yokaizen API call failed", status=response.status_code)
-                # Fallback to local agents
-                return await self._fallback_local(task, category, context)
-                
-        except Exception as e:
-            logger.error("Yokaizen routing error", error=str(e))
+        from app.integrations.yokaizen_client import yokaizen_client
+        
+        logger.info("Sending task execution request to Yokaizen API")
+        
+        result = await yokaizen_client.execute_task(
+            task=task,
+            swarm_type=category.value,
+            context=context,
+            user_id=user_id,
+        )
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "platform": "yokaizen",
+                "result": result.get("result", {}),
+            }
+        else:
+            logger.warning("Yokaizen API call failed", error=result.get("error"))
+            # Fallback to local agents
             return await self._fallback_local(task, category, context)
     
     async def _fallback_local(
@@ -255,7 +240,7 @@ class EcosystemRouter:
     
     async def close(self):
         """Cleanup resources"""
-        await self.http_client.aclose()
+        pass
 
 
 # Singleton instance

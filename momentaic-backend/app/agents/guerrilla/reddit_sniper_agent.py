@@ -11,12 +11,11 @@ Strategies:
 from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+from app.agents.base import get_llm, BaseAgent, web_search
 import structlog
 import datetime
 import json
 import re
-
-from app.agents.base import get_llm, web_search
 
 logger = structlog.get_logger()
 
@@ -63,7 +62,7 @@ class ThreadAnalysis(BaseModel):
 # REDDIT SNIPER AGENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class RedditSniperAgent:
+class RedditSniperAgent(BaseAgent):
     """
     Reddit Sniper Agent - "Trojan Horse" Narrative Marketing
     
@@ -103,15 +102,6 @@ class RedditSniperAgent:
         "doesn't listen",
         "feeling disconnected",
     ]
-    
-    @property
-    def llm(self):
-        return get_llm("gemini-flash", temperature=0.7)
-    
-    @property
-    def creative_llm(self):
-        """Higher temperature for story generation"""
-        return get_llm("gemini-flash", temperature=0.85)
     
     # ═══════════════════════════════════════════════════════════════════════════
     # STRATEGY 1: RED FLAG RECEIPT COMMENTS
@@ -181,25 +171,24 @@ Return JSON with these fields:
 """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a helpful Redditor sharing genuine relationship advice."),
-                HumanMessage(content=prompt)
-            ])
+            result = await self.structured_llm_call(
+                prompt=f"You are a helpful Redditor sharing genuine relationship advice. Be empathetic and authentic.\n\n{prompt}",
+                response_model=RedFlagReceipt,
+                model_name="gemini-flash",
+                temperature=0.7
+            )
             
-            # Parse JSON response
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return RedFlagReceipt(**data)
+            if isinstance(result, RedFlagReceipt):
+                return result
+            elif isinstance(result, dict):
+                return RedFlagReceipt(**result)
             else:
-                # Fallback: treat entire response as comment
                 return RedFlagReceipt(
                     intro_hook="My partner used to deny things too.",
                     evidence_description="We started tracking it visually.",
                     subtle_mention="There's this app I found...",
                     call_to_action="Might help you too.",
-                    full_comment=content
+                    full_comment=str(result)
                 )
                 
         except Exception as e:
@@ -300,16 +289,17 @@ Return JSON with:
 """
 
         try:
-            response = await self.creative_llm.ainvoke([
-                SystemMessage(content="You are writing an authentic Reddit relationship success story."),
-                HumanMessage(content=prompt)
-            ])
+            result = await self.structured_llm_call(
+                prompt=f"You are writing an authentic Reddit relationship success story.\n\n{prompt}",
+                response_model=BreakthroughStory,
+                model_name="gemini-pro",
+                temperature=0.85
+            )
             
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return BreakthroughStory(**data)
+            if isinstance(result, BreakthroughStory):
+                return result
+            elif isinstance(result, dict):
+                return BreakthroughStory(**result)
             else:
                 return BreakthroughStory(
                     title=f"UPDATE: Gamification actually fixed our {theme} issues",
@@ -317,7 +307,7 @@ Return JSON with:
                     turning_point="We tried a relationship game instead of therapy",
                     specific_result="We actually talked and laughed together",
                     product_mention="It's called BondQuests - turns relationship stuff into RPG stats",
-                    full_post=content
+                    full_post=str(result)
                 )
                 
         except Exception as e:
@@ -390,18 +380,21 @@ Return JSON array:
 Only include threads with engagement_score >= 7.
 """
                 
-                response = await self.llm.ainvoke([
-                    SystemMessage(content="You are analyzing Reddit for growth marketing opportunities."),
-                    HumanMessage(content=analysis_prompt)
-                ])
+                result = await self.structured_llm_call(
+                    prompt=f"You are analyzing Reddit for growth marketing opportunities.\n\n{analysis_prompt}",
+                    response_model=ThreadAnalysis,
+                    model_name="gemini-flash",
+                    temperature=0.4
+                )
                 
-                content = response.content
-                json_match = re.search(r'\[.*\]', content, re.DOTALL)
-                if json_match:
-                    threads = json.loads(json_match.group(0))
-                    for thread in threads:
-                        if thread.get('engagement_score', 0) >= 7:
-                            opportunities.append(RelationshipThread(**thread))
+                if isinstance(result, ThreadAnalysis):
+                    for thread in result.threads:
+                        if thread.engagement_score >= 7:
+                            opportunities.append(thread)
+                elif isinstance(result, dict) and "threads" in result:
+                    for t in result["threads"]:
+                        if t.get("engagement_score", 0) >= 7:
+                            opportunities.append(RelationshipThread(**t))
                             
             except Exception as e:
                 logger.error(f"Reddit scan failed for keyword: {keyword}", error=str(e))
@@ -436,8 +429,8 @@ Only include threads with engagement_score >= 7.
         Returns:
             Dict with comment text and metadata
         """
-        if not self.llm:
-            return {"error": "LLM not available"}
+        if not self.app_context:
+            self.app_context = {}
         
         product_context = product_context or {
             "name": "BondQuests",
@@ -467,7 +460,10 @@ Max 80 words. Be genuine and helpful.
 """
 
         try:
-            response = await self.llm.ainvoke([
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-flash", temperature=0.7)
+            
+            response = await llm.ainvoke([
                 SystemMessage(content="You are a supportive Redditor giving relationship advice."),
                 HumanMessage(content=prompt)
             ])
@@ -475,7 +471,7 @@ Max 80 words. Be genuine and helpful.
             return {
                 "thread_url": thread.url,
                 "thread_title": thread.title,
-                "comment": response.content,
+                "comment": response.content if hasattr(response, 'content') else str(response),
                 "strategy": "value_first",
                 "generated_at": datetime.datetime.now().isoformat(),
             }

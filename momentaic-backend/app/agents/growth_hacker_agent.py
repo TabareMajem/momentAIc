@@ -334,11 +334,12 @@ Provide:
         If the URL is valid, infer what the company does from the WEBSITE CONTENT. If description is provided, use it.
         
         You must generate a structured JSON strategy with:
-        1. "target_audience": The single most lucrative initial customer segment (e.g. "Senior React Developers").
-        2. "pain_point": Their bleeding neck problem (e.g. "Wasting 10h/week on CSS debugging").
-        3. "value_prop": The killer hook (e.g. "Ship pixel-perfect UIs in 1 click").
-        4. "viral_post_hook": A contrarian or curiosity-driven hook for LinkedIn/X first post.
-        5. "weekly_goal": A concrete first-week metric (e.g. "10 Beta Signups").
+        1. "target_audience": The single most lucrative initial customer segment.
+        2. "pain_point": Their bleeding neck problem.
+        3. "value_prop": The killer hook.
+        4. "viral_post_hook": A contrarian or curiosity-driven hook.
+        5. "weekly_goal": A concrete first-week metric.
+        6. "yc_application": A nested object with "problem", "solution", "secret_sauce", "why_now", answering typical Y combinator application questions concisely.
         
         Format as purely JSON:
         {{
@@ -346,7 +347,13 @@ Provide:
             "pain_point": "...",
             "value_prop": "...",
             "viral_post_hook": "...",
-            "weekly_goal": "..."
+            "weekly_goal": "...",
+            "yc_application": {{
+                "problem": "...",
+                "solution": "...",
+                "secret_sauce": "...",
+                "why_now": "..."
+            }}
         }}
         """
         
@@ -363,7 +370,13 @@ Provide:
                     "pain_point": "Unknown problem",
                     "value_prop": "Innovative solution",
                     "viral_post_hook": "We are launching something new!",
-                    "weekly_goal": "Get 100 visitors"
+                    "weekly_goal": "Get 100 visitors",
+                    "yc_application": {
+                        "problem": "Not yet analyzed.",
+                        "solution": "Not yet analyzed.",
+                        "secret_sauce": "Not yet analyzed.",
+                        "why_now": "Not yet analyzed."
+                    }
                 }
         except Exception as e:
             logger.error("Wizard analysis failed", error=str(e))

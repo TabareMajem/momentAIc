@@ -5,12 +5,13 @@ The Entrepreneur Operating System
 
 from contextlib import asynccontextmanager
 from typing import Any
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import structlog
 import time
+import math
 
 from app.core.config import settings
 from app.core.database import init_db, close_db
@@ -348,9 +349,68 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
+
+
+# Rate limiting middleware
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """
+    Redis-backed rate limiting middleware.
+    Limits standard API requests based on settings.rate_limit_requests per settings.rate_limit_window.
+    """
+    # Skip rate limiting for static files, docs, health, and webhooks
+    path = request.url.path
+    if path.startswith(("/static", "/assets", "/api/v1/health", "/api/v1/docs", "/api/v1/redoc", "/api/stripe/webhook", "/api/v1/billing/webhook")):
+        return await call_next(request)
+        
+    # Get client IP (fallback to 127.0.0.1 if not behind proxy)
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    
+    # Optional: authenticated user rate limiting is better, but IP is a generic fallback
+    # In a full production app, you'd extract the JWT user ID here if present.
+    limit_key = f"rate_limit:{client_ip}"
+    
+    try:
+        import redis.asyncio as aioredis
+        redis_client = aioredis.from_url(settings.redis_url or "redis://localhost:6379/0", decode_responses=True)
+        
+        # Determine current window bucket (e.g., current minute)
+        current_time = int(time.time())
+        window_start = current_time - (current_time % settings.rate_limit_window)
+        bucket_key = f"{limit_key}:{window_start}"
+        
+        async with redis_client.pipeline(transaction=True) as pipe:
+            # Increment and set expiry concurrently
+            pipe.incr(bucket_key)
+            pipe.expire(bucket_key, settings.rate_limit_window * 2)
+            results = await pipe.execute()
+            
+            request_count = results[0]
+            
+            if request_count > settings.rate_limit_requests:
+                logger.warning("Rate limit exceeded", ip=client_ip, path=path, count=request_count, limit=settings.rate_limit_requests)
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={
+                        "success": False,
+                        "error": "Too many requests",
+                        "detail": f"Rate limit exceeded. Maximum {settings.rate_limit_requests} requests per {settings.rate_limit_window} seconds."
+                    },
+                    headers={"Retry-After": str(settings.rate_limit_window)}
+                )
+        
+        await redis_client.aclose()
+    except ImportError:
+        # Ignore if aioredis isn't installed (tests/dev)
+        pass
+    except Exception as e:
+        # Fail open if Redis is down
+        logger.warning("Rate limiter bypass (Redis error)", error=str(e))
+
+    return await call_next(request)
 
 
 # Request logging middleware

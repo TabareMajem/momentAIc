@@ -292,11 +292,49 @@ class StripeIntegration(BaseIntegration):
             if response.status_code != 200:
                 logger.error("Stripe Checkout failed", status=response.status_code, response=response.text)
                 return {"error": "Failed to create checkout session", "details": response.text}
-            
             return response.json()
             
         except Exception as e:
             logger.error("Stripe Checkout error", error=str(e))
+            return {"error": str(e)}
+            
+    async def create_split_transfer(
+        self,
+        amount_cents: int,
+        destination_account_id: str,
+        description: str = "Equity-for-Compute Split",
+        transfer_group: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Phantom Co-Founders: Perform a Stripe Connect transfer for Equity-for-Compute splits.
+        Routes automated percentage payouts to autonomous agents or remote partners.
+        """
+        try:
+            payload = {
+                "amount": amount_cents,
+                "currency": "usd",
+                "destination": destination_account_id,
+                "description": description
+            }
+            if transfer_group:
+                payload["transfer_group"] = transfer_group
+                
+            response = await self.http_client.post(
+                f"{self.base_url}/transfers",
+                data=payload,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+            )
+            
+            if response.status_code != 200:
+                logger.error("Stripe Connect transfer failed", status=response.status_code, response=response.text)
+                return {"error": "Failed to execute split transfer", "details": response.text}
+                
+            return response.json()
+        except Exception as e:
+            logger.error("Stripe split transfer error", error=str(e))
             return {"error": str(e)}
     
     
@@ -304,4 +342,5 @@ class StripeIntegration(BaseIntegration):
         return [
             {"name": "get_balance", "description": "Get Stripe balance"},
             {"name": "get_recent_charges", "description": "Get recent charges"},
+            {"name": "create_split_transfer", "description": "Execute an Equity-for-Compute revenue split transfer via Connect"},
         ]

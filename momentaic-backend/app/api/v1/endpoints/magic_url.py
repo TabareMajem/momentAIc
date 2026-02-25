@@ -32,6 +32,7 @@ class MagicURLResponse(BaseModel):
     posts_scheduled: int = 0
     leads_icp: Optional[str] = None
     experiment: Optional[Dict[str, Any]] = None
+    content_engine: Optional[Dict[str, Any]] = None
     message: str
 
 
@@ -105,6 +106,7 @@ async def magic_url_onboarding(
                 stage=StartupStage.MVP,
                 website_url=request.url,
                 metrics={},
+                settings={"yc_application": strategy.get("yc_application", {})}
             )
             db.add(startup)
             await db.flush()
@@ -112,37 +114,77 @@ async def magic_url_onboarding(
             # Create default triggers
             await create_default_triggers(db, startup.id, current_user.id)
             logger.info("Magic URL: Created new startup", startup_id=str(startup.id))
+        else:
+            # Update existing startup with YC application
+            startup.settings = {**startup.settings, "yc_application": strategy.get("yc_application", {})}
+            db.add(startup)
+            await db.flush()
         
-        # === STEP 4: GENERATE & SCHEDULE POSTS ===
+        # === STEP 4: GENERATE CONTENT ENGINE ASSETS CONCURRENTLY ===
+        import asyncio
+        from app.agents.marketing_agent import marketing_agent
+        from app.agents.content_creator_agent import content_agent
+        
+        hook = strategy.get("viral_post_hook", "")
+        audience = strategy.get("target_audience", "")
+        
+        async def gen_twitter():
+            return await marketing_agent.create_social_post(context=f"Target: {audience}. Hook: {hook}. Needs to be viral.", platform="twitter")
+            
+        async def gen_linkedin():
+            return await marketing_agent.create_social_post(context=f"Target: {audience}. Hook: {hook}. Needs to be professional but contrarian.", platform="linkedin")
+            
+        async def gen_blog():
+            return await content_agent.process(
+                message=f"Draft a compelling Day-1 launch blog post for {page_title}. Audience: {audience}. Value prop: {strategy.get('value_prop')}",
+                startup_context={"name": page_title, "description": strategy.get("value_prop"), "locale": "en"},
+                user_id=str(current_user.id)
+            )
+            
+        logger.info("Magic URL: Concurrently generating Content Engine assets...")
+        content_results = await asyncio.gather(
+            gen_twitter(), gen_twitter(), gen_twitter(),
+            gen_linkedin(), gen_linkedin(),
+            gen_blog(),
+            return_exceptions=True
+        )
+        
+        content_engine_data = {
+            "twitter_hooks": [r for r in content_results[0:3] if not isinstance(r, Exception)],
+            "linkedin_posts": [r for r in content_results[3:5] if not isinstance(r, Exception)],
+            "blog_draft": content_results[5].get("response") if getattr(content_results[5], "get", None) else "Draft failed."
+        }
+        
+        # === STEP 5: SCHEDULE POSTS (If Auto-Execute) ===
         posts_scheduled = 0
         
         if request.auto_execute:
             from app.services.social_scheduler import social_scheduler
-            from app.agents.marketing_agent import marketing_agent
             from datetime import datetime, timedelta
             
-            # Generate 3 posts
-            platforms = ["twitter", "linkedin"]
-            hook = strategy.get("viral_post_hook", "")
-            audience = strategy.get("target_audience", "")
-            
-            for i, platform in enumerate(platforms):
+            for i, text in enumerate(content_engine_data["twitter_hooks"]):
                 try:
-                    content = await marketing_agent.create_social_post(
-                        context=f"Target: {audience}. Hook: {hook}. Platform: {platform}. Goal: Viral Launch.",
-                        platform=platform
-                    )
-                    
-                    scheduled_time = datetime.utcnow() + timedelta(hours=i * 24 + 2)
                     await social_scheduler.schedule_post(
                         startup_id=str(startup.id),
-                        content=content,
-                        platforms=[platform],
-                        scheduled_at=scheduled_time
+                        content=text,
+                        platforms=["twitter"],
+                        scheduled_at=datetime.utcnow() + timedelta(hours=i * 12 + 2)
                     )
                     posts_scheduled += 1
                 except Exception as e:
-                    logger.warning(f"Failed to schedule {platform} post", error=str(e))
+                    logger.warning("Failed to automatically schedule twitter post", error=str(e))
+            
+            for i, text in enumerate(content_engine_data["linkedin_posts"]):
+                try:
+                    await social_scheduler.schedule_post(
+                        startup_id=str(startup.id),
+                        content=text,
+                        platforms=["linkedin"],
+                        scheduled_at=datetime.utcnow() + timedelta(hours=i * 24 + 4)
+                    )
+                    posts_scheduled += 1
+                except Exception as e:
+                    logger.warning("Failed to automatically schedule linkedin post", error=str(e))
         
         await db.commit()
         
@@ -157,6 +199,7 @@ async def magic_url_onboarding(
                 "hypothesis": f"Posting about {strategy.get('pain_point', 'the problem')} will attract early adopters",
                 "metric": strategy.get("weekly_goal", "10 signups")
             },
+            content_engine=content_engine_data,
             message=f"🪄 Magic complete! {'Posts scheduled.' if posts_scheduled > 0 else 'Ready to execute.'}"
         )
         

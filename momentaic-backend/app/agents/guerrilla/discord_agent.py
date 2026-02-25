@@ -17,7 +17,7 @@ import json
 import re
 import uuid
 
-from app.agents.base import get_llm
+from app.agents.base import get_llm, BaseAgent, safe_parse_json
 
 logger = structlog.get_logger()
 
@@ -125,7 +125,7 @@ discord_service = DiscordService()
 # DISCORD DISPUTE BOT AGENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class DiscordDisputeBot:
+class DiscordDisputeBot(BaseAgent):
     """
     Discord Bot - "BondJudge" for Couple Disputes
     
@@ -336,8 +336,7 @@ Options:
             )
         
         try:
-            response = await self.llm.ainvoke("""
-Create a fun, quick compatibility question for a couple.
+            prompt = """Create a fun, quick compatibility question for a couple.
 
 Requirements:
 - Question should be light and playful
@@ -345,24 +344,16 @@ Requirements:
 - Options should be revealing about personality but not too serious
 - Make it shareable/meme-worthy
 
-Example format:
-Question: "Your partner is sick. You bring them:"
-Options: ["Soup and meds (caretaker)", "Memes to cheer up (comedian)", "Space and peace (introvert)", "Full hospital setup at home (extra)"]
+Return a mini game with game_type, question, options (4 choices), and scoring_rule."""
 
-Return JSON:
-{
-    "game_type": "quick_match",
-    "question": "...",
-    "options": ["...", "...", "...", "..."],
-    "scoring_rule": "Match = +10 points"
-}
-""")
-            
-            content = response.content
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-                return MiniGame(**data)
+            result = await self.structured_llm_call(
+                prompt=prompt,
+                response_model=MiniGame
+            )
+            if isinstance(result, MiniGame):
+                return result
+            elif isinstance(result, dict):
+                return MiniGame(**result)
                 
         except Exception as e:
             logger.error("Mini game generation failed", error=str(e))

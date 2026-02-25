@@ -70,6 +70,59 @@ async def trigger_launch_campaign(startup_id: str, deployment_url: str):
         logger.error("Launch campaign failed", error=str(e))
 
 
+async def handle_incident_response(startup_id: str, project_name: str, payload: Dict[str, Any]):
+    """Background task to analyze deployment failures and alert Slack"""
+    from app.agents.devops_agent import devops_agent
+    from app.integrations.community import community
+    
+    logger.info("Vercel webhook: Analyzing deployment failure", startup_id=startup_id, project=project_name)
+    
+    try:
+        # Ask DevOpsAgent to analyze the failure context
+        error_context = f"Project {project_name} failed deployment on Vercel. Payload details: {payload}"
+        
+        analysis = await devops_agent.process(
+            message=f"A Vercel deployment just failed. Create a brief incident synthesis, deduce likely issues, and list 3 concrete commands or steps to triage. Source context: {error_context}",
+            startup_context={"name": project_name},
+            user_id="system"
+        )
+        
+        response_text = analysis.get("response", "Could not analyze the failure.")
+        
+        # Format the Slack message block
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"🚨 Automated Incident Report: {project_name}"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": response_text
+                }
+            }
+        ]
+        
+        # Post the report to Slack
+        success = await community.post_to_slack(
+            channel="#incidents",
+            text=f"Deployment failed for {project_name}. DevOpsAgent is on it.",
+            blocks=blocks
+        )
+        
+        if success:
+            logger.info("Incident report posted to Slack successfully.")
+        else:
+            logger.warning("Failed to post incident report to Slack.")
+            
+    except Exception as e:
+        logger.error("Incident response failed", error=str(e))
+
+
 @router.post("/vercel")
 async def vercel_webhook(
     request: Request,
@@ -93,13 +146,17 @@ async def vercel_webhook(
     
     logger.info("Vercel webhook received", event_type=event_type)
     
-    # Only process successful deployments
-    if event_type != "deployment.succeeded":
+    # Process deployments
+    if event_type == "deployment.succeeded":
+        is_success = True
+    elif event_type in ["deployment.error", "deployment.canceled", "deployment.failed"]:
+        is_success = False
+    else:
         return {"status": "ignored", "reason": f"Event type {event_type} not handled"}
     
     # Extract deployment info
     deployment_url = payload.get("url", "")
-    project_name = payload.get("name", "")
+    project_name = payload.get("name", "Unknown Project")
     
     if not deployment_url:
         return {"status": "ignored", "reason": "No deployment URL"}
@@ -121,16 +178,31 @@ async def vercel_webhook(
         if not startup:
             # Create a placeholder or just log
             logger.info("Vercel webhook: No matching startup found", project=project_name)
-            return {"status": "no_match", "message": "No startup linked to this project. Connect via MomentAIc dashboard."}
+            # Use a dummy ID for incident response if no startup is found
+            startup_id = "unlinked_project"
+        else:
+            startup_id = str(startup.id)
         
-        # Trigger campaign in background
-        background_tasks.add_task(trigger_launch_campaign, str(startup.id), deployment_url)
+        if is_success and startup:
+            # Trigger campaign in background
+            background_tasks.add_task(trigger_launch_campaign, startup_id, deployment_url)
+            
+            return {
+                "status": "triggered_launch",
+                "startup_id": startup_id,
+                "message": "Launch campaign triggered!"
+            }
+        elif not is_success:
+            # Trigger autonomous incident response
+            background_tasks.add_task(handle_incident_response, startup_id, project_name, payload)
+            
+            return {
+                "status": "triggered_incident",
+                "startup_id": startup_id,
+                "message": "DevOps Incident Response initiated."
+            }
         
-        return {
-            "status": "triggered",
-            "startup_id": str(startup.id),
-            "message": "Launch campaign triggered!"
-        }
+        return {"status": "ignored", "message": "Unhandled state"}
 
 
 @router.post("/netlify") 
