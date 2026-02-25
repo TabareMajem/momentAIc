@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Activity, Zap, AlertTriangle, Brain, CheckCircle2, Clock, RefreshCw, Eye, Scale, DollarSign, FileText } from 'lucide-react';
+import { Activity, Zap, AlertTriangle, Brain, CheckCircle2, Clock, RefreshCw, Eye, Scale, DollarSign, FileText, TrendingUp, TrendingDown, CreditCard, Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { useStartupStore } from '../stores/startup-store';
 
@@ -80,6 +80,8 @@ export default function BusinessPulse() {
     const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<string>('all');
+    const [revenue, setRevenue] = useState<any>(null);
+    const [revenueLoading, setRevenueLoading] = useState(true);
 
     const fetchPulse = useCallback(async (sid: string) => {
         if (!sid) return;
@@ -110,6 +112,15 @@ export default function BusinessPulse() {
         }, 30000);
         return () => clearInterval(interval);
     }, [activeStartupId, fetchPulse]);
+
+    // Fetch Revenue Data
+    useEffect(() => {
+        if (!activeStartupId) { setRevenueLoading(false); return; }
+        api.getLiveRevenue(activeStartupId)
+            .then((res: any) => setRevenue(res))
+            .catch(() => setRevenue(null))
+            .finally(() => setRevenueLoading(false));
+    }, [activeStartupId]);
 
     const handleRunMission = async (mission: string, context: any) => {
         if (!activeStartupId) return;
@@ -156,6 +167,65 @@ export default function BusinessPulse() {
                         <RefreshCw className="w-3 h-3" /> REFRESH
                     </button>
                 </div>
+            </div>
+
+            {/* 💰 KILL SHOT 1: REVENUE COMMAND CENTER */}
+            <div className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <DollarSign className="w-5 h-5 text-green-400" />
+                    <h2 className="text-sm font-mono font-bold text-green-400 tracking-widest">REVENUE COMMAND CENTER</h2>
+                    <span className="text-[9px] font-mono text-gray-600 ml-auto">STRIPE_LIVE_FEED</span>
+                </div>
+                {revenueLoading ? (
+                    <div className="text-center py-8 text-gray-500 font-mono text-sm animate-pulse">Connecting to Stripe...</div>
+                ) : revenue?.status === 'active' && revenue?.data ? (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-green-900/30 to-green-900/10 border border-green-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-green-400/50 transition-all">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-full blur-xl" />
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="w-4 h-4 text-green-400" />
+                                <span className="text-[10px] font-mono text-green-400/70">MONTHLY RECURRING REVENUE</span>
+                            </div>
+                            <p className="text-3xl font-black font-mono text-green-400">${((revenue.data.mrr || 0) / 100).toLocaleString()}</p>
+                            <p className="text-[9px] font-mono text-gray-600 mt-1">Live from Stripe</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-900/30 to-blue-900/10 border border-blue-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-blue-400/50 transition-all">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full blur-xl" />
+                            <div className="flex items-center gap-2 mb-2">
+                                <Users className="w-4 h-4 text-blue-400" />
+                                <span className="text-[10px] font-mono text-blue-400/70">ACTIVE SUBSCRIPTIONS</span>
+                            </div>
+                            <p className="text-3xl font-black font-mono text-blue-400">{revenue.data.active_subscriptions || 0}</p>
+                            <p className="text-[9px] font-mono text-gray-600 mt-1">Paying customers</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-red-900/30 to-red-900/10 border border-red-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-red-400/50 transition-all">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/5 rounded-full blur-xl" />
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingDown className="w-4 h-4 text-red-400" />
+                                <span className="text-[10px] font-mono text-red-400/70">CHURN RATE</span>
+                            </div>
+                            <p className="text-3xl font-black font-mono text-red-400">{revenue.data.churn_rate?.toFixed(1) || '0.0'}%</p>
+                            <p className="text-[9px] font-mono text-gray-600 mt-1">Last 30 days</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-900/30 to-purple-900/10 border border-purple-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-purple-400/50 transition-all">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full blur-xl" />
+                            <div className="flex items-center gap-2 mb-2">
+                                <CreditCard className="w-4 h-4 text-purple-400" />
+                                <span className="text-[10px] font-mono text-purple-400/70">AGENT ROI</span>
+                            </div>
+                            <p className="text-3xl font-black font-mono text-purple-400">
+                                {pulse ? `${((revenue.data.mrr || 0) / Math.max(1, (pulse.total_heartbeats_24h * 0.002) * 100)).toFixed(0)}x` : '—'}
+                            </p>
+                            <p className="text-[9px] font-mono text-gray-600 mt-1">Revenue ÷ Agent Cost</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
+                        <DollarSign className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                        <p className="text-sm font-mono text-gray-500">No Stripe integration connected.</p>
+                        <p className="text-[10px] font-mono text-gray-600 mt-1">Connect Stripe in Integrations to unlock live revenue tracking.</p>
+                    </div>
+                )}
             </div>
 
             {/* KPI Cards */}

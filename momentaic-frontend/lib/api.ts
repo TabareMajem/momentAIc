@@ -815,6 +815,24 @@ class ApiClient {
     });
     return data;
   }
+
+  // === KILL SHOT: SHOW ME THE MONEY ===
+  async getLiveRevenue(startupId: string) {
+    const { data } = await this.client.get(`/api/v1/startups/${startupId}/live-revenue`);
+    return data;
+  }
+
+  // === KILL SHOT: AGENT COMPOSABILITY DAG ===
+  async executeAgentDAG(startupId: string, dag: { nodes: any[]; edges: any[]; initial_input: string }) {
+    const { data } = await this.client.post(`/api/v1/startups/${startupId}/execute-dag`, dag);
+    return data;
+  }
+
+  // === KILL SHOT: MAGIC URL DEMO (60-SECOND) ===
+  async runMagicDemo(url: string) {
+    const { data } = await this.client.post(`/api/v1/onboarding/magic-demo`, { url });
+    return data;
+  }
 }
 
 export const api = new ApiClient();

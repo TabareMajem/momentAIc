@@ -100,6 +100,11 @@ export interface ChatMessage {
   agent_used?: AgentType;
   timestamp: Date;
   isStreaming?: boolean;
+  reasoning?: {
+    research_analyzed?: string;
+    options_considered?: string[];
+    final_decision_rationale?: string;
+  };
 }
 
 export interface AgentChatRequest {

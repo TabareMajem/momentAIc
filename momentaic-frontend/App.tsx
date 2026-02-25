@@ -71,6 +71,8 @@ const InvestorDeck = lazy(() => import('./pages/InvestorDeck'));
 const WarRoomDashboard = lazy(() => import('./pages/WarRoomDashboard'));
 const ExperimentsLab = lazy(() => import('./pages/ExperimentsLab'));
 const Campaigns = lazy(() => import('./pages/Campaigns'));
+const AgentComposability = lazy(() => import('./pages/AgentComposability'));
+const MagicDemo = lazy(() => import('./pages/MagicDemo'));
 import { ResearchWhitepaper } from './components/marketing/ResearchWhitepaper';
 
 const PageLoader = () => (
@@ -158,6 +160,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/from-lovable" element={<FromLovable />} />
           <Route path="/from-bolt" element={<FromBolt />} />
+          <Route path="/demo" element={<MagicDemo />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -215,6 +218,7 @@ export default function App() {
             <Route path="/call-center" element={<CallCenter />} />
             <Route path="/viral-swarm" element={<ViralSwarm />} />
             <Route path="/global-campaign" element={<GlobalCampaign />} />
+            <Route path="/composability" element={<AgentComposability />} />
 
             {/* Legacy Routes (kept for backward compat) */}
             <Route path="/power-plays" element={<PowerPlays />} />
