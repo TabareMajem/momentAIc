@@ -65,27 +65,7 @@ class GrowthHackerAgent(BaseAgent):
             logger.error("Growth Hacker agent error", error=str(e))
             return {"response": f"Error: {str(e)}", "agent": AgentType.GROWTH_HACKER.value, "error": True}
 
-    async def stream_process(
-        self,
-        message: str,
-        startup_context: Dict[str, Any],
-        user_id: str,
-    ):
-        """Stream the growth hacker response"""
-        if not self.llm:
-            yield "Agent not initialized"
-            return
 
-        prompt = f"""You are the Growth Hacker Agent.
-        Context: {startup_context}
-        Query: {message}
-        
-        Provide a detailed, actionable growth strategy or answer."""
-
-        async for chunk in self.llm.astream(prompt):
-            if chunk.content:
-                yield chunk.content
-    
     async def design_experiment(
         self,
         goal: str,

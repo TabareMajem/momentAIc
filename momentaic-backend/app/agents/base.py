@@ -194,6 +194,39 @@ class BaseAgent(ABC):
         logger.info(f"Agent {self.__class__.__name__} received unhandled message {msg.id}: {msg.topic}")
         pass
 
+    async def stream_process(
+        self,
+        message: str,
+        startup_context: Dict[str, Any],
+        user_id: str,
+    ):
+        """
+        Default streaming implementation. 
+        Calls the standard synchronous/multi-step process() method, and then 
+        yields the result in rapid chunks to give a seamless streaming UX for the UI.
+        Subclasses can override this with `self.llm.astream()` for true streaming if they lack complex logic.
+        """
+        import asyncio
+        
+        # We must support agents that just take (message, startup_context) or (message, startup_context, user_id)
+        # Assuming most use the latter given the signature.
+        try:
+            result = await self.process(message, startup_context, user_id)
+        except TypeError:
+            # Fallback if process doesn't take user_id
+            result = await self.process(message, startup_context)
+
+        if isinstance(result, dict) and "response" in result:
+            full_response = result["response"]
+            
+            # Simulate rapid streaming locally
+            chunk_size = 20
+            for i in range(0, len(full_response), chunk_size):
+                yield full_response[i:i+chunk_size]
+                await asyncio.sleep(0.01)
+        else:
+            yield str(result)
+
 
 
 # ==================
@@ -221,33 +254,25 @@ def get_llm(model: str = "gemini-pro", temperature: float = 0.7):
     """
     Get LLM instance based on model name
     """
-    # ... (rest of get_llm as before, omitted for brevity, logic remains in function)
-    # Wait, replace_file_content replaces the whole block. I need to be careful not to delete get_llm.
-    # Actually, BaseAgent is a module, not a class in this file. It seems this file contains tools and configurations.
-    # The actual Agent classes inherit from something? Or are they standalone functions?
-    # Let's check ContentAgent again. It inherits nothing explicit in the outline? 
-    # Ah, I see from `marketing_agent.py` outline: `class MarketingAgent:`. And `content_agent.py`: `class ContentAgent:`.
-    # It seems they don't inherit from a common `BaseAgent` class defined HERE.
-    # This `base.py` module contains shared tools and `get_llm`.
+    llm_map = {
+        "gemini-pro": ChatGoogleGenerativeAI(
+            model="gemini-2.0-pro",
+            temperature=temperature,
+            google_api_key=settings.google_ai_key,
+        ) if settings.google_ai_key else None,
+        "gemini-flash": ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            temperature=temperature,
+            google_api_key=settings.google_ai_key,
+        ) if settings.google_ai_key else None,
+        "claude-3-opus": ChatAnthropic(
+            model_name="claude-3-5-sonnet-20240620",
+            temperature=temperature,
+            anthropic_api_key=settings.anthropic_api_key,
+        ) if settings.anthropic_api_key else None,
+    }
     
-    # I should check if there IS a BaseAgent class.
-    # The file content shows `class AgentState(TypedDict):`.
-    # It does NOT show a `class BaseAgent:`.
-    
-    # So I cannot add methods to a BaseAgent class here.
-    # I should instead add a mixin or just import `activity_stream` in each agent.
-    # OR, better: Add a `BaseAgent` class here and have agents inherit from it.
-    # BUT that requires refactoring all agents.
-    
-    # Alternative: Create a helper function `report_agent_progress` in this file that agents can import.
-    pass
-
-# Retrying with correct approach:
-# I will add a helper function `run_proactive_wrapper` or similar, OR just let agents import `activity_stream` directly.
-# The plan said "Add report_progress() to base agent". 
-# If there is no BaseAgent class, I should probably create one or just use the service directly.
-# Let's just use the service directly in `main.py` scheduler logic for now to report status,
-# and modify the agents to report progress if I can.
+    return llm_map.get(model)
 # Given I cannot easily refactor 42 agents to inherit from a new class right now without risk,
 # I will modifying `main.py` to handle the reporting wrapper.
 
