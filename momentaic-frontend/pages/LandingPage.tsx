@@ -284,36 +284,36 @@ export default function LandingPage() {
                         />
                         <ModuleCard
                             icon={Globe}
-                            title="Global Campaign Engine"
-                            desc="Instantly synthesize localized GTM assets across 8+ dialects and regional nuances."
+                            title="Omni-Channel Auto-Post"
+                            desc="Generate viral hooks and HeyGen AI video avatars. Automatically publish to TikTok and Socials."
                             delay={100}
                             visible={modulesVisible}
                         />
                         <ModuleCard
                             icon={Activity}
-                            title="Synthetic Call Center"
-                            desc="Voice-native AI agents dialing real numbers to close leads and handle support 24/7."
+                            title="Phantom Co-Founders"
+                            desc="Toggle 'Phantom Mode'. Agents take a tiny % of Stripe revenue (Equity-for-Compute) aligned with your growth."
                             delay={200}
                             visible={modulesVisible}
                         />
                         <ModuleCard
                             icon={Target}
-                            title="AstroTurf Infiltration"
-                            desc="Autonomous agents scanning Reddit & HackerNews to seed your product organically."
+                            title="Predictive War Gaming"
+                            desc="Swarms run nightly market simulations, autonomously deploying countermeasures against competitor moves."
                             delay={300}
                             visible={modulesVisible}
                         />
                         <ModuleCard
                             icon={Zap}
-                            title="Proactive Event Triggers"
-                            desc="Hook Stripe and Slack to the Swarm. Instant reflexive execution when metrics drop."
+                            title="Autonomous Incident Response"
+                            desc="Site goes down? The swarm reads Vercel logs, proposes fixes in Slack, and waits for your 1-click deploy approval."
                             delay={400}
                             visible={modulesVisible}
                         />
                         <ModuleCard
                             icon={Terminal}
-                            title="OpenClaw Internet Proxy"
-                            desc="Break free from APIs. Deploy headless browser agents that click, type, and navigate."
+                            title="60-Second AI Onboarding"
+                            desc="Drop your URL. Watch agents instantly scrape your ICP, draft 3 viral hooks, and write emails live."
                             delay={500}
                             visible={modulesVisible}
                         />

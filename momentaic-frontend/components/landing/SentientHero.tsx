@@ -177,7 +177,7 @@ export function SentientHero() {
                 {/* Use Case Tags */}
                 <div className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in-up delay-[300ms]">
                     <span className="text-xs font-mono text-gray-500 mr-2">USE_CASES:</span>
-                    {["B2B Outbound", "Content Operations", "Customer Support", "Data Analysis", "DevOps Monitoring"].map((useCase) => (
+                    {["Phantom Co-Founders", "Predictive War Gaming", "Omni-Channel Auto-Post", "Autonomous Incident Response", "60-Second Onboarding"].map((useCase) => (
                         <div key={useCase} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 bg-white/5 text-gray-300 text-xs font-mono">
                             <CheckCircle2 className="w-3 h-3 text-purple-500" /> {useCase}
                         </div>
