@@ -8,8 +8,9 @@ import { AgentType, Startup, SubscriptionTier } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/Dialog';
 // ... imports
-import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2, ThumbsUp, ThumbsDown, Network } from 'lucide-react';
 
 // ... inside AgentChat component
 // ...
@@ -100,6 +101,47 @@ function FeedbackWidget({ messageId, agentType, startupId }: { messageId: string
       >
         <ThumbsDown className="w-3.5 h-3.5" />
       </button>
+    </div>
+  );
+}
+
+function GlobalInsightsLoader({ startupId }: { startupId: string }) {
+  const [data, setData] = React.useState<{ industry: string, insights: any[] } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  useEffect(() => {
+    async function fetchInsights() {
+      try {
+        const res = await api.getCrossStartupInsights(startupId);
+        setData(res.data);
+      } catch (e) {
+        console.error("Failed to load insights", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInsights();
+  }, [startupId]);
+
+  if (loading) return <div className="text-center p-4 text-gray-500 text-sm animate-pulse">Synchronizing with Global Matrix...</div>;
+  if (!data || data.insights.length === 0) return <div className="text-center p-4 text-gray-500 text-sm">No significant network patterns detected for {data?.industry || 'this industry'} yet.</div>;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-400">
+        Aggregated success patterns for <span className="text-[#00f0ff] font-bold">{data.industry}</span> startups across the Momentaic ecosystem. Agents will automatically use this intelligence.
+      </p>
+      {data.insights.map((insight, idx) => (
+        <div key={idx} className="bg-black/50 border border-white/5 p-3 rounded-lg text-sm text-gray-300">
+          <div className="flex items-start gap-2">
+            <div className="mt-0.5"><Network className="w-4 h-4 text-[#bf25eb]" /></div>
+            <div>
+              <p className="font-mono text-xs text-[#bf25eb] mb-1">PROVEN PATTERN</p>
+              <p>{insight.message}</p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -230,8 +272,29 @@ export default function AgentChat() {
             </select>
           </div>
         </div>
-        <div className="flex items-end">
-          <Button variant="outline" size="sm" onClick={clearChat} title="Clear Buffer" className="border-red-900/30 text-red-500 hover:bg-red-900/10">
+        <div className="flex items-end gap-2">
+          {startupIdParam || currentStartupId ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" title="Ecosystem Insights" className="border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/10">
+                  <Network className="w-4 h-4 mr-2" />
+                  Hive Mind
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md bg-[#0a0a0a] border-white/10 text-white">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-[#bf25eb]" />
+                    Global Hive Mind
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="mt-4">
+                  <GlobalInsightsLoader startupId={startupIdParam || currentStartupId || ''} />
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+          <Button variant="outline" size="sm" onClick={clearChat} title="Clear Buffer" className="border-red-900/30 text-red-500 hover:bg-red-900/10 gap-2">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>

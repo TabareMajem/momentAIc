@@ -267,6 +267,15 @@ async def chat(
     )
     if memory_context:
         startup_context["agent_memory"] = memory_context
+        
+    # Inject Cross-Startup Intelligence
+    if chat_request.include_context and startup.industry:
+        from app.services.cross_startup_intelligence import cross_startup_intelligence
+        hive_mind_context = await cross_startup_intelligence.format_insights_for_prompt(
+            db=db, industry=startup.industry
+        )
+        if hive_mind_context:
+            startup_context["agent_memory"] = startup_context.get("agent_memory", "") + "\n\n" + hive_mind_context
     
     # Route through supervisor
     from app.agents.supervisor import supervisor_agent
@@ -448,6 +457,15 @@ async def chat_stream(
     )
     if memory_context:
         startup_context["agent_memory"] = memory_context
+        
+    # Inject Cross-Startup Intelligence
+    if chat_request.include_context and startup.industry:
+        from app.services.cross_startup_intelligence import cross_startup_intelligence
+        hive_mind_context = await cross_startup_intelligence.format_insights_for_prompt(
+            db=db, industry=startup.industry
+        )
+        if hive_mind_context:
+            startup_context["agent_memory"] = startup_context.get("agent_memory", "") + "\n\n" + hive_mind_context
 
     async def event_generator():
         # 1. Supervisor Routing (Synchronous Step)

@@ -22,9 +22,9 @@ from app.api.v1.endpoints import (
     growth_monitor,
     llm_optimization,
     social_ugc,
-    a2a,
     characters,
     webhooks,
+    intelligence,
 )
 
 api_router = APIRouter()
@@ -88,6 +88,13 @@ api_router.include_router(
     workflows.router,
     prefix="/forge",
     tags=["Agent Forge"],
+)
+
+# Cross-Startup Intelligence
+api_router.include_router(
+    intelligence.router,
+    prefix="/intelligence",
+    tags=["Global Intelligence"],
 )
 
 # Billing & Credits

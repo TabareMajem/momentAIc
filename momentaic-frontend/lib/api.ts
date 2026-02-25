@@ -430,6 +430,13 @@ class ApiClient {
     return data;
   }
 
+  async getCrossStartupInsights(startupId: string, limit: number = 5) {
+    const { data } = await this.client.get(`/api/v1/intelligence/cross-startup`, {
+      params: { startup_id: startupId, limit }
+    });
+    return data;
+  }
+
   // === MOMENTUM AI ===
   async createSprint(startupId: string, payload: { weekly_goal: string; key_metric_name?: string; key_metric_start?: number }): Promise<WeeklySprint> {
     const { data } = await this.client.post(`/api/v1/startups/${startupId}/sprints`, payload);
