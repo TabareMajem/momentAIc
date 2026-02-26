@@ -5,7 +5,26 @@ import {
     Rocket, Globe, Loader2, Sparkles, Target, FileText,
     Mail, ArrowRight, CheckCircle2, Zap, Clock, AlertTriangle
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+
+const TypewriterEffect = ({ text, speed = 10 }: { text: string; speed?: number }) => {
+    const [displayed, setDisplayed] = useState('');
+
+    useEffect(() => {
+        let i = 0;
+        const timer = setInterval(() => {
+            if (i < text.length) {
+                setDisplayed(text.substring(0, i + 1));
+                i++;
+            } else {
+                clearInterval(timer);
+            }
+        }, speed);
+        return () => clearInterval(timer);
+    }, [text, speed]);
+
+    return <>{displayed}</>;
+};
 
 interface DemoStep {
     id: string;
@@ -16,12 +35,18 @@ interface DemoStep {
 }
 
 export default function MagicDemo() {
-    const [url, setUrl] = useState('');
+    const [searchParams] = useSearchParams();
+    const initialUrl = searchParams.get('url') || '';
+
+    const [url, setUrl] = useState(initialUrl);
     const [isRunning, setIsRunning] = useState(false);
     const [steps, setSteps] = useState<DemoStep[]>([]);
     const [currentStep, setCurrentStep] = useState(0);
     const [finalOutput, setFinalOutput] = useState<any>(null);
     const outputRef = useRef<HTMLDivElement>(null);
+
+    // Auto-start if URL is provided in query params
+    const hasAutoStarted = useRef(false);
 
     const updateStep = (index: number, updates: Partial<DemoStep>) => {
         setSteps(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
@@ -34,8 +59,8 @@ export default function MagicDemo() {
         return `✅ ${label} complete`;
     };
 
-    const runDemo = async () => {
-        if (!url.trim()) return;
+    const runDemo = async (targetUrl: string = url) => {
+        if (!targetUrl.trim() || isRunning) return;
         setIsRunning(true);
         setFinalOutput(null);
 
@@ -52,7 +77,7 @@ export default function MagicDemo() {
         try {
             // Step 1: Scrape
             await simulateStep(0, 'Website scraped', 2000);
-            updateStep(0, { status: 'done', output: `Scraped ${url} — Found company name, product description, and value proposition.` });
+            updateStep(0, { status: 'done', output: `Scraped ${targetUrl} — Found company name, product description, and value proposition.` });
 
             // Step 2: ICP Analysis
             await simulateStep(1, 'ICP analyzed', 2500);
@@ -84,7 +109,7 @@ export default function MagicDemo() {
             updateStep(5, { status: 'done', output: 'Growth Blueprint ready. All assets generated.' });
 
             setFinalOutput({
-                url,
+                url: targetUrl,
                 assets_generated: 6,
                 total_time: '~12 seconds',
                 cta: 'Sign up to deploy these assets instantly.'
@@ -96,6 +121,14 @@ export default function MagicDemo() {
             setIsRunning(false);
         }
     };
+
+    useEffect(() => {
+        if (initialUrl && !hasAutoStarted.current) {
+            hasAutoStarted.current = true;
+            // Small delay for cinematic effect
+            setTimeout(() => runDemo(initialUrl), 1000);
+        }
+    }, [initialUrl]);
 
     useEffect(() => {
         if (outputRef.current) {
@@ -167,30 +200,31 @@ export default function MagicDemo() {
                             {steps.map((step, i) => (
                                 <div
                                     key={step.id}
-                                    className={`flex items-start gap-4 p-4 rounded-lg border transition-all duration-500 ${step.status === 'done'
-                                            ? 'bg-green-500/5 border-green-500/20'
-                                            : step.status === 'running'
-                                                ? 'bg-purple-500/5 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.1)]'
-                                                : step.status === 'error'
-                                                    ? 'bg-red-500/5 border-red-500/20'
-                                                    : 'bg-white/[0.02] border-white/5 opacity-50'
+                                    className={`relative flex items-start gap-4 p-5 rounded-xl border transition-all duration-700 overflow-hidden ${step.status === 'done'
+                                        ? 'bg-green-500/5 border-green-500/20'
+                                        : step.status === 'running'
+                                            ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_30px_rgba(168,85,247,0.15)] scale-[1.02]'
+                                            : step.status === 'error'
+                                                ? 'bg-red-500/5 border-red-500/20'
+                                                : 'bg-white/[0.02] border-white/5 opacity-40'
                                         }`}
                                 >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${step.status === 'done' ? 'bg-green-500/20 text-green-400'
-                                            : step.status === 'running' ? 'bg-purple-500/20 text-purple-400'
-                                                : step.status === 'error' ? 'bg-red-500/20 text-red-400'
-                                                    : 'bg-white/5 text-gray-600'
+                                    {step.status === 'running' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/10 to-transparent flex-shrink-0 animate-[shimmer_2s_infinite_linear] -translate-x-[100%]" />}
+                                    <div className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${step.status === 'done' ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                        : step.status === 'running' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                                            : step.status === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                                : 'bg-white/5 text-gray-500 border border-white/10'
                                         }`}>
                                         {step.status === 'done' ? <CheckCircle2 className="w-4 h-4" />
                                             : step.status === 'running' ? <Loader2 className="w-4 h-4 animate-spin" />
                                                 : step.status === 'error' ? <AlertTriangle className="w-4 h-4" />
                                                     : step.icon}
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 relative z-10">
                                         <div className="flex items-center gap-2">
                                             <span className={`text-xs font-mono font-bold ${step.status === 'done' ? 'text-green-400'
-                                                    : step.status === 'running' ? 'text-purple-400'
-                                                        : 'text-gray-500'
+                                                : step.status === 'running' ? 'text-purple-400'
+                                                    : 'text-gray-500'
                                                 }`}>{step.label}</span>
                                             {step.status === 'running' && (
                                                 <span className="text-[9px] font-mono text-purple-400 animate-pulse">PROCESSING...</span>
@@ -198,7 +232,7 @@ export default function MagicDemo() {
                                         </div>
                                         {step.output && (
                                             <pre className="mt-3 text-[11px] font-mono text-gray-400 whitespace-pre-wrap leading-relaxed bg-black/40 p-3 rounded border border-white/5">
-                                                {step.output}
+                                                <TypewriterEffect text={step.output} />
                                             </pre>
                                         )}
                                     </div>
@@ -207,26 +241,37 @@ export default function MagicDemo() {
                         </div>
                     </div>
 
-                    {/* Final CTA */}
                     {finalOutput && (
-                        <div className="bg-gradient-to-r from-purple-900/20 via-pink-900/20 to-purple-900/20 border border-purple-500/30 rounded-xl p-8 text-center animate-fade-in">
-                            <Sparkles className="w-8 h-8 text-purple-400 mx-auto mb-4" />
-                            <h2 className="text-2xl font-black mb-2">Your Growth Blueprint is Ready.</h2>
-                            <p className="text-gray-400 font-mono text-sm mb-6">
-                                {finalOutput.assets_generated} assets generated in {finalOutput.total_time}. No sign-up was required.
-                            </p>
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <Link to="/signup">
-                                    <Button className="h-12 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-sm shadow-lg shadow-purple-900/30">
-                                        SIGN UP TO DEPLOY THESE ASSETS <ArrowRight className="w-4 h-4 ml-2" />
+                        <div className="relative overflow-hidden bg-black/80 backdrop-blur-xl border border-purple-500/40 rounded-2xl p-10 text-center animate-fade-in shadow-[0_0_50px_rgba(168,85,247,0.2)] mt-8">
+                            <div className="absolute inset-0 bg-tech-grid opacity-[0.05] pointer-events-none" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
+
+                            <div className="relative z-10">
+                                <Sparkles className="w-10 h-10 text-purple-400 mx-auto mb-5" />
+                                <h2 className="text-3xl md:text-4xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Your Growth Blueprint is Ready.</h2>
+                                <p className="text-gray-400 font-mono text-sm mb-8">
+                                    {finalOutput.assets_generated} assets generated in {finalOutput.total_time}. No sign-up was required.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <Link to="/signup">
+                                        <Button className="h-14 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+                                            DEPLOY ASSETS NOW <ArrowRight className="w-4 h-4 ml-2" />
+                                        </Button>
+                                    </Link>
+                                    <Button
+                                        onClick={() => {
+                                            const shareUrl = `${window.location.origin}/demo?url=${encodeURIComponent(finalOutput.url)}`;
+                                            navigator.clipboard.writeText(shareUrl);
+                                            alert('Shareable link copied to clipboard!');
+                                        }}
+                                        className="h-14 px-6 bg-white/5 border border-purple-500/30 text-purple-300 hover:text-white font-mono text-sm hover:bg-purple-500/20 transition-all"
+                                    >
+                                        COPY SHAREABLE LINK
                                     </Button>
-                                </Link>
-                                <Button
-                                    onClick={() => { setSteps([]); setFinalOutput(null); setUrl(''); }}
-                                    className="h-12 px-6 bg-white/5 border border-white/20 text-gray-400 hover:text-white font-mono text-sm"
-                                >
-                                    TRY ANOTHER URL
-                                </Button>
+                                </div>
+                                <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-center gap-2 text-xs font-mono text-gray-500">
+                                    <Target className="w-3.5 h-3.5" /> Assessment generated for: <span className="text-white bg-white/10 px-2 py-0.5 rounded">{finalOutput.url}</span>
+                                </div>
                             </div>
                         </div>
                     )}

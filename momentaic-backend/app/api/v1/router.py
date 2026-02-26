@@ -28,9 +28,17 @@ from app.api.v1.endpoints import (
     playbooks,
     ws,
     a2a,
+    hitl,
 )
 
 api_router = APIRouter()
+
+# Human-in-the-Loop (Action Queue)
+api_router.include_router(
+    hitl.router,
+    prefix="/hitl",
+    tags=["Human-in-the-Loop"],
+)
 
 # A2A Protocol (Heartbeat + Messages + Pulse + Company DNA)
 api_router.include_router(

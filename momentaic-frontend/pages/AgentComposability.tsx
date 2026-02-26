@@ -42,35 +42,39 @@ function AgentNode({ data }: { data: any }) {
 
     return (
         <div
-            className="bg-[#0a0a0f] border-2 rounded-xl p-4 min-w-[220px] shadow-lg transition-all hover:shadow-xl group"
-            style={{ borderColor: `${agent.color}60` }}
+            className="relative bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl p-4 min-w-[240px] shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(168,85,247,0.15)] group overflow-hidden"
+            style={{ borderTopColor: agent.color, borderTopWidth: '2px' }}
         >
-            <Handle type="target" position={Position.Top} className="!bg-purple-500 !border-purple-400 !w-3 !h-3" />
+            <div className="absolute inset-0 bg-tech-grid opacity-[0.03] pointer-events-none" />
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity" style={{ backgroundColor: agent.color }} />
+            <div className="relative z-10">
+                <Handle type="target" position={Position.Top} className="!bg-purple-500 !border-purple-400 !w-3 !h-3" />
 
-            <div className="flex items-center gap-3 mb-3">
-                <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center border"
-                    style={{ backgroundColor: `${agent.color}20`, borderColor: `${agent.color}40` }}
-                >
-                    <Icon className="w-5 h-5" style={{ color: agent.color }} />
+                <div className="flex items-center gap-3 mb-3">
+                    <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center border"
+                        style={{ backgroundColor: `${agent.color}20`, borderColor: `${agent.color}40` }}
+                    >
+                        <Icon className="w-5 h-5" style={{ color: agent.color }} />
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-white">{agent.name}</div>
+                        <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">{agent.desc}</div>
+                    </div>
                 </div>
-                <div>
-                    <div className="text-sm font-bold text-white">{agent.name}</div>
-                    <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">{agent.desc}</div>
+
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: agent.color }} />
+                        <span className="text-[9px] font-mono text-gray-500">READY</span>
+                    </div>
+                    <span className="text-[9px] font-mono" style={{ color: `${agent.color}AA` }}>
+                        NODE_{data.agentType?.slice(0, 4).toUpperCase()}
+                    </span>
                 </div>
+
+                <Handle type="source" position={Position.Bottom} className="!bg-purple-500 !border-purple-400 !w-3 !h-3" />
             </div>
-
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: agent.color }} />
-                    <span className="text-[9px] font-mono text-gray-500">READY</span>
-                </div>
-                <span className="text-[9px] font-mono" style={{ color: `${agent.color}AA` }}>
-                    NODE_{data.agentType?.slice(0, 4).toUpperCase()}
-                </span>
-            </div>
-
-            <Handle type="source" position={Position.Bottom} className="!bg-purple-500 !border-purple-400 !w-3 !h-3" />
         </div>
     );
 }
@@ -192,9 +196,9 @@ export default function AgentComposability() {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Agent Palette */}
-                <div className="w-64 border-r border-white/10 bg-[#050508] p-4 overflow-y-auto">
-                    <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-4">
-                        ☰ AGENT PALETTE
+                <div className="w-72 border-r border-white/5 bg-black/40 backdrop-blur-xl p-5 overflow-y-auto z-10 shadow-[20px_0_50px_rgba(0,0,0,0.3)]">
+                    <div className="flex items-center gap-2 text-[10px] font-mono text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-3">
+                        <Brain className="w-3 h-3" /> AGENT PALETTE
                     </div>
                     <div className="space-y-2">
                         {AVAILABLE_AGENTS.map(agent => {
@@ -232,7 +236,7 @@ export default function AgentComposability() {
                         style={{ background: '#020202' }}
                     >
                         <Background color="#333" gap={20} />
-                        <Controls style={{ button: { backgroundColor: '#1a1a2e', borderColor: '#333' } }} />
+                        <Controls className="!bg-[#1a1a2e] !border-[#333]" />
                         <MiniMap
                             nodeColor={(node) => {
                                 const agent = AVAILABLE_AGENTS.find(a => a.id === node.data?.agentType);
@@ -255,8 +259,8 @@ export default function AgentComposability() {
 
                 {/* Execution Results Panel */}
                 {executionResult && (
-                    <div className="w-80 border-l border-white/10 bg-[#050508] p-4 overflow-y-auto">
-                        <div className="text-[10px] font-mono text-purple-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <div className="w-80 border-l border-white/5 bg-black/40 backdrop-blur-xl p-5 overflow-y-auto z-10 animate-fade-in shadow-[-20px_0_50px_rgba(0,0,0,0.3)]">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-3">
                             <Zap className="w-3 h-3" /> EXECUTION RESULTS
                         </div>
                         {executionResult.error ? (

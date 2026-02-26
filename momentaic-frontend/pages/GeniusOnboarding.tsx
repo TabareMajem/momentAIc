@@ -3,12 +3,46 @@ import { api } from '../lib/api';
 import { useAuthStore } from '../stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import {
-    Sparkles, Bot, ArrowRight, CheckCircle2, Loader2, Target, TrendingUp, Check
+    Sparkles, Bot, ArrowRight, CheckCircle2, Loader2, Target, TrendingUp, Check,
+    Search, Shield, Zap, Users, BarChart2, Brain, Globe, Eye
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// --- AGENT ACTIVITY CONFIG ---
+const AGENT_STEPS = [
+    { name: 'Deep Research Agent', icon: Search, color: 'text-blue-400', bg: 'bg-blue-500/20', log: 'Scraping target domain structure and meta data...' },
+    { name: 'Competitor Intel Agent', icon: Shield, color: 'text-red-400', bg: 'bg-red-500/20', log: 'Mapping competitive landscape and pricing vectors...' },
+    { name: 'Sales Hunter Agent', icon: Target, color: 'text-amber-400', bg: 'bg-amber-500/20', log: 'Identifying ideal customer profile and lead sources...' },
+    { name: 'Content Strategist Agent', icon: Sparkles, color: 'text-purple-400', bg: 'bg-purple-500/20', log: 'Generating viral hooks and content frameworks...' },
+    { name: 'Growth Hacker Agent', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/20', log: 'Designing asymmetric growth experiments...' },
+    { name: 'Planning Agent', icon: Brain, color: 'text-cyan-400', bg: 'bg-cyan-500/20', log: 'Synthesizing Day 1 Attack Plan...' },
+];
+
+// --- ANIMATED COUNTER ---
+const AnimatedCounter = ({ target, label, suffix = '' }: { target: number; label: string; suffix?: string }) => {
+    const [count, setCount] = useState(0);
+    useEffect(() => {
+        const duration = 1500;
+        const steps = 40;
+        const increment = target / steps;
+        let current = 0;
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) { setCount(target); clearInterval(timer); }
+            else setCount(Math.floor(current));
+        }, duration / steps);
+        return () => clearInterval(timer);
+    }, [target]);
+    return (
+        <div className="text-center">
+            <div className="text-2xl sm:text-3xl font-black text-white">{count}{suffix}</div>
+            <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest mt-1">{label}</div>
+        </div>
+    );
+};
 
 // --- HOLD COMPONENT ---
 const HoldToDeployButton = ({ onComplete }: { onComplete: () => void }) => {
@@ -173,40 +207,22 @@ export default function GeniusOnboarding() {
 
         const isUrl = urlToAnalyze.startsWith('http') || urlToAnalyze.includes('.com') || urlToAnalyze.includes('.new');
 
-        const logs = isUrl ? [
-            `Connecting to target matrix: ${urlToAnalyze}...`,
-            "Bypassing captcha & initiating deep DOM scrape...",
-            "Extracting H1/H2 value propositions...",
-            "Analyzing product features and potential ICP mapping...",
-            "Synthesizing Competitor Graph (Finding weak spots)...",
-            "Calculating Go-To-Market vectors...",
-            "Compiling Day 1 Asymmetric Attack Plan..."
-        ] : [
-            "Accessing public data sources...",
-            "Analyzing theoretical market segment...",
-            "Identifying ideal customer profile (ICP)...",
-            "Scanning competitor pricing strategies...",
-            "Generating growth experiments...",
-            "Calculating Total Addressable Market parameters...",
-            "Compiling Day 1 Action Plan..."
-        ];
-
+        // Use agent-specific steps for the activity feed
         let i = 0;
         setAnalysisLines([]); // Reset
 
         const interval = setInterval(() => {
-            if (i < logs.length) {
+            if (i < AGENT_STEPS.length) {
+                const agent = AGENT_STEPS[i];
                 setAnalysisLines(prev => {
-                    if (prev[prev.length - 1] === logs[i]) return prev;
-                    // Keep only last 3 logs to prevent mobile scrolling overflow issues
-                    const newLogs = [...prev, logs[i]];
-                    return newLogs.slice(Math.max(newLogs.length - 3, 0));
+                    const newLogs = [...prev, `[${agent.name}] ${agent.log}`];
+                    return newLogs.slice(Math.max(newLogs.length - 4, 0));
                 });
                 i++;
             } else {
                 clearInterval(interval);
             }
-        }, 1100);
+        }, 1200);
 
         try {
             // Actual API Call
@@ -383,51 +399,89 @@ export default function GeniusOnboarding() {
                                 initial="hidden"
                                 animate="visible"
                                 exit="exit"
-                                className="w-full flex-col flex items-center justify-center pt-8 sm:pt-12"
+                                className="w-full flex-col flex items-center justify-center pt-4 sm:pt-8"
                             >
+                                {/* Agent Activity Grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8 w-full max-w-2xl">
+                                    {AGENT_STEPS.map((agent, idx) => {
+                                        const Icon = agent.icon;
+                                        const isActive = analysisLines.length > idx;
+                                        const isCurrent = analysisLines.length === idx;
+                                        return (
+                                            <motion.div
+                                                key={agent.name}
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{
+                                                    opacity: isActive ? 1 : 0.3,
+                                                    scale: isActive ? 1 : 0.95,
+                                                    borderColor: isCurrent ? 'rgba(168,85,247,0.5)' : isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'
+                                                }}
+                                                transition={{ delay: idx * 0.1, duration: 0.4 }}
+                                                className={cn(
+                                                    'relative bg-[#08080c]/80 backdrop-blur-xl border rounded-2xl p-4 flex flex-col items-center gap-2 overflow-hidden',
+                                                    isCurrent && 'shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                                                )}
+                                            >
+                                                {isCurrent && <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent animate-pulse" />}
+                                                <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center relative z-10', agent.bg)}>
+                                                    <Icon className={cn('w-5 h-5', agent.color)} />
+                                                </div>
+                                                <span className="text-[10px] sm:text-xs font-medium text-gray-400 text-center relative z-10 leading-tight">{agent.name}</span>
+                                                {isActive && !isCurrent && (
+                                                    <CheckCircle2 className="absolute top-2 right-2 w-3.5 h-3.5 text-emerald-400" />
+                                                )}
+                                                {isCurrent && (
+                                                    <Loader2 className="absolute top-2 right-2 w-3.5 h-3.5 text-purple-400 animate-spin" />
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+
                                 {/* Neural Core Animation */}
-                                <div className="relative w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center mb-8">
+                                <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex items-center justify-center mb-6">
                                     <motion.div
                                         animate={{ rotate: 360 }}
-                                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                                        className="absolute inset-0 border-t-2 border-r-2 border-purple-500/50 rounded-full"
+                                        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                        className="absolute inset-0 border-t-2 border-r-2 border-purple-500/40 rounded-full"
                                     />
                                     <motion.div
                                         animate={{ rotate: -360 }}
-                                        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                                        className="absolute inset-4 border-b-2 border-l-2 border-blue-500/50 rounded-full"
+                                        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                                        className="absolute inset-3 border-b-2 border-l-2 border-blue-500/40 rounded-full"
                                     />
                                     <motion.div
-                                        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                                        animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.8, 0.4] }}
                                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                                        className="absolute inset-10 bg-gradient-to-tr from-purple-600 to-blue-600 rounded-full blur-xl"
+                                        className="absolute inset-6 bg-gradient-to-tr from-purple-600 to-blue-600 rounded-full blur-xl"
                                     />
-
-                                    <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 bg-black rounded-full border border-white/20 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.5)]">
-                                        <Bot className="w-8 h-8 sm:w-10 sm:h-10 text-white animate-pulse" />
+                                    <div className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 bg-black rounded-full border border-white/20 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.5)]">
+                                        <Bot className="w-6 h-6 sm:w-7 sm:h-7 text-white animate-pulse" />
                                     </div>
                                 </div>
 
-                                {/* Dynamic Terminal Logs */}
-                                <div className="w-full max-w-md h-32 relative overflow-hidden flex flex-col justify-end mask-image-fade-top font-mono text-xs sm:text-sm">
-                                    <AnimatePresence initial={false}>
-                                        {analysisLines.map((line, i) => (
-                                            <motion.div
-                                                key={`${line}-${i}`}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -20 }}
-                                                transition={{ duration: 0.3 }}
-                                                className="flex items-center gap-3 py-1.5 px-4 text-emerald-400"
-                                            >
-                                                <span className="text-gray-600 shrink-0">{'>'}</span>
-                                                <span className="truncate">{line}</span>
-                                            </motion.div>
-                                        ))}
-                                    </AnimatePresence>
-                                    <div className="flex items-center gap-3 py-1.5 px-4 mt-2 border-t border-white/5">
-                                        <Loader2 className="w-4 h-4 text-purple-500 animate-spin shrink-0" />
-                                        <span className="text-gray-400">Processing dimensional vectors...</span>
+                                {/* Live Agent Log Stream */}
+                                <div className="w-full max-w-lg bg-[#06060a]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-4 overflow-hidden">
+                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/5">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-mono">Live Agent Feed</span>
+                                    </div>
+                                    <div className="h-24 relative overflow-hidden flex flex-col justify-end mask-image-fade-top font-mono text-xs">
+                                        <AnimatePresence initial={false}>
+                                            {analysisLines.map((line, i) => (
+                                                <motion.div
+                                                    key={`${line}-${i}`}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    transition={{ duration: 0.3 }}
+                                                    className="flex items-start gap-2 py-1 text-emerald-400/80"
+                                                >
+                                                    <span className="text-purple-500 shrink-0 mt-0.5">▸</span>
+                                                    <span className="leading-relaxed">{line}</span>
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                             </motion.div>
@@ -443,24 +497,38 @@ export default function GeniusOnboarding() {
                                 exit="exit"
                                 className="w-full max-w-5xl mx-auto pb-24"
                             >
+                                {/* Metrics Bar */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="grid grid-cols-3 gap-4 mb-6 bg-[#08080c]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-4 sm:p-6"
+                                >
+                                    <AnimatedCounter target={6} label="Agents Deployed" />
+                                    <AnimatedCounter target={47} label="Data Points Analyzed" />
+                                    <AnimatedCounter target={94} label="Confidence Score" suffix="%" />
+                                </motion.div>
+
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                                     {/* Main Summary Card */}
                                     <motion.div
                                         custom={0} variants={cardVariants} initial="hidden" animate="visible"
-                                        className="lg:col-span-3 bg-[#0a0a0f]/90 backdrop-blur-xl border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group"
+                                        className="lg:col-span-3 bg-[#0a0a0f]/90 backdrop-blur-xl border border-white/10 p-6 sm:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-purple-500/20 transition-colors"
                                     >
                                         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
-                                        <h2 className="text-xl sm:text-2xl font-bold mb-3 flex items-center gap-3">
-                                            <div className="w-2 h-8 bg-purple-500 rounded-full" />
-                                            Executive Brief
-                                        </h2>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                                <Eye className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h2 className="text-xl sm:text-2xl font-bold">Executive Brief</h2>
+                                        </div>
                                         <p className="text-gray-300 text-sm sm:text-lg leading-relaxed relative z-10">{plan.summary}</p>
                                     </motion.div>
 
                                     {/* Action Card 1: Target Audience */}
                                     <motion.div
                                         custom={1} variants={cardVariants} initial="hidden" animate="visible"
-                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-purple-500/30 transition-colors"
+                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-300"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center mb-4">
                                             <Target className="w-5 h-5" />
@@ -472,28 +540,28 @@ export default function GeniusOnboarding() {
                                     {/* Action Card 2: Growth Experiment */}
                                     <motion.div
                                         custom={2} variants={cardVariants} initial="hidden" animate="visible"
-                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-emerald-500/30 transition-colors"
+                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)] transition-all duration-300"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4">
                                             <TrendingUp className="w-5 h-5" />
                                         </div>
                                         <h3 className="text-sm uppercase tracking-widest text-gray-500 font-bold mb-2">Primary Vector</h3>
-                                        <div className="text-white font-bold mb-1">{plan.experiment.name}</div>
-                                        <div className="text-sm text-gray-400">{plan.experiment.hypothesis}</div>
+                                        <div className="text-white font-bold mb-1">{plan.experiment?.name || 'Growth Experiment'}</div>
+                                        <div className="text-sm text-gray-400">{plan.experiment?.hypothesis || 'Optimizing conversion pipeline'}</div>
                                     </motion.div>
 
                                     {/* Action Card 3: Pre-drafted Assets */}
                                     <motion.div
                                         custom={3} variants={cardVariants} initial="hidden" animate="visible"
-                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-purple-500/30 transition-colors"
+                                        className="bg-black/50 backdrop-blur-md border border-white/5 p-6 rounded-3xl hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.1)] transition-all duration-300"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-4">
                                             <Sparkles className="w-5 h-5" />
                                         </div>
                                         <h3 className="text-sm uppercase tracking-widest text-gray-500 font-bold mb-3">Synthesized Assets</h3>
                                         <div className="space-y-3">
-                                            {plan.social_posts.slice(0, 2).map((post: any, i: number) => (
-                                                <div key={i} className="text-xs sm:text-[13px] text-gray-300 bg-white/5 p-3 rounded-xl border border-white/5 line-clamp-2">
+                                            {(plan.social_posts || []).slice(0, 2).map((post: any, i: number) => (
+                                                <div key={i} className="text-xs sm:text-[13px] text-gray-300 bg-white/5 p-3 rounded-xl border border-white/5 line-clamp-2 hover:bg-white/10 transition-colors">
                                                     <strong className="text-white">{post.platform}:</strong> {post.content}
                                                 </div>
                                             ))}

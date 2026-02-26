@@ -121,9 +121,17 @@ async def trigger_voice(
 # AGENTFORGE OUTBOUND PROXY / INTEGRATION
 # ==========================================
 
-# In a real environment, this would come from a secure vault or integration table per user.
+# AgentForge API configuration — keys MUST come from environment variables.
 AGENTFORGE_API_URL = os.environ.get("AGENTFORGE_API_URL", "https://api.agentforge.studio/api/v1")
-AGENTFORGE_API_KEY = os.environ.get("AGENTFORGE_API_KEY", "af_live_demo_key_123")
+AGENTFORGE_API_KEY = os.environ.get("AGENTFORGE_API_KEY", "")
+
+def _require_agentforge_key():
+    """Raises 503 if AgentForge API key is not configured."""
+    if not AGENTFORGE_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="AgentForge API key not configured. Set AGENTFORGE_API_KEY in your environment."
+        )
 
 class WebhookTriggerRequest(BaseModel):
     trigger_url: str
@@ -172,6 +180,7 @@ async def trigger_direct_agent(
     Directly triggers a specialized AgentForge agent (e.g., orchestrator, research) 
     using the master API key.
     """
+    _require_agentforge_key()
     logger.info(f"Triggering Direct AgentForge Agent for user {current_user.id}", agent_type=request.agent_type)
     
     url = f"{AGENTFORGE_API_URL}/agent/{request.agent_type}"

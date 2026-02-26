@@ -1,14 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
 
-export interface Startup {
-    id: string;
-    name: string;
-    industry: string;
-    stage: string;
-    tagline?: string;
-    description?: string;
-}
+import type { Startup } from '../types';
 
 interface StartupState {
     startups: Startup[];

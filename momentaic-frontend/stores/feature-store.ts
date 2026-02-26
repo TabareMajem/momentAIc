@@ -17,6 +17,7 @@ export interface FeatureDefinition {
 export const FEATURE_REGISTRY: FeatureDefinition[] = [
     // ── Essential (always on) ──
     { id: 'dashboard', name: 'Command Center', description: 'Your AI team working in real-time', href: '/dashboard', icon: 'LayoutDashboard', tier: 'essential', category: 'core' },
+    { id: 'hitl', name: 'Action Queue', description: 'Review and approve autonomous agent proposals', href: '/hitl', icon: 'Zap', tier: 'essential', category: 'core' },
     { id: 'vault', name: 'The Vault', description: 'AI-generated documents, contracts, and models', href: '/vault', icon: 'Shield', tier: 'essential', category: 'core' },
     { id: 'settings', name: 'Settings', description: 'Account, billing, and preferences', href: '/settings', icon: 'Settings', tier: 'essential', category: 'core' },
 

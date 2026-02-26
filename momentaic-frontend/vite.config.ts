@@ -27,6 +27,17 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       minify: 'esbuild',
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-flow': ['reactflow'],
+            'vendor-charts': ['recharts'],
+            'vendor-i18n': ['i18next', 'react-i18next'],
+          }
+        }
+      }
     }
   };
 });

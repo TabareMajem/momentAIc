@@ -459,5 +459,40 @@ Search Results for context:
             "checked_count": len(known_competitors)
         }
 
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively monitor competitors:
+        - Scan for pricing changes, feature launches, funding news
+        - Publish signals to bus for SalesAgent and ContentAgent to act on
+        """
+        actions = []
+        competitors = startup_context.get("competitors", [])
+        
+        if competitors:
+            actions.append({
+                "name": "competitor_sweep",
+                "description": f"Run surveillance sweep on {len(competitors)} competitors for pricing/feature changes.",
+                "priority": "high",
+                "agent": "CompetitorIntelAgent",
+                "targets": competitors[:5],  # Cap at 5 to avoid overload
+            })
+        
+        # Always suggest a weekly deep dive
+        actions.append({
+            "name": "market_landscape_update",
+            "description": "Generate updated competitive landscape analysis with threat scores.",
+            "priority": "medium",
+            "agent": "CompetitorIntelAgent",
+        })
+        
+        if actions:
+            await self.publish_to_bus(
+                topic="competitor_scan_scheduled",
+                data={"summary": f"Scheduled {len(actions)} competitive intelligence actions"},
+                target_agents=["SalesAgent", "ContentAgent"],
+            )
+        
+        return actions
+
 # Singleton instance (for backward compatibility if needed, but AgentRegistry preferred)
 competitor_intel_agent = CompetitorIntelAgent()

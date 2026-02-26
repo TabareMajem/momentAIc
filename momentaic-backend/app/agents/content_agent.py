@@ -583,6 +583,42 @@ Return ONLY the topic (max 8 words)."""
             logger.error("ContentAgent: Auto-generate failed", error=str(e))
             return {"error": str(e)}
 
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively identify content opportunities:
+        - Content gaps from competitor strategies
+        - Trending topics to capitalize on
+        - Cross-agent signals (e.g., new leads → case study opportunity)
+        """
+        actions = []
+        shared = self.get_shared_context()
+        
+        # React to competitor intel
+        for signal in shared.get("recent_agent_signals", []):
+            if signal.get("topic") in ["competitor_pricing_change", "competitor_scan_scheduled"]:
+                actions.append({
+                    "name": "counter_content",
+                    "description": f"Create comparison content responding to competitor activity: {signal['data'].get('summary', '')}",
+                    "priority": "high",
+                    "agent": "ContentAgent",
+                })
+        
+        # Suggest evergreen content creation
+        actions.append({
+            "name": "weekly_content_calendar",
+            "description": "Generate this week's content calendar: 3 LinkedIn posts, 1 blog article, 2 Twitter threads.",
+            "priority": "medium",
+            "agent": "ContentAgent",
+        })
+        
+        if actions:
+            await self.publish_to_bus(
+                topic="content_opportunities_found",
+                data={"summary": f"Identified {len(actions)} content opportunities"},
+            )
+        
+        return actions
+
 
 # Singleton instance
 content_agent = ContentAgent()

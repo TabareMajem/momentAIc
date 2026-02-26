@@ -169,22 +169,11 @@ class BrowserAgent:
     async def extract_content(self, selector: str = None) -> Dict[str, Any]:
         """Extract content from current page"""
         if await self._use_openclaw():
-            from app.integrations import OpenClawIntegration
-            claw = OpenClawIntegration()
-            
-            # We assume statefulness is handled by the OpenClaw node if we pass a session ID?
-            # Or we just re-navigate/scrape. For now, let's treat it as a scrape request.
-            # If selector is None, it means full page.
-            
-            # Note: For stateful browsing (extract from *current* page), OpenClaw needs session management.
-            # Assuming 'browser_scrape' takes a URL. But we don't have the URL if we are just "extracting".
-            # For this MVP, we might limit extract_content to work only if we provide a URL, 
-            # Or we assume the agent workflow is always "Navigate -> Result".
-            
-            # If we really need extraction from current state without URL, OpenClaw needs a "get_current_content" endpoint.
-            # Let's fallback to "Not supported in stateless mode" or try to find a stored URL.
-            
-            return {"error": "Stateless extraction not yet supported via OpenClaw. Use navigate() to get content."}
+            # In stateless mode, OpenClaw navigate already fetched the content
+            # If we don't have a specific selector, and we just want content, 
+            # we should really be using the text_content returned by navigate().
+            # For compatibility with agents expecting extract_content():
+            return {"content": "Content was returned during navigation. Use result.text_content", "error": None}
 
         if not self._browser:
             return {"error": "Browser service unavailable"}

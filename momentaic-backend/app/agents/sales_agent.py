@@ -516,5 +516,40 @@ Return as JSON with 'subject' and 'body' fields."""
             
         return {"leads": results}
 
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for sales opportunities:
+        - Stale leads that need follow-up
+        - Cross-agent signals (e.g., competitor pricing changes → opportunity)
+        """
+        actions = []
+        shared = self.get_shared_context()
+        
+        # Check for competitor intel signals that create sales opportunities
+        for signal in shared.get("recent_agent_signals", []):
+            if signal.get("topic") == "competitor_pricing_change":
+                actions.append({
+                    "name": "competitive_outreach",
+                    "description": f"Competitor pricing changed: {signal['data'].get('summary', '')}. Draft targeted outreach to their customers.",
+                    "priority": "high",
+                    "agent": "SalesAgent",
+                })
+        
+        # Suggest daily pipeline review
+        actions.append({
+            "name": "pipeline_review",
+            "description": "Review active leads and suggest follow-up sequences for deals going cold.",
+            "priority": "medium",
+            "agent": "SalesAgent",
+        })
+        
+        if actions:
+            await self.publish_to_bus(
+                topic="sales_opportunities_found",
+                data={"summary": f"Found {len(actions)} proactive sales actions", "count": len(actions)},
+            )
+        
+        return actions
+
 # Singleton instance
 sales_agent = SalesAgent()

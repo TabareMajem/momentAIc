@@ -10,7 +10,7 @@ import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 // ... imports
-import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2, ThumbsUp, ThumbsDown, Network } from 'lucide-react';
+import { Send, Bot, User, Trash2, Loader2, Sparkles, Terminal, Lock, Zap, Plus, Volume2, ThumbsUp, ThumbsDown, Network, Eye, Brain } from 'lucide-react';
 
 // ... inside AgentChat component
 // ...
@@ -167,45 +167,60 @@ function XRayPanel({ reasoning }: { reasoning?: { research_analyzed?: string; op
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-[#00f0ff] transition-colors group"
       >
-        <Eye className={cn("w-3 h-3 transition-colors", isOpen ? "text-[#00f0ff]" : "text-gray-600 group-hover:text-[#00f0ff]")} />
+        <Eye className={`w-3 h-3 transition-colors ${isOpen ? "text-[#00f0ff]" : "text-gray-600 group-hover:text-[#00f0ff]"}`} />
         <span className="tracking-widest uppercase">{isOpen ? '[ HIDE X-RAY ]' : '[ X-RAY: VIEW REASONING ]'}</span>
         {!isOpen && <span className="w-1.5 h-1.5 bg-[#00f0ff] rounded-full animate-pulse" />}
       </button>
 
       {isOpen && (
-        <div className="mt-3 bg-black/60 border border-[#00f0ff]/20 rounded-lg p-4 space-y-3 animate-fade-in">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 bg-[#00f0ff] rounded-full animate-pulse" />
-            <span className="text-[10px] font-mono text-[#00f0ff] tracking-widest">CHAIN_OF_THOUGHT // AGENT REPLAY</span>
-          </div>
+        <div className="mt-4 relative overflow-hidden bg-black/80 backdrop-blur-md border border-[#00f0ff]/30 rounded-xl p-5 shadow-[0_0_30px_rgba(0,240,255,0.05)] animate-fade-in group">
+          <div className="absolute inset-0 bg-tech-grid opacity-[0.03] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#00f0ff]/5 rounded-full blur-2xl transform translate-x-12 -translate-y-12 group-hover:bg-[#00f0ff]/10 transition-colors" />
 
-          {displayReasoning.research_analyzed && (
-            <div>
-              <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-1">📊 Research Analyzed</div>
-              <p className="text-[11px] text-gray-400 font-mono pl-3 border-l border-[#00f0ff]/30">{displayReasoning.research_analyzed}</p>
-            </div>
-          )}
-
-          {displayReasoning.options_considered && displayReasoning.options_considered.length > 0 && (
-            <div>
-              <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-1">🔀 Options Considered</div>
-              <div className="space-y-1 pl-3 border-l border-purple-500/30">
-                {displayReasoning.options_considered.map((opt, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-[9px] font-mono text-purple-400 mt-0.5">#{i + 1}</span>
-                    <p className="text-[11px] text-gray-400 font-mono">{opt}</p>
-                  </div>
-                ))}
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-3 mb-3 border-b border-[#00f0ff]/20 pb-3">
+              <div className="w-8 h-8 rounded-lg bg-[#00f0ff]/10 flex items-center justify-center border border-[#00f0ff]/30">
+                <Brain className="w-4 h-4 text-[#00f0ff]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-[#00f0ff] rounded-full animate-pulse" />
+                  <span className="text-xs font-black font-mono text-[#00f0ff] tracking-widest">CHAIN_OF_THOUGHT // AGENT REPLAY</span>
+                </div>
+                <div className="text-[9px] font-mono text-[#00f0ff]/50 uppercase mt-0.5">Live Execution Trace</div>
               </div>
             </div>
-          )}
 
-          {displayReasoning.final_decision_rationale && (
-            <div>
-              <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-1">✅ Decision Rationale</div>
-              <p className="text-[11px] text-green-400/80 font-mono pl-3 border-l border-green-500/30">{displayReasoning.final_decision_rationale}</p>
-            </div>
-          )}
+            {displayReasoning.research_analyzed && (
+              <div>
+                <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-1">📊 Research Analyzed</div>
+                <p className="text-[11px] text-gray-400 font-mono pl-3 border-l border-[#00f0ff]/30">{displayReasoning.research_analyzed}</p>
+              </div>
+            )}
+
+            {displayReasoning.options_considered && displayReasoning.options_considered.length > 0 && (
+              <div>
+                <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-1">🔀 Options Considered</div>
+                <div className="space-y-1 pl-3 border-l border-purple-500/30">
+                  {displayReasoning.options_considered.map((opt, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-[9px] font-mono text-purple-400 mt-0.5">#{i + 1}</span>
+                      <p className="text-[11px] text-gray-400 font-mono">{opt}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {displayReasoning.final_decision_rationale && (
+              <div>
+                <div className="text-[10px] font-bold font-mono text-gray-400 uppercase tracking-widest mb-1.5">✅ Decision Rationale</div>
+                <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3">
+                  <p className="text-xs text-green-400/90 font-mono leading-relaxed">{displayReasoning.final_decision_rationale}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -285,6 +300,7 @@ export default function AgentChat() {
     sendMessage,
     currentAgent,
     setCurrentAgent,
+    currentStartupId,
     setCurrentStartupId,
     isLoading,
     clearChat

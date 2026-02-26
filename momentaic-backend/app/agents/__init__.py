@@ -36,6 +36,16 @@ class LazyAgents:
         return sales_agent
 
     @property
+    def community_manager(self):
+        from app.agents.community_manager_agent import community_manager_agent
+        return community_manager_agent
+
+    @property
+    def cx_guardian(self):
+        from app.agents.cx_guardian_agent import cx_guardian_agent
+        return cx_guardian_agent
+
+    @property
     def content(self):
         from app.agents.content_agent import content_agent
         return content_agent
@@ -129,6 +139,11 @@ class LazyAgents:
     def sdr(self):
         from app.agents.sdr_agent import sdr_agent
         return sdr_agent
+
+    @property
+    def notification(self):
+        from app.agents.notification_agent import notification_agent
+        return notification_agent
 
 from app.agents.registry import agent_registry
 

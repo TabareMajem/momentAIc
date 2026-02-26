@@ -45,9 +45,9 @@ export function InevitabilitySection() {
                         </h2>
 
                         <p className="text-lg text-gray-400 font-mono leading-relaxed mb-8 border-l-2 border-red-500/30 pl-4">
-                            For decades, capital has chased elite university degrees and FAANG logos as a proxy for competence, hiding the fact that human-led funding is analog, subjective, and startlingly inefficient.
+                            The market overprices brand and underprices raw execution.
                             <br /><br />
-                            We are witnessing a negative "Return on Pedigree". The market overprices the brand and underprices raw execution.
+                            Capital chases FAANG logos. We chase output.
                         </p>
 
                         <div className="bg-[#0a0a0f] border border-white/10 p-6 clip-corner-2 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
@@ -57,8 +57,8 @@ export function InevitabilitySection() {
                                 The Inevitable Shift
                             </h3>
                             <p className="text-sm text-gray-400 font-mono">
-                                When subjective pedigree fails, objective execution is all that matters. MomentAIc provides the "Signal." An autonomous OS that scales your output 100x regardless of the logo on your resume.
-                                <strong className="text-white block mt-2">Where AI Builds, AI Investigates, AI Scales.</strong>
+                                Objective execution is the only signal. Scale output 100x, regardless of your resume.
+                                <strong className="text-white block mt-2">Where AI Builds, Investigates, and Scales.</strong>
                             </p>
                         </div>
                     </div>
@@ -120,7 +120,7 @@ export function InevitabilitySection() {
                                 <div>
                                     <div className="text-sm font-bold text-white">The Signal Engine</div>
                                     <div className="text-xs text-gray-400 font-mono mt-1">
-                                        Replace subjective filtering with quantitative reality. Ship code. Acquire users. Let the metrics dictate your valuation.
+                                        Ship code. Acquire users. Let metrics dictate valuation.
                                     </div>
                                 </div>
                             </div>

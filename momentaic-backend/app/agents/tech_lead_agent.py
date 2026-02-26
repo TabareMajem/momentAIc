@@ -13,13 +13,14 @@ from app.agents.base import (
     get_llm,
     get_agent_config,
     web_search,
+    BaseAgent,
 )
 from app.models.conversation import AgentType
 
 logger = structlog.get_logger()
 
 
-class TechLeadAgent:
+class TechLeadAgent(BaseAgent):
     """
     Tech Lead Agent - Expert in software architecture and development
     
@@ -243,7 +244,73 @@ Provide:
             estimates["complexity"] = int(complexity_match.group(1))
         
         return estimates
-    
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively monitor for infrastructure and code health issues.
+        Checks error logs, uptime, and publishes infra alerts.
+        """
+        actions = []
+        logger.info(f"Agent TechLeadAgent starting proactive infrastructure scan")
+        
+        # 1. Check for error spikes (simulated via metrics or real API)
+        metrics = startup_context.get("metrics", {})
+        error_rate = metrics.get("error_rate_5xx", 0)
+        uptime = metrics.get("uptime_percent", 100)
+        
+        if error_rate > 5:  # More than 5 500-errors in last hour
+            from app.models.action_item import ActionPriority
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "investigate_error",
+                    "title": f"⚠️ Error Spike Detected: {error_rate} 5xx errors/hr",
+                    "description": f"Server error rate has spiked to {error_rate}/hr. Immediate investigation recommended.",
+                    "payload": {"error_rate": error_rate, "uptime": uptime},
+                    "priority": ActionPriority.urgent.value
+                }
+            )
+            actions.append({"name": "infra_alert_error_spike", "error_rate": error_rate})
+
+        if uptime < 99.5:
+            from app.models.action_item import ActionPriority
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "investigate_error",
+                    "title": f"⚠️ Uptime Degradation: {uptime}%",
+                    "description": f"Uptime has dropped to {uptime}%. Check infrastructure health.",
+                    "payload": {"uptime": uptime},
+                    "priority": ActionPriority.high.value
+                }
+            )
+            actions.append({"name": "infra_alert_uptime", "uptime": uptime})
+
+        # 2. Check website performance via OpenClaw if URL is available
+        website_url = startup_context.get("website_url")
+        if website_url:
+            from app.agents.browser_agent import BrowserAgent
+            browser = BrowserAgent()
+            await browser.initialize()
+            result = await browser.navigate(website_url)
+            if result.success:
+                # Quick health check: is the site loading?
+                logger.info(f"Website {website_url} loaded successfully")
+            else:
+                from app.models.action_item import ActionPriority
+                await self.publish_to_bus(
+                    topic="action_item_proposed",
+                    data={
+                        "action_type": "investigate_error",
+                        "title": f"🔴 Website Down: {website_url}",
+                        "description": f"Failed to load {website_url}: {result.error}",
+                        "payload": {"url": website_url, "error": result.error},
+                        "priority": ActionPriority.urgent.value
+                    }
+                )
+                actions.append({"name": "website_down", "url": website_url})
+
+        return actions
 
 
 # Singleton instance

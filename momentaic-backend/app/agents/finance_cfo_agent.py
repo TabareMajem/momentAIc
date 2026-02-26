@@ -369,7 +369,69 @@ Provide:
             })
         
         return projections
-    
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively monitor financial health.
+        Checks MRR trends, burn rate, and runway to alert the founder early.
+        """
+        actions = []
+        logger.info("Agent FinanceCFOAgent starting proactive financial scan")
+        
+        metrics = startup_context.get("metrics", {})
+        mrr = metrics.get("mrr", 0)
+        burn_rate = metrics.get("burn_rate", 0)
+        runway_months = metrics.get("runway_months", 0)
+        prev_mrr = metrics.get("prev_mrr", 0)
+        churn_rate = metrics.get("churn_rate", 0)
+        
+        from app.models.action_item import ActionPriority
+        
+        # 1. MRR Decline Alert
+        if prev_mrr > 0 and mrr < prev_mrr:
+            decline_pct = round(((prev_mrr - mrr) / prev_mrr) * 100, 1)
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "financial_alert",
+                    "title": f"📉 MRR Declined {decline_pct}%: ${mrr:,.0f} → was ${prev_mrr:,.0f}",
+                    "description": f"Monthly Recurring Revenue dropped by {decline_pct}%. Review churn and expansion revenue.",
+                    "payload": {"mrr": mrr, "prev_mrr": prev_mrr, "decline_pct": decline_pct},
+                    "priority": ActionPriority.high.value
+                }
+            )
+            actions.append({"name": "mrr_declining", "decline_pct": decline_pct})
+        
+        # 2. Runway Warning
+        if 0 < runway_months <= 6:
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "financial_alert",
+                    "title": f"🔥 Runway Warning: {runway_months} months remaining",
+                    "description": f"At current burn rate (${burn_rate:,.0f}/mo), you have {runway_months} months of runway. Consider fundraising or cost cuts.",
+                    "payload": {"runway_months": runway_months, "burn_rate": burn_rate},
+                    "priority": ActionPriority.urgent.value if runway_months <= 3 else ActionPriority.high.value
+                }
+            )
+            actions.append({"name": "burn_rate_warning", "runway_months": runway_months})
+        
+        # 3. High Churn Alert
+        if churn_rate > 5:  # >5% monthly churn is dangerous
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "financial_alert",
+                    "title": f"⚠️ High Churn: {churn_rate}% monthly",
+                    "description": f"Monthly churn rate is {churn_rate}%. Industry average is 3-5%. Investigate customer satisfaction.",
+                    "payload": {"churn_rate": churn_rate},
+                    "priority": ActionPriority.high.value
+                },
+                target_agents=["CXGuardianAgent", "SalesAgent"]
+            )
+            actions.append({"name": "high_churn_alert", "churn_rate": churn_rate})
+        
+        return actions
 
 
 # Singleton instance

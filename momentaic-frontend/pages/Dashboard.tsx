@@ -12,6 +12,7 @@ import { AdminEcosystemWidget } from '../components/dashboard/AdminEcosystemWidg
 import { AstroTurfWidget } from '../components/ui/AstroTurfWidget';
 import { LiveAgentDashboard } from '../components/LiveAgentDashboard';
 import { BenchmarkWidget } from '../components/dashboard/BenchmarkWidget';
+import { ActionQueueWidget } from '../components/dashboard/ActionQueueWidget';
 import { useAuthStore } from '../stores/auth-store';
 import { useStartupStore } from '../stores/startup-store';
 
@@ -705,7 +706,54 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Morning Briefing Hero */}
+      {hasStartups && (
+        <div className="mb-8 bg-gradient-to-br from-[#0a0a1a]/90 to-[#0f0520]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/20 transition-colors duration-300">
+          {/* Ambient glow */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-purple-500/15 transition-colors" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[60px] translate-y-1/2 -translate-x-1/2" />
 
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Morning Briefing</h2>
+                  <p className="text-xs text-gray-500">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs font-medium text-emerald-400">All Systems Active</span>
+              </div>
+            </div>
+
+            {/* Agent Activity Pulse Grid */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-purple-400">{activeCount || 0}</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Agents Active</div>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-emerald-400">{completedTodayCount || 0}</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Tasks Done</div>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-cyan-400">98%</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Agent Uptime</div>
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-400 leading-relaxed">
+              Your autonomous team is monitoring competitors, scanning for leads, and optimizing content strategy. {completedTodayCount > 0 ? `${completedTodayCount} tasks completed so far today.` : 'No tasks have run yet today — agents will activate based on your triggers.'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Show Zero State if no startups */}
       {hasStartups === false ? (

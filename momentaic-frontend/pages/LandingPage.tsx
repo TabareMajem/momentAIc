@@ -224,6 +224,39 @@ export default function LandingPage() {
                             <button onClick={() => document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-400 transition-colors">[ Modules ]</button>
                             <button onClick={() => document.getElementById('roster')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-400 transition-colors">[ Roster ]</button>
                             <button onClick={() => document.getElementById('allocation')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-400 transition-colors">[ Costs ]</button>
+                            {/* Demo Input Bridge */}
+                            <div className="max-w-xl mx-auto mb-16 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const url = (e.currentTarget.elements.namedItem('startupUrl') as HTMLInputElement).value;
+                                        if (url) {
+                                            navigate(`/demo?url=${encodeURIComponent(url)}`);
+                                        }
+                                    }}
+                                    className="relative flex items-center"
+                                >
+                                    <Globe className="absolute left-5 w-5 h-5 text-gray-500" />
+                                    <input
+                                        name="startupUrl"
+                                        type="url"
+                                        required
+                                        placeholder="Enter your startup's URL..."
+                                        className="w-full h-16 pl-14 pr-40 bg-[#0a0a0f] border-2 border-white/20 hover:border-purple-500/50 focus:border-purple-500 rounded-2xl text-white font-mono text-sm xl:text-base outline-none transition-all shadow-2xl focus:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="absolute right-2 h-12 px-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold font-mono text-sm shadow-lg shadow-purple-900/30 transition-all flex items-center gap-2 group"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>ANALYZE</span>
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </button>
+                                </form>
+                                <p className="text-[10px] md:text-xs font-mono text-gray-500 mt-4 tracking-widest uppercase">
+                                    Drop your URL to watch the AI swarm build your GTM live. Needs zero sign-up.
+                                </p>
+                            </div>
                         </div>
 
                         {isAuthenticated ? (
@@ -254,6 +287,62 @@ export default function LandingPage() {
 
             {/* ─── INEVITABILITY / EFFICIENCY CRISIS ─── */}
             <InevitabilitySection />
+
+            {/* ─── BRUTAL USE CASES ─── */}
+            <section className="py-24 px-6 border-y border-white/5 bg-[#030014] relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.05)_0%,transparent_70%)]" />
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <SectionHeader
+                        id="SYS-04"
+                        title="Brutal Use Cases"
+                        subtitle="How elite solo founders are crushing teams of 50."
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+                        {/* Use Case 1 */}
+                        <div className="bg-black/50 border border-white/10 p-8 rounded-2xl hover:border-purple-500/50 transition-colors group">
+                            <div className="w-12 h-12 bg-purple-500/10 text-purple-400 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                <Target className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-3">The Infinite Outbound Engine</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                                Stop writing cold emails. Deploy the SDR Agent + Research Agent tandem. They scrape data, analyze pain points, hyper-personalize outreach to 1,000 prospects daily, and book demos directly to your calendar.
+                            </p>
+                            <div className="text-[10px] font-mono text-purple-400 tracking-widest uppercase flex items-center gap-2">
+                                <Activity className="w-3 h-3" /> Replaces: 3 SDRs + 1 RevOps
+                            </div>
+                        </div>
+
+                        {/* Use Case 2 */}
+                        <div className="bg-black/50 border border-white/10 p-8 rounded-2xl hover:border-blue-500/50 transition-colors group">
+                            <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                <Shield className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-3">The Zero-Burn Ops Stack</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                                Legal and finance are solved. The CFO Agent analyzes your Stripe metrics and optimizes burn, while the Legal Agent drafts compliant MSAs and reviews vendor contracts instantly. No retainer fees required.
+                            </p>
+                            <div className="text-[10px] font-mono text-blue-400 tracking-widest uppercase flex items-center gap-2">
+                                <Activity className="w-3 h-3" /> Replaces: Fractional CFO + Legal Counsel
+                            </div>
+                        </div>
+
+                        {/* Use Case 3 */}
+                        <div className="bg-black/50 border border-white/10 p-8 rounded-2xl hover:border-pink-500/50 transition-colors group">
+                            <div className="w-12 h-12 bg-pink-500/10 text-pink-400 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                <Globe className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-3">Autonomous Audience Builder</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                                Deploy the Viral Swarm. It analyzes Twitter/LinkedIn trends, drafts thread hooks, creates video scripts, and engages with target influencers autonomously. You just approve the drafts.
+                            </p>
+                            <div className="text-[10px] font-mono text-pink-400 tracking-widest uppercase flex items-center gap-2">
+                                <Activity className="w-3 h-3" /> Replaces: Social Media Mgr + Copywriter
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* ─── ECOSYSTEM (The Brain) ─── */}
             <EcosystemSection />

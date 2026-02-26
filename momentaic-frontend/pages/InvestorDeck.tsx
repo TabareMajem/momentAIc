@@ -242,7 +242,7 @@ export default function InvestorDeck() {
             </section>
 
             {/* ══════════════════════════════════ */}
-            {/* ── 2. THE INEVITABLE COLLAPSE ───── */}
+            {/* ── 2. THE SINGLE-PERSON UNICORN ─── */}
             {/* ══════════════════════════════════ */}
             <section className="py-32 px-6 bg-[#040407] border-t border-white/5 relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-1/2 h-full opacity-10 pointer-events-none mix-blend-screen"
@@ -250,31 +250,32 @@ export default function InvestorDeck() {
                 <div className="absolute left-0 bottom-0 w-1/3 h-1/2 opacity-5 pointer-events-none mix-blend-screen"
                     style={{ background: 'radial-gradient(circle at 20% 80%, #a855f7 0%, transparent 70%)' }} />
                 <div className="max-w-5xl mx-auto relative z-10">
-                    <div className="inline-block border border-red-500/30 bg-red-500/10 text-red-400 px-3 py-1 font-mono text-[10px] tracking-[0.4em] mb-6 uppercase">Phase 1: The Collapse</div>
+                    <div className="inline-block border border-red-500/30 bg-red-500/10 text-red-400 px-3 py-1 font-mono text-[10px] tracking-[0.4em] mb-6 uppercase">The Shift</div>
                     <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-12 leading-[0.85]">
-                        SaaS is <span className="text-red-600 line-through decoration-white/50">Obsolete.</span><br />
-                        <span className="text-gray-500 text-3xl md:text-5xl">Drowning in tools is a choice.</span>
+                        The math of venture capital <br />
+                        <span className="text-red-600 line-through decoration-white/50">is fundamentally broken.</span><br />
+                        <span className="text-gray-500 text-3xl md:text-5xl">The Single-Person Unicorn is inevitable.</span>
                     </h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
                         {[
                             {
-                                icon: AlertTriangle, color: "text-red-400",
-                                title: "Tool Sprawl",
-                                body: "The average funded startup runs 11+ SaaS tools: CRM, ATS, Marketing Automation, Analytics, PM — all requiring constant human babysitting.",
-                                stat: "11,000+", statLabel: "SaaS tools per enterprise"
+                                icon: Users, color: "text-red-400",
+                                title: "Zero Payroll",
+                                body: "A solo founder no longer needs $2M to hire an engineering team, SDRs, and marketers. They orchestrate a swarm of 50+ specialized neural agents for the cost of a Netflix subscription.",
+                                stat: "0", statLabel: "W-2 Employees Needed"
                             },
                             {
-                                icon: DollarSign, color: "text-yellow-400",
-                                title: "Capital Misallocation",
-                                body: "Traditional VC bets on Ivy League credentials and warm intros. Returns suffer. The best builders — scrappy, global, relentless — are invisible to Sand Hill Road.",
-                                stat: "85%", statLabel: "VC-backed startups fail"
+                                icon: Activity, color: "text-yellow-400",
+                                title: "Infinite Bandwidth",
+                                body: "Pedigree is irrelevant; only execution volume matters. Agents don't sleep. An SDR agent sends 5,000 highly-personalized emails daily while the CFO agent reconciles Stripe at 4 AM.",
+                                stat: "24/7", statLabel: "Execution Cycle"
                             },
                             {
-                                icon: Users, color: "text-purple-400",
-                                title: "Execution Bandwidth",
-                                body: "A solo founder needs a CFO, SDR, lawyer, marketer, and data scientist on day one. They can't afford them. They burn out and die before product-market fit.",
-                                stat: "68%", statLabel: "founders overwhelmed by ops"
+                                icon: Target, color: "text-purple-400",
+                                title: "The Algorithm of Alpha",
+                                body: "We observe these founders operating within MomentAIc. We capture their commit velocity, customer acquisition costs, and momentum—giving us proprietary early-access to invest.",
+                                stat: "100ms", statLabel: "Signal Refresh Rate"
                             }
                         ].map((item, i) => (
                             <div key={i} className="bg-[#020202] p-8 border border-white/5 hover:border-red-500/30 transition-colors group relative overflow-hidden">
@@ -293,28 +294,28 @@ export default function InvestorDeck() {
                     <div className="mt-12 p-8 border border-red-900/30 bg-red-950/10 relative">
                         <div className="absolute top-0 left-0 w-px h-full bg-red-500" />
                         <p className="text-xl md:text-2xl font-bold text-white leading-relaxed">
-                            "The market is overpricing pedigree and <span className="text-red-400">catastrophically underpricing execution.</span> The founder with a Harvard MBA and a McKinsey pedigree is losing to the solo dev in Lagos who ships every day."
+                            "The next billion-dollar company will be built by three people and a swarm of autonomous agents. <span className="text-red-400">Those who supply the agents will own the economy.</span>"
                         </p>
-                        <div className="mt-4 text-xs font-mono text-gray-500">— MomentAIc Thesis Document, 2025</div>
+                        <div className="mt-4 text-xs font-mono text-gray-500">— MomentAIc Execution Manifesto, 2025</div>
                     </div>
                 </div>
             </section>
 
             {/* ══════════════════════════════════ */}
-            {/* ── 3. THE INEVITABLE ASCENDANCE ─── */}
+            {/* ── 3. SYNTHETIC WORKFORCE ──────── */}
             {/* ══════════════════════════════════ */}
             <section className="py-32 px-6 bg-[#000] border-t border-red-900/30 relative">
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="text-center mb-24">
-                        <div className="inline-block border border-purple-500/30 bg-purple-500/10 text-purple-400 px-3 py-1 font-mono text-[10px] tracking-[0.4em] mb-6 uppercase">Phase 2: The Inevitability</div>
+                        <div className="inline-block border border-purple-500/30 bg-purple-500/10 text-purple-400 px-3 py-1 font-mono text-[10px] tracking-[0.4em] mb-6 uppercase">The Operating System</div>
                         <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter leading-[0.85] drop-shadow-2xl">
-                            Not Software.<br />
+                            We Don't Build SaaS.<br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
-                                A Synthetic Workforce.
+                                We Build the Post-Employment Economy.
                             </span>
                         </h2>
                         <p className="mt-8 text-gray-300 font-mono max-w-3xl mx-auto text-base leading-relaxed border-l-2 border-purple-500 pl-6 text-left">
-                            The transition is mathematical. Software requires humans to operate it. MomentAIc deploys 50+ specialized neural agents that form a <strong className="text-white">living, breathing C-suite</strong>. They debate strategy, acquire users, and execute 24/7.
+                            Software accelerates humans. Autonomous OS <strong className="text-white">replaces them</strong>. MomentAIc provides solo founders with 50+ specialized neural agents that act as a living, breathing C-suite—executing infinitely, flawlessly, without payroll.
                         </p>
                     </div>
 

@@ -256,5 +256,87 @@ OUTPUT: Provide the list of top {max_targets} investors."""
             filters_applied={"keywords": keywords_to_use}
         )
 
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for high-conviction VCs by not only finding them,
+        but deeply scraping their websites to verify portfolio alignment.
+        """
+        actions = []
+        logger.info(f"Agent {self.name} starting deep proactive scan for investors")
+        
+        # 1. Use the standard scan but just get a few top targets to deep-dive
+        industry = startup_context.get("industry", "AI")
+        keywords = [f"seed vc {industry} bootstrap", f"active angel investors {industry}"]
+        
+        # We only want top 3 to avoid long running times in proactive mode
+        deal_flow = await self.scan_for_investors(max_targets=3, custom_keywords=keywords)
+        
+        if not deal_flow.targets:
+            return actions
+            
+        # 2. Deep Dive using Browser Agent (OpenClaw)
+        from app.agents.browser_agent import BrowserAgent
+        browser = BrowserAgent()
+        await browser.initialize()
+        
+        high_conviction_investors = []
+        
+        for target in deal_flow.targets:
+            # Try to find the firm's website if we don't naturally have one
+            if not target.profile_url and target.firm:
+                firm_query = f"{target.firm} venture capital portfolio"
+                links = await _serper_search(firm_query, num=1)
+                if links:
+                    target.profile_url = links[0].get("link", "")
+            
+            if target.profile_url:
+                logger.info(f"Deep scraping VC portfolio: {target.profile_url}")
+                result = await browser.navigate(target.profile_url)
+                
+                if result.success and result.text_content:
+                    # Let LLM verify if the portfolio actually matches our startup
+                    prompt = f"""You are analyzing a VC firm's actual website content to verify investment fit.
+                    
+                    Startup Context: {json.dumps(startup_context)}
+                    
+                    VC Website Content:
+                    {result.text_content[:8000]}
+                    
+                    Based on their actual website, do they explicitly invest in companies like ours?
+                    Reply exactly with YES or NO, followed by a 1 sentence reason quoting their site."""
+                    
+                    from langchain_core.messages import HumanMessage
+                    llm = get_llm("gemini-pro", temperature=0.1)
+                    if llm:
+                        verify_res = await llm.ainvoke([HumanMessage(content=prompt)])
+                        text = verify_res.content.strip()
+                        
+                        if text.upper().startswith("YES"):
+                            target.thesis_match = text
+                            target.priority_score += 20  # Boost score
+                            high_conviction_investors.append(target)
+                            
+        # 3. Publish findings to the bus
+        if high_conviction_investors:
+            for inv in high_conviction_investors:
+                await self.publish_to_bus(
+                    topic="high_conviction_investor_found",
+                    data={
+                        "name": inv.name,
+                        "firm": inv.firm,
+                        "reason": inv.thesis_match,
+                        "suggested_action": "draft_outreach",
+                        "pitch": inv.cold_pitch
+                    }
+                )
+                
+                actions.append({
+                    "name": "found_high_conviction_vc",
+                    "target": inv.name,
+                    "firm": inv.firm
+                })
+                
+        return actions
+
 # Instance
 vc_headhunter = VCHeadhunterAgent()

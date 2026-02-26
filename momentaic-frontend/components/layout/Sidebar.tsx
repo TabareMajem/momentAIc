@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../stores/auth-store';
-import { useNotificationStore } from '../../src/stores/notification-store';
 import { Logo } from '../ui/Logo';
 import { StartupSelector } from '../dashboard/StartupSelector';
 import { useTranslation } from 'react-i18next';

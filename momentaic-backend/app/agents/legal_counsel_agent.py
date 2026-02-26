@@ -248,6 +248,107 @@ Never provide specific legal advice or guarantee outcomes."""
     def _format_terms(self, terms: Dict[str, Any]) -> str:
         """Format contract terms for prompt"""
         return "\n".join(f"- {k}: {v}" for k, v in terms.items())
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for legal and compliance risks for the startup.
+        Uses BrowserAgent (OpenClaw) to check competitor privacy policies,
+        cookie banners, or monitor regulatory sites for changes.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive compliance scan")
+        
+        # In a real scenario, we might have a list of competitors from the startup context
+        competitors = startup_context.get("competitors", [])
+        if not competitors:
+            # Let's try to extract from recent signals
+            shared = self.get_shared_context()
+            for signal in shared.get("recent_agent_signals", []):
+                if signal.get("topic") == "competitor_identified":
+                    data = signal.get("data", {})
+                    if "url" in data:
+                        competitors.append(data["url"])
+        
+        # If we still have no competitors, we'll do a generic regulatory check
+        from app.agents.browser_agent import BrowserAgent
+        browser = BrowserAgent()
+        await browser.initialize()
+        
+        from langchain_core.messages import HumanMessage
+        import json
+        
+        # Scenario 1: Scan competitor privacy policies
+        if competitors:
+            target = competitors[0]  # Just check one for proactive brevity
+            if not target.startswith("http"):
+                target = f"https://{target}"
+                
+            logger.info(f"Proactive Legal Scan: Checking competitor privacy standard at {target}")
+            
+            # Simple heuristic to find a privacy policy (e.g. usually in footer, or just append /privacy)
+            privacy_url = target.rstrip("/") + "/privacy"
+            
+            result = await browser.navigate(privacy_url)
+            
+            if result.success and result.text_content:
+                prompt = f"""You are a startup Legal Counsel AI.
+                Analyze this competitor's privacy policy text (which might be raw or incomplete):
+                
+                {result.text_content[:8000]}
+                
+                Does this policy seem to handle AI data training or LLM usage explicitly?
+                Reply exactly with YES or NO, followed by a 2 sentence explanation of the standard they set."""
+                
+                llm = get_llm("gemini-pro", temperature=0.1)
+                if llm:
+                    analysis = await llm.ainvoke([HumanMessage(content=prompt)])
+                    text = analysis.content.strip()
+                    
+                    # Publish finding to the bus
+                    await self.publish_to_bus(
+                        topic="compliance_intel_gathered",
+                        data={
+                            "competitor_url": target,
+                            "policy_analysis": text,
+                            "suggestion": "Review our own policy to ensure we match or exceed this transparency standard."
+                        }
+                    )
+                    
+                    actions.append({
+                        "name": "competitor_privacy_analyzed",
+                        "target": target
+                    })
+                    
+        else:
+            # Scenario 2: General Regulatory Sweep (e.g., checking a public DB or news site)
+            # Example: A quick search on open AI regulations
+            from app.agents.base import web_search
+            query = f"{startup_context.get('industry', 'AI')} startup regulations compliance updates 2025"
+            results = await web_search(query)
+            
+            if results:
+                llm = get_llm("gemini-pro", temperature=0.2)
+                if llm:
+                    prompt = f"""Summarize any critical new 2025 regulatory risks for a startup in {startup_context.get('industry', 'AI')} based on these search results:
+                    {json.dumps(results[:3])}
+                    Provide a 2 sentence summary of the biggest risk."""
+                    
+                    analysis = await llm.ainvoke([HumanMessage(content=prompt)])
+                    
+                    await self.publish_to_bus(
+                        topic="regulatory_risk_detected",
+                        data={
+                            "summary": analysis.content.strip(),
+                            "industry": startup_context.get('industry', 'AI'),
+                            "suggestion": "Require Tech Lead to review data handling."
+                        }
+                    )
+                    
+                    actions.append({
+                        "name": "regulatory_sweep_completed"
+                    })
+        
+        return actions
     
     def _calculate_founder_score(self, terms: Dict[str, Any]) -> int:
         """Calculate founder-friendly score (1-100)"""

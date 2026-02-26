@@ -170,62 +170,73 @@ export default function BusinessPulse() {
             </div>
 
             {/* 💰 KILL SHOT 1: REVENUE COMMAND CENTER */}
-            <div className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                    <DollarSign className="w-5 h-5 text-green-400" />
-                    <h2 className="text-sm font-mono font-bold text-green-400 tracking-widest">REVENUE COMMAND CENTER</h2>
-                    <span className="text-[9px] font-mono text-gray-600 ml-auto">STRIPE_LIVE_FEED</span>
+            {/* 💰 KILL SHOT 1: REVENUE COMMAND CENTER */}
+            <div className="mb-12 relative animate-fade-in">
+                <div className="absolute inset-0 bg-green-500/5 blur-3xl rounded-full pointer-events-none" />
+                <div className="relative border border-green-500/20 bg-black/40 backdrop-blur-md rounded-2xl p-6 shadow-[0_0_40px_rgba(34,197,94,0.05)]">
+                    <div className="flex items-center gap-4 mb-6 border-b border-green-500/10 pb-4">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                            <DollarSign className="w-5 h-5 text-green-400" />
+                        </div>
+                        <div className="flex-1">
+                            <h2 className="text-xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 tracking-tight">REVENUE COMMAND CENTER</h2>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-[10px] font-mono text-green-400/60 uppercase tracking-widest">LIVE STRIPE SYNC</span>
+                            </div>
+                        </div>
+                    </div>
+                    {revenueLoading ? (
+                        <div className="text-center py-8 text-gray-500 font-mono text-sm animate-pulse">Connecting to Stripe...</div>
+                    ) : revenue?.status === 'active' && revenue?.data ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-gradient-to-br from-green-900/30 to-green-900/10 border border-green-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-green-400/50 transition-all">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-full blur-xl" />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <TrendingUp className="w-4 h-4 text-green-400" />
+                                    <span className="text-[10px] font-mono text-green-400/70">MONTHLY RECURRING REVENUE</span>
+                                </div>
+                                <p className="text-3xl font-black font-mono text-green-400">${((revenue.data.mrr || 0) / 100).toLocaleString()}</p>
+                                <p className="text-[9px] font-mono text-gray-600 mt-1">Live from Stripe</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-900/30 to-blue-900/10 border border-blue-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-blue-400/50 transition-all">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full blur-xl" />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Users className="w-4 h-4 text-blue-400" />
+                                    <span className="text-[10px] font-mono text-blue-400/70">ACTIVE SUBSCRIPTIONS</span>
+                                </div>
+                                <p className="text-3xl font-black font-mono text-blue-400">{revenue.data.active_subscriptions || 0}</p>
+                                <p className="text-[9px] font-mono text-gray-600 mt-1">Paying customers</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-red-900/30 to-red-900/10 border border-red-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-red-400/50 transition-all">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/5 rounded-full blur-xl" />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <TrendingDown className="w-4 h-4 text-red-400" />
+                                    <span className="text-[10px] font-mono text-red-400/70">CHURN RATE</span>
+                                </div>
+                                <p className="text-3xl font-black font-mono text-red-400">{revenue.data.churn_rate?.toFixed(1) || '0.0'}%</p>
+                                <p className="text-[9px] font-mono text-gray-600 mt-1">Last 30 days</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-purple-900/30 to-purple-900/10 border border-purple-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-purple-400/50 transition-all">
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full blur-xl" />
+                                <div className="flex items-center gap-2 mb-2">
+                                    <CreditCard className="w-4 h-4 text-purple-400" />
+                                    <span className="text-[10px] font-mono text-purple-400/70">AGENT ROI</span>
+                                </div>
+                                <p className="text-3xl font-black font-mono text-purple-400">
+                                    {pulse ? `${((revenue.data.mrr || 0) / Math.max(1, (pulse.total_heartbeats_24h * 0.002) * 100)).toFixed(0)}x` : '—'}
+                                </p>
+                                <p className="text-[9px] font-mono text-gray-600 mt-1">Revenue ÷ Agent Cost</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
+                            <DollarSign className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                            <p className="text-sm font-mono text-gray-500">No Stripe integration connected.</p>
+                            <p className="text-[10px] font-mono text-gray-600 mt-1">Connect Stripe in Integrations to unlock live revenue tracking.</p>
+                        </div>
+                    )}
                 </div>
-                {revenueLoading ? (
-                    <div className="text-center py-8 text-gray-500 font-mono text-sm animate-pulse">Connecting to Stripe...</div>
-                ) : revenue?.status === 'active' && revenue?.data ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-green-900/30 to-green-900/10 border border-green-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-green-400/50 transition-all">
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-full blur-xl" />
-                            <div className="flex items-center gap-2 mb-2">
-                                <TrendingUp className="w-4 h-4 text-green-400" />
-                                <span className="text-[10px] font-mono text-green-400/70">MONTHLY RECURRING REVENUE</span>
-                            </div>
-                            <p className="text-3xl font-black font-mono text-green-400">${((revenue.data.mrr || 0) / 100).toLocaleString()}</p>
-                            <p className="text-[9px] font-mono text-gray-600 mt-1">Live from Stripe</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-blue-900/30 to-blue-900/10 border border-blue-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-blue-400/50 transition-all">
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full blur-xl" />
-                            <div className="flex items-center gap-2 mb-2">
-                                <Users className="w-4 h-4 text-blue-400" />
-                                <span className="text-[10px] font-mono text-blue-400/70">ACTIVE SUBSCRIPTIONS</span>
-                            </div>
-                            <p className="text-3xl font-black font-mono text-blue-400">{revenue.data.active_subscriptions || 0}</p>
-                            <p className="text-[9px] font-mono text-gray-600 mt-1">Paying customers</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-red-900/30 to-red-900/10 border border-red-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-red-400/50 transition-all">
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/5 rounded-full blur-xl" />
-                            <div className="flex items-center gap-2 mb-2">
-                                <TrendingDown className="w-4 h-4 text-red-400" />
-                                <span className="text-[10px] font-mono text-red-400/70">CHURN RATE</span>
-                            </div>
-                            <p className="text-3xl font-black font-mono text-red-400">{revenue.data.churn_rate?.toFixed(1) || '0.0'}%</p>
-                            <p className="text-[9px] font-mono text-gray-600 mt-1">Last 30 days</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-purple-900/30 to-purple-900/10 border border-purple-500/30 rounded-lg p-5 relative overflow-hidden group hover:border-purple-400/50 transition-all">
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/5 rounded-full blur-xl" />
-                            <div className="flex items-center gap-2 mb-2">
-                                <CreditCard className="w-4 h-4 text-purple-400" />
-                                <span className="text-[10px] font-mono text-purple-400/70">AGENT ROI</span>
-                            </div>
-                            <p className="text-3xl font-black font-mono text-purple-400">
-                                {pulse ? `${((revenue.data.mrr || 0) / Math.max(1, (pulse.total_heartbeats_24h * 0.002) * 100)).toFixed(0)}x` : '—'}
-                            </p>
-                            <p className="text-[9px] font-mono text-gray-600 mt-1">Revenue ÷ Agent Cost</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
-                        <DollarSign className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                        <p className="text-sm font-mono text-gray-500">No Stripe integration connected.</p>
-                        <p className="text-[10px] font-mono text-gray-600 mt-1">Connect Stripe in Integrations to unlock live revenue tracking.</p>
-                    </div>
-                )}
             </div>
 
             {/* KPI Cards */}
@@ -260,43 +271,46 @@ export default function BusinessPulse() {
                         <p className="text-3xl font-black font-mono text-red-400">{pulse.pending_escalations}</p>
                     </div>
                 </div>
-            )}
+            )
+            }
 
             {/* Agent Status Grid */}
-            {pulse && pulse.agents.length > 0 && (
-                <div className="mb-8">
-                    <h2 className="text-sm font-mono font-bold text-gray-400 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        AGENT STATUS GRID
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                        {pulse.agents.map((agent) => {
-                            const status = getDominantStatus(agent);
-                            const colors = STATUS_COLORS[status];
-                            return (
-                                <div
-                                    key={agent.agent_id}
-                                    className={`${colors.bg} border ${colors.border} rounded-lg p-3 shadow-lg ${colors.glow} transition-all hover:scale-105`}
-                                >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className={`text-[10px] font-mono font-bold ${colors.text}`}>{status}</span>
-                                        <span className="text-[9px] font-mono text-gray-600">{timeAgo(agent.last_heartbeat)}</span>
+            {
+                pulse && pulse.agents.length > 0 && (
+                    <div className="mb-8">
+                        <h2 className="text-sm font-mono font-bold text-gray-400 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            AGENT STATUS GRID
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                            {pulse.agents.map((agent) => {
+                                const status = getDominantStatus(agent);
+                                const colors = STATUS_COLORS[status];
+                                return (
+                                    <div
+                                        key={agent.agent_id}
+                                        className={`${colors.bg} border ${colors.border} rounded-lg p-3 shadow-lg ${colors.glow} transition-all hover:scale-105`}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`text-[10px] font-mono font-bold ${colors.text}`}>{status}</span>
+                                            <span className="text-[9px] font-mono text-gray-600">{timeAgo(agent.last_heartbeat)}</span>
+                                        </div>
+                                        <p className="text-xs font-bold font-mono text-white mb-1 truncate">
+                                            {getAgentLabel(agent.agent_id)}
+                                        </p>
+                                        <div className="flex gap-2 text-[9px] font-mono text-gray-500">
+                                            <span>⚡{agent.total_heartbeats}</span>
+                                            <span className="text-blue-400">💡{agent.insight_count}</span>
+                                            <span className="text-orange-400">⚙️{agent.action_count}</span>
+                                            <span className="text-red-400">🚨{agent.escalation_count}</span>
+                                        </div>
                                     </div>
-                                    <p className="text-xs font-bold font-mono text-white mb-1 truncate">
-                                        {getAgentLabel(agent.agent_id)}
-                                    </p>
-                                    <div className="flex gap-2 text-[9px] font-mono text-gray-500">
-                                        <span>⚡{agent.total_heartbeats}</span>
-                                        <span className="text-blue-400">💡{agent.insight_count}</span>
-                                        <span className="text-orange-400">⚙️{agent.action_count}</span>
-                                        <span className="text-red-400">🚨{agent.escalation_count}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Timeline Filter */}
             <div className="flex items-center gap-2 mb-4">
@@ -380,6 +394,6 @@ export default function BusinessPulse() {
                     );
                 })}
             </div>
-        </div>
+        </div >
     );
 }

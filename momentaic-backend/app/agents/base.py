@@ -217,11 +217,71 @@ class BaseAgent(ABC):
 
     async def handle_message(self, msg: Any) -> None:
         """
-        Default A2A Message Bus handler.
-        Override in subclasses for specific routing behavior.
+        A2A Message Bus handler. Receives messages from other agents.
+        Stores them in shared memory so this agent's next process() call can use them.
         """
-        logger.info(f"Agent {self.__class__.__name__} received unhandled message {msg.id}: {msg.topic}")
-        pass
+        agent_name = self.__class__.__name__
+        logger.info(f"Agent {agent_name} received message {msg.get('id', '?')}: {msg.get('topic', '?')}")
+        
+        # Store in shared memory for cross-agent awareness
+        if not hasattr(self, '_received_signals'):
+            self._received_signals = []
+        self._received_signals.append({
+            "from": msg.get("from_agent", "unknown"),
+            "topic": msg.get("topic", ""),
+            "data": msg.get("data", {}),
+            "timestamp": msg.get("timestamp", ""),
+        })
+        # Keep only last 20 signals to prevent memory bloat
+        self._received_signals = self._received_signals[-20:]
+
+    async def publish_to_bus(self, topic: str, data: Dict[str, Any], target_agents: List[str] = None) -> None:
+        """
+        Publish a finding/signal to the inter-agent message bus.
+        Other agents will receive it via handle_message() on their next invocation.
+        Also logs to the activity stream for user visibility.
+        """
+        from datetime import datetime
+        agent_name = self.__class__.__name__
+        
+        message = {
+            "id": f"{agent_name}_{topic}_{datetime.utcnow().timestamp()}",
+            "from_agent": agent_name,
+            "topic": topic,
+            "data": data,
+            "target_agents": target_agents or ["all"],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        
+        # Log to activity stream so the UI can show it
+        await activity_stream.emit({
+            "type": "agent_signal",
+            "agent": agent_name,
+            "topic": topic,
+            "summary": data.get("summary", str(data)[:100]),
+            "timestamp": message["timestamp"],
+        })
+        
+        # Store in class-level shared memory (accessible by all agents in this process)
+        BaseAgent._shared_memory.setdefault("signals", []).append(message)
+        # Keep only last 50 signals globally
+        BaseAgent._shared_memory["signals"] = BaseAgent._shared_memory["signals"][-50:]
+        
+        logger.info(f"Agent {agent_name} published signal", topic=topic, targets=target_agents)
+
+    def get_shared_context(self) -> Dict[str, Any]:
+        """
+        Returns aggregated findings from all agents.
+        Inject this into any agent's process() call for cross-agent awareness.
+        """
+        signals = BaseAgent._shared_memory.get("signals", [])
+        own_signals = [s for s in self._received_signals] if hasattr(self, '_received_signals') else []
+        
+        return {
+            "recent_agent_signals": signals[-10:],
+            "my_received_signals": own_signals[-5:],
+            "agent_findings": BaseAgent._shared_memory.get("findings", {}),
+        }
 
     async def stream_process(
         self,
@@ -237,18 +297,13 @@ class BaseAgent(ABC):
         """
         import asyncio
         
-        # We must support agents that just take (message, startup_context) or (message, startup_context, user_id)
-        # Assuming most use the latter given the signature.
         try:
             result = await self.process(message, startup_context, user_id)
         except TypeError:
-            # Fallback if process doesn't take user_id
             result = await self.process(message, startup_context)
 
         if isinstance(result, dict) and "response" in result:
             full_response = result["response"]
-            
-            # Simulate rapid streaming locally
             chunk_size = 20
             for i in range(0, len(full_response), chunk_size):
                 yield full_response[i:i+chunk_size]
@@ -260,23 +315,43 @@ class BaseAgent(ABC):
         """
         Agents implement this to scan for proactive opportunities.
         Returns a list of actions/tasks the agent wants to perform.
+        Override in subclasses with real scan logic.
         """
         return []
 
     async def can_act_autonomously(self) -> bool:
         """
-        Returns whether this agent is allowed to act without human explicit permission
-        (based on settings, billing, or safety constraints).
+        Returns whether this agent is allowed to act without human explicit permission.
+        Checks the autonomy settings stored in shared memory.
         """
-        return False
+        autonomy_config = BaseAgent._shared_memory.get("autonomy_config", {})
+        agent_name = self.__class__.__name__
+        return autonomy_config.get(agent_name, False)
         
     async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
         """
         Executes a specific autonomous action generated by proactive_scan.
+        Publishes the result to the bus so other agents can react.
         """
-        logger.info(f"Agent {self.__class__.__name__} executing autonomous action", action=action)
-        return "Action completed"
+        agent_name = self.__class__.__name__
+        logger.info(f"Agent {agent_name} executing autonomous action", action=action)
+        
+        result = f"Action '{action.get('name', 'unknown')}' completed by {agent_name}"
+        
+        # Notify other agents about the action taken
+        await self.publish_to_bus(
+            topic="autonomous_action_completed",
+            data={
+                "action": action.get("name", "unknown"),
+                "summary": result,
+                "agent": agent_name,
+            }
+        )
+        
+        return result
 
+    # Class-level shared memory store (accessible by all agent instances in this process)
+    _shared_memory: Dict[str, Any] = {}
 
 
 # ==================

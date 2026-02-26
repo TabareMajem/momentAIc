@@ -9,8 +9,9 @@ from datetime import datetime
 import structlog
 import asyncio
 import re
+import json
 
-from app.agents.base import get_llm
+from app.agents.base import get_llm, BaseAgent
 
 logger = structlog.get_logger()
 
@@ -126,7 +127,7 @@ class QAReport:
         }
 
 
-class QATesterAgent:
+class QATesterAgent(BaseAgent):
     """
     QA & Tester Agent - Automated app auditing
     
@@ -610,6 +611,76 @@ Provide a URL and I'll run a full audit!""",
             await self._browser.close()
             self._browser = None
             logger.info("QA Browser closed")
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively test the startup's live website via OpenClaw.
+        Runs a full audit and queues bug reports as ActionItems.
+        """
+        actions = []
+        website_url = startup_context.get("website_url")
+        
+        if not website_url:
+            logger.info("QATesterAgent: No website_url in startup context, skipping proactive scan")
+            return actions
+            
+        logger.info(f"QATesterAgent starting proactive site audit: {website_url}")
+        
+        # Use OpenClaw BrowserAgent for the navigation
+        from app.agents.browser_agent import BrowserAgent
+        browser = BrowserAgent()
+        await browser.initialize()
+        
+        result = await browser.navigate(website_url)
+        
+        if not result.success:
+            from app.models.action_item import ActionPriority
+            await self.publish_to_bus(
+                topic="action_item_proposed",
+                data={
+                    "action_type": "bug_report",
+                    "title": f"🔴 Website Failed to Load: {website_url}",
+                    "description": f"OpenClaw could not load the site: {result.error}",
+                    "payload": {"url": website_url, "error": result.error},
+                    "priority": ActionPriority.urgent.value
+                }
+            )
+            actions.append({"name": "site_down", "url": website_url})
+            return actions
+        
+        # If OpenClaw loaded it, let's also try our full audit if playwright is available
+        try:
+            report = await self.run_full_audit(website_url, mode="full", personality="professional")
+            
+            if report.overall_score < 70:
+                from app.models.action_item import ActionPriority
+                
+                bug_summary = []
+                if report.console_errors:
+                    bug_summary.append(f"{len(report.console_errors)} JS errors")
+                if report.broken_links:
+                    bug_summary.append(f"{len(report.broken_links)} broken links")
+                if report.accessibility_issues:
+                    bug_summary.append(f"{len(report.accessibility_issues)} a11y issues")
+                    
+                await self.publish_to_bus(
+                    topic="action_item_proposed",
+                    data={
+                        "action_type": "bug_report",
+                        "title": f"🐛 QA Score {report.overall_score}/100 — {', '.join(bug_summary)}",
+                        "description": report.ux_notes or "Multiple issues detected during proactive audit.",
+                        "payload": report.to_dict(),
+                        "priority": ActionPriority.high.value if report.overall_score < 50 else ActionPriority.medium.value
+                    }
+                )
+                actions.append({"name": "qa_audit_low_score", "score": report.overall_score})
+            else:
+                logger.info(f"QA Audit passed with score {report.overall_score}/100")
+                
+        except Exception as e:
+            logger.warning(f"Full QA audit failed (Playwright may be unavailable): {e}")
+        
+        return actions
 
 
 # Singleton instance
