@@ -169,7 +169,7 @@ export default function MagicDemo() {
                             />
                         </div>
                         <Button
-                            onClick={runDemo}
+                            onClick={() => runDemo()}
                             disabled={isRunning || !url.trim()}
                             className="h-14 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-mono text-sm shadow-lg shadow-purple-900/30 whitespace-nowrap"
                         >
