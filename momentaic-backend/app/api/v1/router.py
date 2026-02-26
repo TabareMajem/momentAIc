@@ -66,6 +66,14 @@ api_router.include_router(
     tags=["Startups"],
 )
 
+# DAG Execution (Agent Composability Canvas)
+from app.api.v1.endpoints import dag_execution
+api_router.include_router(
+    dag_execution.router,
+    prefix="/startups/{startup_id}",
+    tags=["DAG Execution"],
+)
+
 # Neural Signal Engine
 api_router.include_router(
     signals.router,
@@ -240,6 +248,14 @@ api_router.include_router(
     onboarding.router,
     prefix="/onboarding",
     tags=["Onboarding"],
+)
+
+# Magic Demo (60-Second Live GTM from URL)
+from app.api.v1.endpoints import magic_demo
+api_router.include_router(
+    magic_demo.router,
+    prefix="/onboarding",
+    tags=["Magic Demo"],
 )
 
 # GitHub Import

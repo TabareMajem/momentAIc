@@ -78,13 +78,8 @@ export default function LiveAgentView() {
         }
 
         // Simulate some events for demo
-        const demoEvents: AgentEvent[] = [
-            { id: '1', agent: 'Siren', action: 'Drafting LinkedIn post about product launch', status: 'working', timestamp: new Date() },
-            { id: '2', agent: 'Hunter', action: 'Analyzing 15 new leads from Reddit mentions', status: 'working', timestamp: new Date() },
-            { id: '3', agent: 'Strategist', action: 'Generated weekly growth report', status: 'complete', timestamp: new Date(Date.now() - 60000) },
-        ];
-        setEvents(demoEvents);
-        setActiveAgents(['Siren', 'Hunter']);
+        // REMOVED: Previously injected hardcoded demo events.
+        // The WebSocket connection above handles real agent events.
 
         return () => {
             if (ws) ws.close();
@@ -138,8 +133,8 @@ export default function LiveAgentView() {
                             <div
                                 key={name}
                                 className={`p-4 rounded-xl border transition-all ${isActive
-                                        ? 'bg-white/5 border-white/20'
-                                        : 'bg-black/30 border-white/5'
+                                    ? 'bg-white/5 border-white/20'
+                                    : 'bg-black/30 border-white/5'
                                     }`}
                                 animate={{
                                     boxShadow: isActive ? '0 0 30px rgba(168,85,247,0.2)' : 'none'
@@ -169,52 +164,52 @@ export default function LiveAgentView() {
                     <h2 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-4">LIVE ACTIVITY STREAM</h2>
 
                     <div className="bg-black/30 rounded-xl border border-white/10 p-4 h-[600px] overflow-y-auto">
-                        
-                            {events.map((event) => {
-                                const agentConfig = AGENT_CONFIG[event.agent as keyof typeof AGENT_CONFIG] || AGENT_CONFIG['Strategist'];
-                                const Icon = agentConfig.icon;
 
-                                return (
-                                    <div
-                                        key={event.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: 20 }}
-                                        className="flex items-start gap-4 p-4 border-b border-white/5 last:border-0"
-                                    >
-                                        <div className={`p-2 rounded-lg bg-gradient-to-br ${agentConfig.color} shrink-0`}>
-                                            <Icon className="w-4 h-4 text-white" />
-                                        </div>
+                        {events.map((event) => {
+                            const agentConfig = AGENT_CONFIG[event.agent as keyof typeof AGENT_CONFIG] || AGENT_CONFIG['Strategist'];
+                            const Icon = agentConfig.icon;
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-white">{event.agent}</span>
-                                                {event.status === 'working' && (
-                                                    <span className="flex items-center gap-1 text-xs text-purple-400 font-mono">
-                                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                                        WORKING
-                                                    </span>
-                                                )}
-                                                {event.status === 'complete' && (
-                                                    <span className="flex items-center gap-1 text-xs text-green-400 font-mono">
-                                                        <CheckCircle className="w-3 h-3" />
-                                                        DONE
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-gray-300">{event.action}</p>
-                                            {event.details && (
-                                                <p className="text-xs text-gray-500 mt-1 font-mono">{event.details}</p>
+                            return (
+                                <div
+                                    key={event.id}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    className="flex items-start gap-4 p-4 border-b border-white/5 last:border-0"
+                                >
+                                    <div className={`p-2 rounded-lg bg-gradient-to-br ${agentConfig.color} shrink-0`}>
+                                        <Icon className="w-4 h-4 text-white" />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-white">{event.agent}</span>
+                                            {event.status === 'working' && (
+                                                <span className="flex items-center gap-1 text-xs text-purple-400 font-mono">
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    WORKING
+                                                </span>
+                                            )}
+                                            {event.status === 'complete' && (
+                                                <span className="flex items-center gap-1 text-xs text-green-400 font-mono">
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    DONE
+                                                </span>
                                             )}
                                         </div>
-
-                                        <div className="text-xs text-gray-600 font-mono shrink-0">
-                                            {event.timestamp.toLocaleTimeString()}
-                                        </div>
+                                        <p className="text-sm text-gray-300">{event.action}</p>
+                                        {event.details && (
+                                            <p className="text-xs text-gray-500 mt-1 font-mono">{event.details}</p>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        
+
+                                    <div className="text-xs text-gray-600 font-mono shrink-0">
+                                        {event.timestamp.toLocaleTimeString()}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
                         <div ref={eventEndRef} />
                     </div>
                 </div>

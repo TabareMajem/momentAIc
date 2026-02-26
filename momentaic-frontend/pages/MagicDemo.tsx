@@ -75,48 +75,74 @@ export default function MagicDemo() {
         setSteps(demoSteps);
 
         try {
-            // Step 1: Scrape
-            await simulateStep(0, 'Website scraped', 2000);
-            updateStep(0, { status: 'done', output: `Scraped ${targetUrl} — Found company name, product description, and value proposition.` });
+            // Show step 1 as running while we call the real API
+            updateStep(0, { status: 'running' });
+            setCurrentStep(0);
+
+            // Call the REAL backend API
+            const result = await api.runMagicDemo(targetUrl);
+
+            // Step 1: Scraping complete — show ICP data
+            updateStep(0, {
+                status: 'done',
+                output: `Scraped ${targetUrl} — Found: ${result.icp_analysis?.company_name || 'Unknown'} — ${result.icp_analysis?.what_they_do || 'Analysis complete'}`
+            });
 
             // Step 2: ICP Analysis
-            await simulateStep(1, 'ICP analyzed', 2500);
-            updateStep(1, { status: 'done', output: `Identified target audience: B2B SaaS founders, Series A-B stage, 10-50 employees. Key pain points: scaling operations, reducing burn rate.` });
+            await new Promise(r => setTimeout(r, 300)); // small visual delay
+            updateStep(1, { status: 'running' });
+            setCurrentStep(1);
+            await new Promise(r => setTimeout(r, 500));
+            updateStep(1, {
+                status: 'done',
+                output: `Target: ${result.icp_analysis?.target_audience || 'N/A'}\nPain Point: ${result.icp_analysis?.pain_point || 'N/A'}\nAdvantage: ${result.icp_analysis?.competitive_advantage || 'N/A'}\nIndustry: ${result.icp_analysis?.industry || 'N/A'} | Stage: ${result.icp_analysis?.stage || 'N/A'}`
+            });
 
             // Step 3: Viral Hooks
-            await simulateStep(2, 'Hooks generated', 2000);
-            updateStep(2, {
-                status: 'done',
-                output: `Hook 1: "We replaced our entire marketing team with AI. Here's what happened in 30 days 🧵"\n\nHook 2: "Stop hiring. Start deploying. 16 AI agents > 16 employees. The math is brutal."\n\nHook 3: "Our startup went from $0 to $10K MRR in 6 weeks. We had zero employees. Here's the playbook:"`
-            });
+            await new Promise(r => setTimeout(r, 300));
+            updateStep(2, { status: 'running' });
+            setCurrentStep(2);
+            await new Promise(r => setTimeout(r, 500));
+            const hooksText = (result.viral_hooks || []).map((h: string, i: number) => `Hook ${i + 1}: "${h}"`).join('\n\n');
+            updateStep(2, { status: 'done', output: hooksText || 'No hooks generated' });
 
             // Step 4: LinkedIn Posts
-            await simulateStep(3, 'LinkedIn drafted', 1800);
-            updateStep(3, {
-                status: 'done',
-                output: `Post 1: "🚀 The future of startups isn't about hiring more people. It's about deploying smarter systems. We've built an autonomous workforce of 16 AI agents that runs sales, marketing, ops, and legal 24/7..."\n\nPost 2: "I've been running a company with zero full-time employees for 3 months. Here's what I've learned about the future of work..."`
-            });
+            await new Promise(r => setTimeout(r, 300));
+            updateStep(3, { status: 'running' });
+            setCurrentStep(3);
+            await new Promise(r => setTimeout(r, 500));
+            const linkedinText = (result.linkedin_posts || []).map((p: string, i: number) => `Post ${i + 1}: "${p.substring(0, 200)}..."`).join('\n\n');
+            updateStep(3, { status: 'done', output: linkedinText || 'No posts generated' });
 
-            // Step 5: Cold Emails
-            await simulateStep(4, 'Emails written', 2200);
-            updateStep(4, {
-                status: 'done',
-                output: `Subject: Quick question about [Company]'s growth strategy\n\nHi [First Name],\n\nI noticed [Company] is scaling fast in [Industry]. Most teams at your stage are drowning in operational overhead.\n\nWe built something that replaces 16 functions (sales, marketing, legal, ops) with autonomous AI agents. Zero payroll. 24/7 execution.\n\nWould you be open to a 15-min demo to see it in action?\n\nBest,\n[Your Name]`
-            });
+            // Step 5: Cold Email
+            await new Promise(r => setTimeout(r, 300));
+            updateStep(4, { status: 'running' });
+            setCurrentStep(4);
+            await new Promise(r => setTimeout(r, 500));
+            updateStep(4, { status: 'done', output: result.cold_email || 'No email generated' });
 
-            // Step 6: Compile
-            await simulateStep(5, 'Blueprint compiled', 1000);
-            updateStep(5, { status: 'done', output: 'Growth Blueprint ready. All assets generated.' });
+            // Step 6: Blueprint
+            await new Promise(r => setTimeout(r, 300));
+            updateStep(5, { status: 'running' });
+            setCurrentStep(5);
+            await new Promise(r => setTimeout(r, 300));
+            updateStep(5, { status: 'done', output: `Growth Blueprint ready. ${result.growth_blueprint?.assets_generated || 0} assets generated.` });
 
             setFinalOutput({
                 url: targetUrl,
-                assets_generated: 6,
-                total_time: '~12 seconds',
+                assets_generated: result.growth_blueprint?.assets_generated || 0,
+                total_time: 'Live AI Analysis',
+                recommendation: result.growth_blueprint?.recommendation || '',
                 cta: 'Sign up to deploy these assets instantly.'
             });
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Demo failed', err);
+            // Mark remaining steps as error
+            setSteps(prev => prev.map(s => s.status === 'pending' || s.status === 'running'
+                ? { ...s, status: 'error' as const, output: `Error: ${err?.message || 'API call failed'}` }
+                : s
+            ));
         } finally {
             setIsRunning(false);
         }
