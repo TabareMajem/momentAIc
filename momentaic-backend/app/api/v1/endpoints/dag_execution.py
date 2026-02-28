@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import structlog
 
-from app.agents.chain_executor import ChainExecutor, ChainStep
+from app.agents.chain_executor import AgentChainExecutor, ChainStep
 from app.agents.registry import agent_registry
 
 logger = structlog.get_logger()
@@ -62,7 +62,7 @@ async def execute_agent_dag(startup_id: str, request: DAGExecutionRequest):
         # Topological sort based on edges
         sorted_agents = _topological_sort(request.nodes, request.edges)
 
-        executor = ChainExecutor()
+        executor = AgentChainExecutor()
 
         # Build chain steps
         steps = []

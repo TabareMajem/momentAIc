@@ -50,7 +50,7 @@ class SDRAgent(BaseAgent):
     
     def __init__(self):
         self.config = get_agent_config(AgentType.SALES_HUNTER)
-        self.llm = get_llm("gemini-2.0-flash", temperature=0.7)
+        self.llm = get_llm("deepseek-chat", temperature=0.7)
         
         # Default follow-up cadence (days after initial outreach)
         self.default_cadence = [3, 7, 14, 21]
@@ -77,34 +77,33 @@ class SDRAgent(BaseAgent):
         pain_points = research.get("analysis", {}).get("PAIN POINTS", "")
         hooks = research.get("analysis", {}).get("OUTREACH HOOKS", "")
         
-        prompt = f"""Write a compelling cold outreach email.
+        prompt = f"""Write a highly technical, plain-text outreach email utilizing the 'Stress Test' protocol.
 
 RECIPIENT:
 - Name: {lead.get('contact_name', lead.get('name', 'there'))}
-- Title: {lead.get('contact_title', lead.get('title', 'Decision Maker'))}
+- Title: {lead.get('contact_title', lead.get('title', 'Engineer'))}
 - Company: {lead.get('company_name', lead.get('company', 'their company'))}
 
 RESEARCH INSIGHTS:
-Pain Points: {pain_points}
-Hooks: {hooks}
+- Architecture/Focus: {pain_points}
+- Recent Work (Hook): {hooks}
 
-OUR COMPANY:
-- Name: {startup_context.get('name', 'MomentAIc')}
-- What we do: {startup_context.get('description', 'AI-powered solutions')}
-- Value prop: {startup_context.get('tagline', 'Helping businesses grow')}
+OUR PLATFORM:
+- Name: {startup_context.get('name', 'Symbiotask Orchestration')}
+- Core Engine: {startup_context.get('description', 'Multi-model cascade layer with PostgreSQL state-saved rendering')}
 
 REQUIREMENTS:
-1. Subject line: Personalized, curiosity-inducing (under 60 chars)
-2. Opening: Reference something specific about them (NOT generic)
-3. Body: 3-4 sentences max. Focus on THEIR problem, not our solution
-4. CTA: Clear, low-commitment ask (no "Let's hop on a call")
-5. Tone: {tone}
+1. Subject line: Hypothesis regarding your [Topic from Recent Work] (Under 7 words)
+2. Opening: Reference a highly specific technical detail from their public work, proving manual research.
+3. Body: Introduce our architecture. DO NOT ask for a meeting or a sale. 
+4. CTA (The Stress Test): Challenge them to break our Beta API. Ask if they are willing to run their most complex procedural models through our Frame Consistency Check.
+5. Tone: Technical Brutalism, peer-to-peer engineer speak. No marketing fluff.
 
 FORBIDDEN:
 - "Hope this email finds you well"
-- "I came across your company"
-- Attachments mentions
-- Long paragraphs
+- "I'd love to schedule a quick call"
+- Exclamation points
+- Sales jargon
 
 Format your response as:
 SUBJECT: [subject line]
@@ -336,7 +335,161 @@ Format each as:
             
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
+    async def generate_whatsapp_message(
+        self,
+        lead: Dict[str, Any],
+        context: str,
+        partner_code: str = "MOMENTAIC10"
+    ) -> Dict[str, Any]:
+        """
+        Generate a localized WhatsApp message, designed for LatAm/ES high-velocity conversational style.
+        """
+        if not self.llm:
+            return {"success": False, "error": "AI Service Unavailable"}
+            
+        prompt = f"""Write a highly localized WhatsApp outreach message for a Latin American or Spanish agency director.
+
+RECIPIENT:
+- Name: {lead.get('contact_name', lead.get('name'))}
+- Company: {lead.get('company_name', lead.get('company'))}
+
+CONTEXT:
+{context}
+
+REQUIREMENTS:
+1. Platform: WhatsApp (mobile format, readable)
+2. Tone: Warm, professional but direct ("Documentary Cinematic" aesthetic).
+3. Core Angle: Risk mitigation and the "Reliability Layer" (PostgreSQL auto-resume for massive renders).
+4. Offer: A localized API blueprint + {partner_code} discount for testing.
+5. Emphasize: Saving them hours of synchronous alignment and rendering crashes.
+6. Make it feel like a text from a peer, not a corporate blast.
+
+Format ONLY the message text. No prefixes like 'MESSAGE:'."""
+
+        try:
+            response = await self.llm.ainvoke(prompt)
+            return {
+                "success": True,
+                "whatsapp_text": response.content.strip(),
+                "type": "whatsapp_outreach"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def generate_x_dm(
+        self,
+        lead: Dict[str, Any],
+        context: str,
+    ) -> Dict[str, Any]:
+        """
+        Generate a direct message for X (Twitter) meant for Indie Hackers and "Build in Public" targets.
+        """
+        if not self.llm:
+            return {"success": False, "error": "AI Service Unavailable"}
+            
+        prompt = f"""Write a DM for X (Twitter) targeting an indie hacker / workflow architect.
+
+RECIPIENT HANDLE: @{lead.get('twitter_handle', 'builder')}
+
+CONTEXT:
+{context}
+
+REQUIREMENTS:
+1. Length: extremely short, under 280 chars.
+2. Tone: Technical Brutalism, "Building in public" vibe.
+3. Hook: Reference a specific workflow or prompt setup they built recently.
+4. Offer: A "Template Bounty" or early API access to our Multi-Model Cascade for their next n8n build.
+5. Zero pleasantries. Get straight to the technical utility.
+
+Format ONLY the DM text. No quotes or prefixes."""
+
+        try:
+            response = await self.llm.ainvoke(prompt)
+            return {
+                "success": True,
+                "x_dm_text": response.content.strip(),
+                "type": "x_dm_outreach"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+            
+    async def handle_social_reply(
+        self,
+        platform: str,
+        prospect_handle: str,
+        message_history: str,
+        latest_reply: str
+    ) -> Dict[str, Any]:
+        """
+        Processes an incoming social media DM (X or WhatsApp) intercepted by OpenClaw.
+        Uses DeepSeek to determine intent. If interested, it dynamically synthesizes 
+        and dispatches the correct JSON blueprint.
+        """
+        if not self.llm:
+            return {"success": False, "error": "AI Service Unavailable"}
+            
+        # 1. Intent Analysis
+        intent_prompt = f"""Analyze this prospect's reply to our outreach on {platform}.
+
+OUR PREVIOUS MESSAGES:
+{message_history}
+
+THEIR LATEST REPLY:
+{latest_reply}
+
+Determine their exact intent from these categories:
+- INTERESTED_BLUEPRINT (They are asking for the template/code/access)
+- OBJECTION (They are doubting the claims or tech)
+- NOT_INTERESTED (They want us to stop)
+- QUESTION (They need more info before deciding)
+
+IMPORTANT: Reply ONLY with the exact category name. Nothing else."""
+        
+        try:
+            intent_response = await self.llm.ainvoke(intent_prompt)
+            intent = intent_response.content.strip()
+            
+            logger.info("sdr_agent_analyzed_social_intent", handle=prospect_handle, intent=intent)
+            
+            if intent == "INTERESTED_BLUEPRINT":
+                from app.services.lead_magnet_generator import lead_magnet_generator
+                
+                # Dynamically generate the JSON file tailored to their specific message or stack context
+                magnet_result = await lead_magnet_generator.generate_n8n_blueprint(
+                    prospect_context=f"Handle: {prospect_handle}, Platform: {platform}, History: {message_history}",
+                    specific_request=latest_reply
+                )
+                
+                if magnet_result.get("success"):
+                    # Generate the conversational wrapper
+                    reply_prompt = f"Write a conversational {platform} message delivering this JSON workflow. Tell them it's attached. Keep it under 2 sentences. Brutal technical tone. Base it on their reply: {latest_reply}"
+                    reply_msg = (await self.llm.ainvoke(reply_prompt)).content.strip()
+                    
+                    return {
+                        "success": True,
+                        "action": "deliver_magnet",
+                        "reply_text": reply_msg,
+                        "attachment": magnet_result["filepath"]
+                    }
+                else:
+                    return {"success": False, "error": "Magnet generation failed"}
+            
+            elif intent == "OBJECTION" or intent == "QUESTION":
+                 reply_prompt = f"Write a conversational {platform} reply addressing this objection/question: '{latest_reply}'. Tone: Technical Brutalist, confident. Address the architecture explicitly. Keep under 3 sentences."
+                 reply_msg = (await self.llm.ainvoke(reply_prompt)).content.strip()
+                 return {
+                     "success": True,
+                     "action": "handle_objection",
+                     "reply_text": reply_msg
+                 }
+                 
+            else:
+                 return {"success": True, "action": "do_nothing"}
+                 
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     async def adapt_to_response(
         self,
         original_email: Dict[str, Any],

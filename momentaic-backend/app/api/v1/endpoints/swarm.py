@@ -1,41 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.core.security import get_current_active_user
-from app.models.user import User
-from pydantic import BaseModel
-from typing import Optional
+from typing import Any
+from uuid import UUID
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
+from app.api.deps import get_current_user
+from app.models.user import User
+from app.services.swarm_service import swarm_service
+import structlog
+
+logger = structlog.get_logger()
 router = APIRouter()
 
-# Reuse Admin Guard
-ADMIN_EMAIL = "tabaremajem@gmail.com"
-
-def verify_god_mode(current_user: User = Depends(get_current_active_user)):
-    if current_user.email.lower() != ADMIN_EMAIL.lower() and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="⛔ SWARM ACCESS DENIED."
-        )
-    return current_user
-
-class DeployRequest(BaseModel):
-    dry_run: bool = True  # Default to safe mode
-
-@router.post("/deploy/{product_id}")
-async def deploy_swarm(
-    product_id: str, 
-    request: Optional[DeployRequest] = None,
-    admin: User = Depends(verify_god_mode)
-):
+@router.post("/startups/{startup_id}/swarm/launch", response_model=dict)
+async def launch_multi_tenant_swarm(
+    startup_id: UUID,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+) -> Any:
     """
-    UNLEASH THE SWARM.
-    Triggers 10 parallel autonomous agents for the specified product.
-    Set dry_run=False for LIVE FIRE mode.
+    Launch the Massive Parallel Agent Swarm for a specific Startup.
+    
+    This endpoint executes Phase 10 & 11 logic asynchronously:
+    1. Data Harvester targeting the startup's niche.
+    2. DeepSeek generating custom JSON architectures based on the startup's product.
+    3. Creator Agent rendering a 3-second demo video.
+    4. Browser Agent dispatching the DMs via dedicated authenticated proxy sessions.
     """
-    from app.services.swarm_service import swarm_service
+    # Enqueue the long-running swarm sequence to run in the background
+    background_tasks.add_task(swarm_service.launch_swarm_for_startup, startup_id)
     
-    dry_run = request.dry_run if request else True
+    logger.info("swarm_api_triggered_in_background", startup_id=str(startup_id), user=current_user.email)
     
-    try:
-        return await swarm_service.deploy_product_swarm(product_id, dry_run=dry_run)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return {
+        "status": "success",
+        "message": "Swarm pipeline has been enqueued. Agents are now harvesting and processing targets."
+    }

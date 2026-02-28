@@ -1,0 +1,118 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "path": "symbiotask-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Symbiotask Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "webhookId": "symbiotask-frame-check"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SYMBIOTASK_API_BASE || 'https://api.symbiotask.ai'}}/v1/frames/{{$json.frame_id}}/consistency-check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.SYMBIOTASK_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "validation_rules",
+              "value": "={{$json.validation_rules || { 'required_fields': ['title', 'status', 'owner'], 'status_values': ['open', 'in_progress', 'done'] } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "symbiotask-api-request",
+      "name": "Symbiotask Frame Consistency Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "task_frames",
+        "updateKey": "id",
+        "columns": {
+          "values": [
+            {
+              "column": "consistency_status",
+              "value": "={{$json.consistency_status}}"
+            },
+            {
+              "column": "last_checked_at",
+              "value": "={{$now.toISOString()}}"
+            },
+            {
+              "column": "validation_details",
+              "value": "={{JSON.stringify($json.violations || [])}}"
+            }
+          ]
+        },
+        "additionalFields": {},
+        "options": {}
+      },
+      "id": "postgres-update",
+      "name": "Update Frame in PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Symbiotask Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Symbiotask Frame Consistency Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Symbiotask Frame Consistency Check": {
+      "main": [
+        [
+          {
+            "node": "Update Frame in PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -25,7 +25,8 @@ class WebhookPayload(BaseModel):
 @router.post("/yokaizen")
 async def yokaizen_webhook(
     payload: WebhookPayload,
-    x_yokaizen_webhook_key: Optional[str] = Header(None)
+    x_yokaizen_webhook_key: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Ingests execution signals from the Yokaizen AgentExecutor.
@@ -51,9 +52,25 @@ async def yokaizen_webhook(
         character_id = payload.data.get("character_id")
         lead_email = payload.data.get("lead_email")
         sentiment = payload.data.get("sentiment")
+        startup_id = payload.data.get("startup_id")
         
-        # Here we would insert the lead into the Momentaic CRM pipeline
         logger.info(f"Lead captured for {character_id}: {lead_email} ({sentiment})")
+        
+        if startup_id:
+            # Trigger Proactive Agent Engine (Phase 14 Cross-Platform Reflex)
+            trigger_context = {
+                "event": "yokaizen.lead.captured",
+                "event_data": payload.data,
+                "user_email": lead_email
+            }
+            engine = TriggerEngine(db)
+            await engine.evaluate_startup_triggers(
+                startup_id=startup_id,
+                data_context=trigger_context
+            )
+            logger.info("Yokaizen TriggerEngine evaluation complete", startup_id=startup_id)
+        else:
+            logger.warning("Yokaizen lead captured but no startup_id mapped for Momentaic proactivity.")
 
     else:
         logger.warning("Unknown webhook event type", event=payload.event)

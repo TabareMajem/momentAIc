@@ -268,6 +268,14 @@ class TriggerEngine:
                  # Could be internal or external
                  from app.services.ecosystem_service import ecosystem_service
                  result = await ecosystem_service.create_content_strategy(task)
+
+            elif agent_type in ["yokaizen_gtm", "yokaizen_sales"]:
+                from app.integrations.yokaizen_client import yokaizen_client
+                result = await yokaizen_client.execute_task(
+                    task=task,
+                    swarm_type="gtm" if "gtm" in agent_type else "sales",
+                    context=context
+                )
                  
             # 2. Check for AgentForge Agents
             elif agent_type in ["orchestrator", "orchestrator_agent"]:

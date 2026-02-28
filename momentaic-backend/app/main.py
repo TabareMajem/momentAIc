@@ -239,6 +239,15 @@ async def lifespan(app: FastAPI):
 
     # --- SCHEDULE ---
     
+    # 0. Morning Brief: Daily at 6 AM (Ghost Board)
+    async def run_morning_brief(startup, context):
+        from app.agents.morning_brief_agent import morning_brief_agent
+        await morning_brief_agent.generate_brief(str(startup.id), context)
+
+    @scheduler.scheduled_job(CronTrigger(hour=6, minute=0), id='daily_morning_brief')
+    async def schedule_morning_brief():
+        await run_proactive_agent("MorningBriefAgent", "Compiling daily Morning Brief & Mentor Note", run_morning_brief)
+
     # 1. ContentAgent: Daily at 6 AM
     @scheduler.scheduled_job(CronTrigger(hour=6, minute=0), id='daily_content')
     async def schedule_content():

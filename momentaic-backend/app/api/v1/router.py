@@ -29,6 +29,7 @@ from app.api.v1.endpoints import (
     ws,
     a2a,
     hitl,
+    swarm,
 )
 
 api_router = APIRouter()
@@ -98,8 +99,14 @@ api_router.include_router(
 # Agent Swarm (Chat)
 api_router.include_router(
     agents.router,
-    prefix="/agents",
-    tags=["Agent Swarm"],
+    prefix="/startups/{startup_id}/agents",
+    tags=["Agent Swarm (Chat)"],
+)
+
+# Multi-Tenant Massive Agent Swarm Executions
+api_router.include_router(
+    swarm.router,
+    tags=["Massive Action Swarm"],
 )
 
 # Agent Forge (Workflows)
@@ -256,6 +263,22 @@ api_router.include_router(
     magic_demo.router,
     prefix="/onboarding",
     tags=["Magic Demo"],
+)
+
+# Proactive Agents (Morning Brief & Execution)
+from app.api.v1.endpoints import proactive
+api_router.include_router(
+    proactive.router,
+    prefix="/proactive",
+    tags=["Proactive Agents"],
+)
+
+# Visual Assets Generation (Imagen)
+from app.api.v1.endpoints import assets
+api_router.include_router(
+    assets.router,
+    prefix="/assets",
+    tags=["Visual Assets"],
 )
 
 # GitHub Import

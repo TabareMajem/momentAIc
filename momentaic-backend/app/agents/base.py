@@ -424,7 +424,7 @@ def get_llm(model: str = "gemini-2.5-pro", temperature: float = 0.7):
         return ChatOpenAI(
             model="deepseek-chat",
             api_key=settings.deepseek_api_key,
-            base_url="https://api.deepseek.com",
+            base_url="https://api.deepseek.com/v1",
             temperature=temperature,
         )
     else:

@@ -1,0 +1,128 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "path": "symbiotask-webhook",
+        "options": {}
+      },
+      "id": "start-webhook",
+      "name": "Symbiotask Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "webhookId": "symbiotask-frame-check"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SYMBIOTASK_API_BASE || 'https://api.symbiotask.com'}}/v1/frame/consistency-check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.SYMBIOTASK_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "timeout": 10000
+        },
+        "jsonParameters": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "customer_handle",
+              "value": "={{$json['body']['handle']}}"
+            },
+            {
+              "name": "platform",
+              "value": "={{$json['body']['platform']}}"
+            },
+            {
+              "name": "workflow_context",
+              "value": "={{$json['body']['workflow_context']}}"
+            }
+          ]
+        }
+      },
+      "id": "call-symbiotask-api",
+      "name": "HTTP Request: Frame Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "customer_interaction_state",
+        "updateKey": "customer_handle",
+        "columns": {
+          "values": [
+            {
+              "column": "last_frame_check",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "column": "check_result",
+              "value": "={{$json['result']}}"
+            },
+            {
+              "column": "resume_pointer",
+              "value": "={{$json['resume_pointer'] || $node['Postgres Get State'].json['resume_pointer']}}"
+            },
+            {
+              "column": "platform",
+              "value": "={{$json['body']['platform']}}"
+            }
+          ]
+        },
+        "additionalFields": {},
+        "fallbackToDefaultSchema": false,
+        "continueOnFail": false
+      },
+      "id": "postgres-update-state",
+      "name": "Postgres: Update State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        700,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Symbiotask Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request: Frame Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request: Frame Check": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Update State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

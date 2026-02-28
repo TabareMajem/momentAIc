@@ -1,0 +1,15 @@
+{
+  "momentaic.com": {
+    "registered_at": "2026-02-28T06:00:28.566049",
+    "status": "warming_up",
+    "current_limit": 10,
+    "history": {
+      "2026-02-28": {
+        "sent": 2,
+        "bounces": 0
+      }
+    },
+    "spam_score": 0.0,
+    "bounces": 0
+  }
+}
