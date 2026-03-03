@@ -100,6 +100,59 @@ class GmailIntegration(BaseIntegration):
             logger.error(f"Gmail IMAP failed: {e}")
             return []
 
+    async def listen_for_replies(self, db=None) -> List[Dict[str, Any]]:
+        """
+        Async IMAP listener: checks for new emails that look like replies
+        to outbound SDR emails, and publishes ReplyReceived events.
+        Called by the APScheduler every 5 minutes.
+        """
+        import asyncio
+        
+        # Run synchronous IMAP check in thread pool
+        loop = asyncio.get_event_loop()
+        emails = await loop.run_in_executor(None, self.check_unread_emails)
+        
+        if not emails:
+            return []
+        
+        replies = []
+        for email_data in emails:
+            subject = email_data.get("subject", "")
+            sender = email_data.get("sender", "")
+            
+            # Detect replies (Re: prefix or In-Reply-To header match)
+            is_reply = subject.lower().startswith("re:") or "in-reply-to" in str(email_data)
+            
+            if is_reply:
+                reply_event = {
+                    "type": "reply_received",
+                    "sender": sender,
+                    "subject": subject,
+                    "snippet": email_data.get("snippet", ""),
+                    "email_id": email_data.get("id"),
+                }
+                replies.append(reply_event)
+                
+                # Publish to message bus for SDR agent to pick up
+                if db:
+                    try:
+                        from app.services.message_bus import MessageBus
+                        bus = MessageBus(db)
+                        await bus.publish(
+                            startup_id="system",
+                            from_agent="gmail_listener",
+                            topic="email.reply_received",
+                            message_type="EVENT",
+                            payload=reply_event,
+                            priority="high",
+                        )
+                        logger.info("Reply event published", sender=sender, subject=subject)
+                    except Exception as e:
+                        logger.warning("Failed to publish reply event", error=str(e))
+        
+        logger.info(f"GmailIntegration: Processed {len(emails)} emails, {len(replies)} replies detected")
+        return replies
+
         
     async def execute_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute email actions"""

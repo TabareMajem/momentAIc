@@ -1,6 +1,7 @@
 """
-Admin Guard - War Room Access Control
-Restricts sensitive War Room agents to authorized admin emails only.
+Admin Guard - War Room Access Control (v2 — Multi-Admin via DB)
+Checks both the legacy whitelist AND the `is_superuser` flag in the User model.
+Admins can promote other users via the Admin Panel.
 """
 
 from functools import wraps
@@ -13,7 +14,7 @@ from app.core.security import get_current_user
 
 logger = structlog.get_logger()
 
-# War Room Admin Whitelist
+# Legacy War Room Admin Whitelist (fallback)
 ADMIN_EMAILS: List[str] = [
     "tabaremajem@gmail.com",
 ]
@@ -22,12 +23,16 @@ ADMIN_EMAILS: List[str] = [
 class AdminGuard:
     """
     Security layer for War Room operations.
-    Only whitelisted admins can access these endpoints.
+    Checks BOTH hardcoded whitelist AND database `is_superuser` flag.
     """
     
     @staticmethod
     def is_admin(user: User) -> bool:
-        """Check if user is a War Room admin."""
+        """Check if user is a War Room admin via whitelist OR db flag."""
+        # Check DB flag first (new system)
+        if hasattr(user, 'is_superuser') and user.is_superuser:
+            return True
+        # Fallback to legacy whitelist
         return user.email.lower() in [e.lower() for e in ADMIN_EMAILS]
     
     @staticmethod

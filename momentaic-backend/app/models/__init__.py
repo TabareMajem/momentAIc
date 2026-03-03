@@ -150,6 +150,12 @@ from app.models.referral import (
     ReferralStats,
 )
 
+from app.models.platform_credentials import (
+    PlatformCredential,
+    PlatformType,
+    CredentialStatus,
+)
+
 __all__ = [
     # User
     "User",

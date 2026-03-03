@@ -151,11 +151,23 @@ Respond ONLY with valid JSON, no markdown fences."""
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         result_text = response.content.strip()
 
+        # Extract token usage from response metadata
+        tokens_used = 0
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            tokens_used = response.usage_metadata.get('total_tokens', 0)
+        elif hasattr(response, 'response_metadata') and response.response_metadata:
+            usage = response.response_metadata.get('usage', {})
+            tokens_used = usage.get('total_tokens', 0) or (
+                usage.get('prompt_tokens', 0) + usage.get('completion_tokens', 0)
+            )
+
         # Parse JSON response
         if result_text.startswith("```"):
             result_text = result_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
         
-        return json.loads(result_text)
+        parsed = json.loads(result_text)
+        parsed["_tokens_used"] = tokens_used
+        return parsed
     except Exception as e:
         logger.error("Heartbeat LLM evaluation failed", agent=agent_id, error=str(e))
         return {
@@ -164,6 +176,7 @@ Respond ONLY with valid JSON, no markdown fences."""
             "summary": f"Heartbeat evaluation error: {str(e)}",
             "recommended_action": None,
             "should_notify_founder": False,
+            "_tokens_used": 0,
         }
 
 
@@ -206,6 +219,22 @@ async def run_heartbeat_for_agent(agent_config: dict) -> None:
                 except ValueError:
                     result_type = HeartbeatResult.OK
 
+                # Extract token usage from evaluation metadata
+                tokens_used = evaluation.get("_tokens_used", 0)
+                model_name = hb.get("budget", {}).get("model_override", "gemini-2.0-flash")
+                
+                # Calculate cost based on model pricing (per 1M tokens)
+                MODEL_COSTS = {
+                    "gemini-2.0-flash": 0.075,      # $0.075 per 1M input tokens
+                    "gemini-flash": 0.075,
+                    "gemini-2.0-pro": 1.25,
+                    "deepseek-chat": 0.14,
+                    "claude-3-5-sonnet": 3.0,
+                    "gpt-4o": 2.50,
+                }
+                cost_per_1m = MODEL_COSTS.get(model_name, 0.10)
+                cost_usd = (tokens_used / 1_000_000) * cost_per_1m
+
                 # Log to ledger
                 ledger_entry = HeartbeatLedger(
                     startup_id=startup.id,
@@ -215,9 +244,9 @@ async def run_heartbeat_for_agent(agent_config: dict) -> None:
                     context_snapshot={"metrics_snapshot": context.get("metrics", {})},
                     action_taken=evaluation.get("recommended_action"),
                     action_result=evaluation,
-                    tokens_used=0,  # TODO: extract from response metadata
-                    cost_usd=0.0,
-                    model_used=hb.get("budget", {}).get("model_override", "gemini-2.0-flash"),
+                    tokens_used=tokens_used,
+                    cost_usd=round(cost_usd, 6),
+                    model_used=model_name,
                     latency_ms=latency_ms,
                     founder_notified=evaluation.get("should_notify_founder", False),
                 )

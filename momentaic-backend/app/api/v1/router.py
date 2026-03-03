@@ -549,3 +549,11 @@ api_router.include_router(
     prefix="/webhooks",
     tags=["Stripe Webhooks"],
 )
+
+# Browser-First Social Integration (No API Keys Needed)
+from app.api.v1.endpoints import browser_social
+api_router.include_router(
+    browser_social.router,
+    prefix="/browser",
+    tags=["Browser Social"],
+)
