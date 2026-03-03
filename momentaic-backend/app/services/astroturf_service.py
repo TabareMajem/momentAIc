@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 class AstroTurfService:
     async def _fetch_hn_stories(self, keywords: List[str]) -> List[Dict[str, Any]]:
-        """Simulate scraping HackerNews for specific keywords in Top Stories."""
+        """Scraping HackerNews for specific keywords in Top Stories."""
         results = []
         try:
             async with aiohttp.ClientSession() as session:

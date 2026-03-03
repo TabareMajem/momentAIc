@@ -596,6 +596,11 @@ function ZeroStateWidget({ pendingStrategy, onCreateStartup }: { pendingStrategy
 // ============ MAIN DASHBOARD ============
 
 
+import { AgentStatusGrid } from '../src/components/agents/AgentStatusGrid';
+import { AgentActivityFeed } from '../src/components/agents/AgentActivityFeed';
+import { useAgentStream } from '../src/hooks/useAgentStream';
+
+
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
@@ -603,6 +608,9 @@ export default function Dashboard() {
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingStrategy, setPendingStrategy] = useState<any>(null);
+
+  // Initialize Real-Time Agent Stream
+  const { activities: liveActivities, agentStatuses, isConnected } = useAgentStream(activeStartupId || undefined);
 
   const hasStartups = startups.length > 0;
 
@@ -720,36 +728,25 @@ export default function Dashboard() {
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Morning Briefing</h2>
-                  <p className="text-xs text-gray-500">
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  <h2 className="text-lg font-bold text-white">Mission Control</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Live visibility into your autonomous team
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-medium text-emerald-400">All Systems Active</span>
+                <span className="text-xs font-medium text-emerald-400">Stream Connected</span>
               </div>
             </div>
 
-            {/* Agent Activity Pulse Grid */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="bg-white/5 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-purple-400">{activeCount || 0}</div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Agents Active</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-emerald-400">{completedTodayCount || 0}</div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Tasks Done</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-cyan-400">98%</div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-widest">Agent Uptime</div>
-              </div>
+            {/* REAL-TIME AGENT STATUS GRID */}
+            <div className="mb-4">
+              <AgentStatusGrid statuses={agentStatuses} />
             </div>
 
-            <div className="text-sm text-gray-400 leading-relaxed">
-              Your autonomous team is monitoring competitors, scanning for leads, and optimizing content strategy. {completedTodayCount > 0 ? `${completedTodayCount} tasks completed so far today.` : 'No tasks have run yet today — agents will activate based on your triggers.'}
+            <div className="text-sm text-gray-400 leading-relaxed mt-4">
+              Your autonomous team is monitoring competitors, scanning for leads, and executing growth strategies in real-time based on live data triggers.
             </div>
           </div>
         </div>
@@ -774,14 +771,23 @@ export default function Dashboard() {
           {/* Empire Progress Widget */}
           <EmpireProgressWidget />
 
-          {/* Morning Brief & AstroTurf Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div className="lg:col-span-2">
-              <MorningBriefWidget />
-            </div>
-            <div className="lg:col-span-1">
-              <AstroTurfWidget />
-            </div>
+          {/* AstroTurf Row (Hidden by default, shown if actively campaigning) */}
+          <div className="mb-6">
+            <details className="group [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                <span className="font-semibold text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  Advanced Telemetry & Growth Campaigns
+                </span>
+                <span className="text-slate-500 group-open:rotate-180 transition-transform duration-300">
+                  <ChevronDown className="w-4 h-4" />
+                </span>
+              </summary>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4 opacity-0 group-open:opacity-100 transition-opacity duration-300">
+                <BenchmarkWidget />
+                <AstroTurfWidget />
+              </div>
+            </details>
           </div>
 
           {/* Main Grid */}
@@ -813,61 +819,84 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Pending */}
+              {/* Pending Operations */}
               <div className="mt-8">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-400" />
-                  Pending Queue
-                </h2>
-                <div className="space-y-3">
-                  {activities
-                    .filter(a => a.status === 'pending')
-                    .map(activity => (
-                      <AgentCard key={activity.id} activity={activity} />
-                    ))}
-                </div>
+                <details className="group [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer items-center justify-between">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      Pending Queue ({activities.filter(a => a.status === 'pending').length})
+                    </h2>
+                    <span className="text-slate-500 group-open:rotate-180 transition-transform">
+                      <ChevronDown className="w-4 h-4" />
+                    </span>
+                  </summary>
+                  <div className="space-y-3 mt-4">
+                    {activities
+                      .filter(a => a.status === 'pending')
+                      .map(activity => (
+                        <AgentCard key={activity.id} activity={activity} />
+                      ))}
+                  </div>
+                </details>
               </div>
 
-              {/* Completed */}
+              {/* Completed Operations */}
               <div className="mt-8">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  Completed Today
-                </h2>
-                <div className="space-y-3">
-                  {activities
-                    .filter(a => a.status === 'complete')
-                    .map(activity => (
-                      <AgentCard key={activity.id} activity={activity} />
-                    ))}
-                </div>
+                <details className="group [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer items-center justify-between">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      Completed Today ({activities.filter(a => a.status === 'complete').length})
+                    </h2>
+                    <span className="text-slate-500 group-open:rotate-180 transition-transform">
+                      <ChevronDown className="w-4 h-4" />
+                    </span>
+                  </summary>
+                  <div className="space-y-3 mt-4">
+                    {activities
+                      .filter(a => a.status === 'complete')
+                      .map(activity => (
+                        <AgentCard key={activity.id} activity={activity} />
+                      ))}
+                  </div>
+                </details>
               </div>
             </div>
 
-            {/* Sidebar: Quick Actions + Activity Feed */}
+            {/* Sidebar: Live Ops & Swarm Feed */}
             <div className="space-y-6">
               {/* Quick Focus */}
               <div className="bg-slate-900/50 rounded-xl border border-white/5 p-4">
-                <h3 className="font-medium mb-3">Quick Focus</h3>
+                <h3 className="font-medium mb-3 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-400" /> Quick Override
+                </h3>
                 <input
                   type="text"
-                  placeholder="What should AI focus on?"
-                  className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  placeholder="Intercept AI focus..."
+                  className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
                 />
-                <Button className="w-full mt-3" variant="cyber">
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Task
+                <Button className="w-full mt-3 h-10 text-xs font-bold font-mono tracking-widest" variant="cyber">
+                  <Play className="w-3 h-3 mr-2" />
+                  DISPATCH
                 </Button>
               </div>
 
-              {/* Benchmark Widget Insights */}
-              <BenchmarkWidget />
-
               {/* Live WebSocket Swarm Feed */}
-              <LiveAgentDashboard />
+              <div className="h-[400px]">
+                <AgentActivityFeed activities={liveActivities} limit={50} />
+              </div>
 
-              {/* Activity Feed */}
-              <ActivityFeed />
+              {/* Historical Activity Logs */}
+              <details className="group [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-white/5 text-xs font-mono text-slate-400 hover:text-white transition-colors">
+                  <span>View Historical Logs</span>
+                  <ChevronDown className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="mt-4">
+                  <ActivityFeed />
+                </div>
+              </details>
             </div>
           </div>
         </>

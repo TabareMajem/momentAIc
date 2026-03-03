@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from './LanguageSelector';
 import { FEATURE_REGISTRY, useFeatureStore, getRecommendedFeatures } from '../../stores/feature-store';
 import { useStartupStore } from '../../stores/startup-store';
+import { useNotificationStore } from '../../stores/notification-store';
 
 // Map icon strings to actual components
 const ICON_MAP: Record<string, any> = {

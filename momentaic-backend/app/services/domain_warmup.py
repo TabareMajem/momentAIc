@@ -21,7 +21,7 @@ class DomainWarmUpScheduler:
     def __init__(self, data_file: str = "domain_stats.json"):
         # For this prototype, we store stats in a local file.
         # In a fully productionized system, this binds to PostgreSQL or Redis.
-        self.data_dir = Path("/root/momentaic/momentaic-backend/data")
+        self.data_dir = Path("/app/data")
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.data_file = self.data_dir / data_file
         

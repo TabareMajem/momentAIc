@@ -573,12 +573,14 @@ class SchedulerService:
             from app.models.action_item import ActionItem
             from sqlalchemy import select
             from app.agents.content_agent import content_agent
+            from app.services.notification_service import notification_service
 
             async with async_session() as db:
                 result = await db.execute(select(Startup).where(Startup.is_active == True))
                 startups = result.scalars().all()
 
                 total_posts = 0
+                pending_actions = []
                 for startup in startups:
                     try:
                         # Phase 5: Check autonomy level
@@ -628,6 +630,8 @@ class SchedulerService:
                                 status=item_status,
                             )
                             db.add(item)
+                            if item_status == "pending":
+                                pending_actions.append((startup, item))
                             total_posts += 1
 
                             # Only auto-schedule if quality gate passed
@@ -650,6 +654,9 @@ class SchedulerService:
                         logger.error(f"Content generation failed for {startup.name}", error=str(e))
 
                 await db.commit()
+                if pending_actions:
+                    await notification_service.process_new_action_items(db, pending_actions)
+                    
                 logger.info(f"Content Daily Post complete. Generated {total_posts} posts.")
 
         except Exception as e:
@@ -668,12 +675,14 @@ class SchedulerService:
             from app.models.action_item import ActionItem
             from sqlalchemy import select
             from app.agents.competitor_intel_agent import competitor_intel_agent
+            from app.services.notification_service import notification_service
 
             async with async_session() as db:
                 result = await db.execute(select(Startup).where(Startup.is_active == True))
                 startups = result.scalars().all()
 
                 total_alerts = 0
+                pending_actions = []
                 for startup in startups:
                     try:
                         # Phase 5: Check autonomy level
@@ -697,7 +706,7 @@ class SchedulerService:
                                 settings["competitors"] = intel["new_competitors"]
                                 startup.settings = settings
 
-                                db.add(ActionItem(
+                                item1 = ActionItem(
                                     startup_id=startup.id,
                                     source_agent="CompetitorIntel",
                                     title=f"Discovered {len(intel['new_competitors'])} competitors",
@@ -705,12 +714,14 @@ class SchedulerService:
                                     priority="high",
                                     payload=intel,
                                     status="pending",
-                                ))
+                                )
+                                db.add(item1)
+                                pending_actions.append((startup, item1))
                                 total_alerts += 1
 
                             # Surveillance mode: persist alerts
                             elif intel.get("mode") == "surveillance" and intel.get("updates"):
-                                db.add(ActionItem(
+                                item2 = ActionItem(
                                     startup_id=startup.id,
                                     source_agent="CompetitorIntel",
                                     title=f"Competitor Alert: {len(intel['updates'])} updates",
@@ -718,13 +729,18 @@ class SchedulerService:
                                     priority="high",
                                     payload=intel,
                                     status="pending",
-                                ))
+                                )
+                                db.add(item2)
+                                pending_actions.append((startup, item2))
                                 total_alerts += 1
 
                     except Exception as e:
                         logger.error(f"Competitor scan failed for {startup.name}", error=str(e))
 
                 await db.commit()
+                if pending_actions:
+                    await notification_service.process_new_action_items(db, pending_actions)
+                    
                 logger.info(f"Competitor Weekly Scan complete. {total_alerts} alerts generated.")
 
         except Exception as e:
@@ -743,12 +759,14 @@ class SchedulerService:
             from app.models.action_item import ActionItem
             from sqlalchemy import select
             from app.agents.growth_hacker_agent import growth_hacker_agent
+            from app.services.notification_service import notification_service
 
             async with async_session() as db:
                 result = await db.execute(select(Startup).where(Startup.is_active == True))
                 startups = result.scalars().all()
 
                 total_opps = 0
+                pending_actions = []
                 for startup in startups:
                     try:
                         # Phase 5: Check autonomy level
@@ -771,7 +789,7 @@ class SchedulerService:
 
                         opportunities = growth_result.get("opportunities", [])
                         if opportunities:
-                            db.add(ActionItem(
+                            item = ActionItem(
                                 startup_id=startup.id,
                                 source_agent="GrowthHacker",
                                 title=f"Found {len(opportunities)} social opportunities",
@@ -782,13 +800,17 @@ class SchedulerService:
                                 priority="medium",
                                 payload=growth_result,
                                 status="pending",
-                            ))
+                            )
+                            db.add(item)
+                            pending_actions.append((startup, item))
                             total_opps += len(opportunities)
 
                     except Exception as e:
                         logger.error(f"Growth scan failed for {startup.name}", error=str(e))
 
                 await db.commit()
+                if pending_actions:
+                    await notification_service.process_new_action_items(db, pending_actions)
                 logger.info(f"Growth Social Scan complete. {total_opps} opportunities found.")
 
         except Exception as e:
@@ -856,12 +878,14 @@ class SchedulerService:
             from app.models.action_item import ActionItem
             from sqlalchemy import select
             from app.agents.guerrilla.reddit_sniper_agent import reddit_sniper
+            from app.services.notification_service import notification_service
 
             async with async_session() as db:
                 result = await db.execute(select(Startup).where(Startup.is_active == True))
                 startups = result.scalars().all()
 
                 total_threads = 0
+                pending_actions = []
                 for startup in startups:
                     try:
                         # Phase 5: Check autonomy level
@@ -896,7 +920,7 @@ class SchedulerService:
                                 except Exception:
                                     pass
 
-                            db.add(ActionItem(
+                            item = ActionItem(
                                 startup_id=startup.id,
                                 source_agent="RedditSniper",
                                 title=f"Reddit: {len(threads)} high-intent threads found",
@@ -904,13 +928,17 @@ class SchedulerService:
                                 priority="medium",
                                 payload={"threads": [t.__dict__ if hasattr(t, '__dict__') else t for t in threads], "drafts": drafts},
                                 status="pending",
-                            ))
+                            )
+                            db.add(item)
+                            pending_actions.append((startup, item))
                             total_threads += len(threads)
 
                     except Exception as e:
                         logger.error(f"Reddit scan failed for {startup.name}", error=str(e))
 
                 await db.commit()
+                if pending_actions:
+                    await notification_service.process_new_action_items(db, pending_actions)
                 logger.info(f"Reddit Sniper Scan complete. {total_threads} threads found.")
 
         except Exception as e:
@@ -944,12 +972,14 @@ class SchedulerService:
             from app.models.action_item import ActionItem
             from sqlalchemy import select
             from app.agents.qa_tester_agent import qa_tester_agent
+            from app.services.notification_service import notification_service
 
             async with async_session() as db:
                 result = await db.execute(select(Startup).where(Startup.is_active == True))
                 startups = result.scalars().all()
 
                 audited = 0
+                pending_actions = []
                 for startup in startups:
                     try:
                         # Phase 5: Check autonomy level
@@ -973,7 +1003,7 @@ class SchedulerService:
                         if report and not getattr(report, 'error', None):
                             report_dict = report.to_dict() if hasattr(report, 'to_dict') else report
 
-                            db.add(ActionItem(
+                            item = ActionItem(
                                 startup_id=startup.id,
                                 source_agent="QATester",
                                 title=f"QA Audit: Score {report_dict.get('overall_score', 'N/A')}/100",
@@ -981,7 +1011,9 @@ class SchedulerService:
                                 priority="high" if report_dict.get('overall_score', 100) < 70 else "medium",
                                 payload=report_dict,
                                 status="pending",
-                            ))
+                            )
+                            db.add(item)
+                            pending_actions.append((startup, item))
                             audited += 1
 
                     except Exception as e:
@@ -994,6 +1026,8 @@ class SchedulerService:
                             pass
 
                 await db.commit()
+                if pending_actions:
+                    await notification_service.process_new_action_items(db, pending_actions)
                 logger.info(f"QA Weekly Audit complete. Audited {audited} websites.")
 
         except Exception as e:

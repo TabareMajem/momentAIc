@@ -88,6 +88,10 @@ class StripeIntegration(BaseIntegration):
         actions = {
             "get_balance": self._get_balance,
             "get_recent_charges": self._get_recent_charges,
+            "list_invoices": self._list_invoices,
+            "create_invoice": self._create_invoice,
+            "retry_failed_payment": self._retry_failed_payment,
+            "get_revenue_timeline": self._get_revenue_timeline,
         }
         
         if action not in actions:
@@ -175,9 +179,20 @@ class StripeIntegration(BaseIntegration):
             
             # Simple "new this month" check using search API if available, or simplified logic
             # For now, just return total
+            # Dynamic fetch for this month's customers
+            thirty_days_ago = int((datetime.now() - timedelta(days=30)).timestamp())
+            response_new = await self.http_client.get(
+                f"{self.base_url}/customers",
+                params={"created[gte]": thirty_days_ago, "limit": 100},
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            new_this_month = 0
+            if response_new.status_code == 200:
+                new_this_month = len(response_new.json().get("data", []))
+                
             return {
                 "total": total, 
-                "new_this_month": 0 # TODO: Implement date filtering
+                "new_this_month": new_this_month
             }
         except Exception as e:
             logger.error("Customer counting failed", error=str(e))
@@ -256,6 +271,214 @@ class StripeIntegration(BaseIntegration):
         except Exception as e:
             return {"error": str(e)}
 
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # NEW: Invoice Management & Revenue Intelligence
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    async def _list_invoices(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        List invoices with optional filtering.
+        Params: status (draft|open|paid|uncollectible|void), limit, customer
+        """
+        try:
+            query = {"limit": params.get("limit", 25)}
+            if params.get("status"):
+                query["status"] = params["status"]
+            if params.get("customer"):
+                query["customer"] = params["customer"]
+
+            response = await self.http_client.get(
+                f"{self.base_url}/invoices",
+                params=query,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+
+            if response.status_code != 200:
+                return {"error": "Failed to list invoices", "details": response.text[:300]}
+
+            data = response.json()
+            invoices = []
+            for inv in data.get("data", []):
+                invoices.append({
+                    "id": inv["id"],
+                    "customer": inv.get("customer"),
+                    "customer_email": inv.get("customer_email"),
+                    "status": inv.get("status"),
+                    "amount_due": inv.get("amount_due", 0) / 100,
+                    "amount_paid": inv.get("amount_paid", 0) / 100,
+                    "currency": inv.get("currency", "usd"),
+                    "due_date": inv.get("due_date"),
+                    "created": inv.get("created"),
+                    "hosted_invoice_url": inv.get("hosted_invoice_url"),
+                    "description": inv.get("description"),
+                })
+
+            return {
+                "invoices": invoices,
+                "total": len(invoices),
+                "has_more": data.get("has_more", False),
+                "overdue_count": sum(1 for i in invoices if i["status"] == "open" and i.get("due_date") and i["due_date"] < int(datetime.now().timestamp())),
+            }
+        except Exception as e:
+            logger.error("List invoices failed", error=str(e))
+            return {"error": str(e)}
+
+    async def _create_invoice(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create and optionally send an invoice.
+        Params: customer (required), amount_cents, description, auto_send (bool)
+        """
+        try:
+            customer = params.get("customer")
+            if not customer:
+                return {"error": "customer ID is required"}
+
+            # 1. Create invoice item
+            item_payload = {
+                "customer": customer,
+                "amount": params.get("amount_cents", 0),
+                "currency": params.get("currency", "usd"),
+                "description": params.get("description", "Service charge"),
+            }
+            
+            item_resp = await self.http_client.post(
+                f"{self.base_url}/invoiceitems",
+                data=item_payload,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            
+            if item_resp.status_code != 200:
+                return {"error": "Failed to create invoice item", "details": item_resp.text[:300]}
+
+            # 2. Create the invoice
+            inv_payload = {"customer": customer, "auto_advance": "true"}
+            inv_resp = await self.http_client.post(
+                f"{self.base_url}/invoices",
+                data=inv_payload,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+
+            if inv_resp.status_code != 200:
+                return {"error": "Failed to create invoice", "details": inv_resp.text[:300]}
+
+            invoice = inv_resp.json()
+
+            # 3. Optionally finalize + send
+            if params.get("auto_send", False):
+                send_resp = await self.http_client.post(
+                    f"{self.base_url}/invoices/{invoice['id']}/send",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                )
+                if send_resp.status_code == 200:
+                    invoice = send_resp.json()
+
+            return {
+                "invoice_id": invoice["id"],
+                "status": invoice.get("status"),
+                "amount_due": invoice.get("amount_due", 0) / 100,
+                "hosted_invoice_url": invoice.get("hosted_invoice_url"),
+                "customer_email": invoice.get("customer_email"),
+            }
+        except Exception as e:
+            logger.error("Create invoice failed", error=str(e))
+            return {"error": str(e)}
+
+    async def _retry_failed_payment(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Retry payment on an open/failed invoice.
+        Params: invoice_id (required)
+        """
+        try:
+            invoice_id = params.get("invoice_id")
+            if not invoice_id:
+                return {"error": "invoice_id is required"}
+
+            response = await self.http_client.post(
+                f"{self.base_url}/invoices/{invoice_id}/pay",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+
+            if response.status_code == 200:
+                inv = response.json()
+                return {
+                    "success": True,
+                    "invoice_id": inv["id"],
+                    "status": inv.get("status"),
+                    "amount_paid": inv.get("amount_paid", 0) / 100,
+                }
+            else:
+                return {"success": False, "error": response.text[:300]}
+        except Exception as e:
+            logger.error("Retry payment failed", error=str(e))
+            return {"error": str(e)}
+
+    async def _get_revenue_timeline(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get MRR trend over the last N months by analyzing charges.
+        Params: months (default 12)
+        """
+        try:
+            months = params.get("months", 12)
+            timeline = []
+
+            for i in range(months):
+                month_start = datetime.now().replace(day=1) - timedelta(days=30 * i)
+                month_end = (month_start + timedelta(days=32)).replace(day=1)
+
+                response = await self.http_client.get(
+                    f"{self.base_url}/charges",
+                    params={
+                        "created[gte]": int(month_start.timestamp()),
+                        "created[lt]": int(month_end.timestamp()),
+                        "limit": 100,
+                    },
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
+
+                month_revenue = 0.0
+                if response.status_code == 200:
+                    charges = response.json().get("data", [])
+                    month_revenue = sum(
+                        c.get("amount", 0) / 100
+                        for c in charges
+                        if c.get("status") == "succeeded" and not c.get("refunded")
+                    )
+
+                timeline.append({
+                    "month": month_start.strftime("%Y-%m"),
+                    "revenue": round(month_revenue, 2),
+                })
+
+            timeline.reverse()
+
+            # Calculate trend
+            if len(timeline) >= 2 and timeline[-2]["revenue"] > 0:
+                growth = ((timeline[-1]["revenue"] - timeline[-2]["revenue"]) / timeline[-2]["revenue"]) * 100
+            else:
+                growth = 0.0
+
+            return {
+                "timeline": timeline,
+                "current_month_revenue": timeline[-1]["revenue"] if timeline else 0,
+                "mom_growth_pct": round(growth, 1),
+                "total_revenue": round(sum(m["revenue"] for m in timeline), 2),
+            }
+        except Exception as e:
+            logger.error("Revenue timeline failed", error=str(e))
+            return {"error": str(e)}
+
     async def create_checkout_session(
         self,
         price_id: str,
@@ -282,7 +505,7 @@ class StripeIntegration(BaseIntegration):
                 
             response = await self.http_client.post(
                 f"{self.base_url}/checkout/sessions",
-                data=payload, # Stripe API uses form-urlencoded usually, httpx handles dict as form if headers set? No, httpx.post with data=dict sends form-encoded.
+                data=payload,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/x-www-form-urlencoded"
@@ -343,4 +566,9 @@ class StripeIntegration(BaseIntegration):
             {"name": "get_balance", "description": "Get Stripe balance"},
             {"name": "get_recent_charges", "description": "Get recent charges"},
             {"name": "create_split_transfer", "description": "Execute an Equity-for-Compute revenue split transfer via Connect"},
+            {"name": "list_invoices", "description": "List invoices (filter by status: draft/open/paid/uncollectible/void)"},
+            {"name": "create_invoice", "description": "Create and optionally send an invoice to a customer"},
+            {"name": "retry_failed_payment", "description": "Retry payment on a failed/open invoice"},
+            {"name": "get_revenue_timeline", "description": "Get MRR trend over last N months"},
         ]
+

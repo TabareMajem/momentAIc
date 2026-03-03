@@ -17,19 +17,16 @@ interface CampaignControlModalProps {
     onClose: () => void;
 }
 
-const DOMAINS = [
-    'symbiotask.com',
-    'ai.yokaizencampus.com',
-    'yokaizencampus.com',
-    'agentforgeai.com',
-    'bondquests.com',
+// Simulated dynamic domains based on startup context
+const getDomains = (startupId?: string) => [
     'momentaic.com',
-    'yokaizen.com',
-    'otaku.yokaizen.com'
+    'agentforgeai.com',
+    'symbiotask.com'
 ];
 
 export function CampaignControlModal({ isOpen, onClose }: CampaignControlModalProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'content' | 'actions'>('overview');
+    const DOMAINS = getDomains();
     const [selectedDomain, setSelectedDomain] = useState<string>(DOMAINS[0]);
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();

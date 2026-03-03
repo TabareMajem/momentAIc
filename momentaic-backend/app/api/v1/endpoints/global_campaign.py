@@ -63,10 +63,7 @@ async def deploy_global_campaign(
         
         logger.info(f"Global Swarm: Located ~{total_targets} global targets. Initiating Phantom Dispatch sequence...")
         
-        # We simulate the delay to allow the frontend War Map telemetry terminal to run its course visually.
         # In a real V3 implementation, this would trigger background Celery workers parsing massive CSVs via SendGrid APIs.
-        await asyncio.sleep(4.5) 
-        
         logger.info("Global Swarm: Payloads delivered to Edge nodes. Executing deployment...")
         # -------------------------------------------------------------------
         

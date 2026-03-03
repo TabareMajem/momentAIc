@@ -56,13 +56,10 @@ class DataHarvesterAgent:
             # Mock processing to fit max_results
             scraped = profiles[:max_results] if profiles else []
             
-            # If DOM scraping failed due to UI changes, return a dummy list for pipeline testing
+            # If DOM scraping failed due to UI changes, return an empty list
             if not scraped:
-                logger.warning("github_dom_scrape_empty_using_dummy_profiles")
-                scraped = [
-                    {"platform": "github", "handle": "test_dev_1", "profile_url": "https://github.com/test_dev_1", "inferred_stack": "n8n"},
-                    {"platform": "github", "handle": "test_dev_2", "profile_url": "https://github.com/test_dev_2", "inferred_stack": "celery"}
-                ]
+                logger.warning("github_dom_scrape_empty")
+                scraped = []
             
             logger.info("harvester_github_scrape_complete", count=len(scraped))
             return {"success": True, "data": scraped}
@@ -108,11 +105,7 @@ class DataHarvesterAgent:
                }''')
            except Exception as dom_e:
                logger.warning("x_dom_scrape_failed_likely_login_wall", error=str(dom_e))
-               # Return mock data for pipeline testing if login wall hits before Session Manager is fully active
-               profiles = [
-                    {"platform": "x", "handle": "tech_founder_99", "profile_url": "https://x.com/tech_founder_99"},
-                    {"platform": "x", "handle": "agency_builder_x", "profile_url": "https://x.com/agency_builder_x"}
-               ]
+               profiles = []
                
            scraped = profiles[:max_results] if profiles else []
            logger.info("harvester_x_scrape_complete", count=len(scraped))
@@ -122,5 +115,89 @@ class DataHarvesterAgent:
         except Exception as e:
             logger.error("x_scrape_failed", error=str(e))
             return {"success": False, "error": str(e)}
+
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for new data sources and enrichment opportunities.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        
+        from app.agents.base import web_search
+        results = await web_search(f"{industry} new data sources and enrichment opportunities 2025")
+        
+        if results:
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-pro", temperature=0.3)
+            if llm:
+                from langchain_core.messages import HumanMessage
+                prompt = f"""Analyze these results for a {industry} startup:
+{str(results)[:2000]}
+
+Identify the top 3 actionable insights. Be concise."""
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+                    from app.agents.base import BaseAgent
+                    if hasattr(self, 'publish_to_bus'):
+                        await self.publish_to_bus(
+                            topic="intelligence_gathered",
+                            data={
+                                "source": "DataHarvesterAgent",
+                                "analysis": response.content[:1500],
+                                "agent": "data_harvester",
+                            }
+                        )
+                    actions.append({"name": "data_source_found", "industry": industry})
+                except Exception as e:
+                    logger.error(f"DataHarvesterAgent proactive scan failed", error=str(e))
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Scrapes and structures data from web sources for lead enrichment and market research.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Web scraping and data collection agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "data_harvester",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("DataHarvesterAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 data_harvester = DataHarvesterAgent()

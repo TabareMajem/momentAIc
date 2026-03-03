@@ -131,7 +131,7 @@ export default function InvestorDeck() {
             `> PROCESSING: ${formData.name} @ ${formData.entity}`,
             `> COMMITMENT_VALUE: $${Number(formData.amount).toLocaleString()} USD`,
             `> ENCRYPTING_PAYLOAD... [AES-256]`,
-            `> ROUTING: tabaremajem@gmail.com`,
+            `> ROUTING: invest@momentaic.com`,
             `> GENERATING_TERM_SHEET_DRAFT...`,
             `> SUCCESS: COMMITMENT_LOGGED. COUNTERSIGNATURE_PENDING.`
         ];
@@ -142,7 +142,7 @@ export default function InvestorDeck() {
                 clearInterval(iv);
                 setIsSubmitting(false);
                 setSubmitted(true);
-                window.location.href = `mailto:tabaremajem@gmail.com?subject=Genesis Fund I — Commitment: ${formData.entity}&body=Name: ${formData.name}%0AEntity: ${formData.entity}%0AEmail: ${formData.email}%0ACommitment: $${formData.amount}%0A%0AReady to proceed with the investment protocol.`;
+                window.location.href = `mailto:invest@momentaic.com?subject=Genesis Fund I — Commitment: ${formData.entity}&body=Name: ${formData.name}%0AEntity: ${formData.entity}%0AEmail: ${formData.email}%0ACommitment: $${formData.amount}%0A%0AReady to proceed with the investment protocol.`;
             }
         }, 700);
     };
@@ -672,7 +672,7 @@ export default function InvestorDeck() {
                                             <button type="submit" disabled={isSubmitting} className="w-full h-12 mt-2 bg-red-600 hover:bg-red-500 text-white font-black font-mono text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                                                 {isSubmitting ? "ENCRYPTING..." : <><span>CONFIRM COMMITMENT</span><Send className="w-3.5 h-3.5" /></>}
                                             </button>
-                                            <p className="text-[9px] font-mono text-gray-700 text-center">Non-binding intent · Routes to tabaremajem@gmail.com</p>
+                                            <p className="text-[9px] font-mono text-gray-700 text-center">Non-binding intent · Routes to invest@momentaic.com</p>
                                         </form>
                                     </>
                                 )}
@@ -689,7 +689,7 @@ export default function InvestorDeck() {
                     <div className="flex items-center gap-6 text-[10px] font-mono text-gray-700">
                         <Link to="/" className="hover:text-gray-400 transition-colors uppercase tracking-widest">Home</Link>
                         <Link to="/research" className="hover:text-gray-400 transition-colors uppercase tracking-widest">Research</Link>
-                        <a href="mailto:tabaremajem@gmail.com" className="hover:text-gray-400 transition-colors uppercase tracking-widest">Contact</a>
+                        <a href="mailto:invest@momentaic.com" className="hover:text-gray-400 transition-colors uppercase tracking-widest">Contact</a>
                     </div>
                 </div>
             </footer>

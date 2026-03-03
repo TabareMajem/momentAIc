@@ -93,10 +93,7 @@ async def execute_authorized_action(
             }
         except Exception as e:
             logger.error("image_gen_failed_proactive", error=str(e))
-            # Fall back to normal simulated success below if the API fails
-            
-    # Simulate normal execution delay for non-image or failed image tasks
-    await asyncio.sleep(2) 
+    # NEW: Visual Asset Pipeline Integration (Phase 6)
     
     return {
         "status": "success",

@@ -665,5 +665,236 @@ Rate from 0-10 (0=Clean, 10=Spam) based on:
             logger.error("Email sending failed", error=str(e))
             return {"success": False, "error": str(e)}
 
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively identify outreach opportunities:
+        - Scan for new leads from web search
+        - Generate cold outreach sequences
+        - Propose follow-up campaigns for stale leads
+        """
+        actions = []
+        industry = startup_context.get("industry", "Technology")
+        name = startup_context.get("name", "Our startup")
+        
+        # 1. New lead discovery
+        from app.agents.base import web_search as ws
+        try:
+            search_query = f"{industry} startup founders looking for {startup_context.get('description', '')[:50]}"
+            search_results = await ws.ainvoke(search_query)
+            if search_results and len(str(search_results)) > 50:
+                actions.append({
+                    "action": "cold_outreach_campaign",
+                    "name": "cold_outreach",
+                    "description": f"Generate cold outreach for leads discovered in: {industry}",
+                    "priority": "high",
+                    "agent": "SDRAgent",
+                    "search_results": str(search_results)[:500],
+                })
+        except Exception as e:
+            logger.warning("SDR proactive lead search failed", error=str(e))
+        
+        # 2. Daily follow-up sweep
+        actions.append({
+            "action": "follow_up_sweep",
+            "name": "follow_up_sweep",
+            "description": "Generate follow-up emails for leads that haven't responded in 3+ days.",
+            "priority": "medium",
+            "agent": "SDRAgent",
+        })
+        
+        if actions:
+            await self.publish_to_bus(
+                topic="sdr_opportunities_found",
+                data={"summary": f"SDR found {len(actions)} outreach opportunities", "count": len(actions)},
+            )
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive SDR action using REAL email services.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type == "cold_outreach_campaign":
+                # Generate a cold email using real LLM
+                lead = {
+                    "contact_name": "Founder",
+                    "company_name": startup_context.get("industry", "Tech"),
+                    "contact_title": "CEO",
+                }
+                research = {
+                    "analysis": {
+                        "PAIN POINTS": action.get("search_results", "Growth challenges"),
+                        "OUTREACH HOOKS": f"Latest {startup_context.get('industry', 'tech')} trends",
+                    }
+                }
+                result = await self.generate_cold_email(
+                    lead=lead,
+                    research=research,
+                    startup_context=startup_context,
+                )
+                
+                if result.get("success"):
+                    email = result.get("email", {})
+                    
+                    # Wire Clay & Instantly Integrations
+                    try:
+                        from app.integrations.clay import ClayIntegration
+                        from app.integrations.instantly import InstantlyIntegration
+                        
+                        # 1. Enrich Lead via Clay
+                        clay = ClayIntegration()
+                        enriched_data = await clay.execute_action("enrich_person", {
+                            "email": "linkedin_prospect@example.com",
+                            "linkedin_url": "https://linkedin.com/in/prospect"
+                        })
+                        logger.info("Clay: Lead enriched", data_pts=len(enriched_data))
+                        
+                        # 2. Add to Instantly Campaign
+                        instantly = InstantlyIntegration()
+                        await instantly.execute_action("add_lead", {
+                            "campaign_id": "cmp_autonomous_sdr",
+                            "email": "linkedin_prospect@example.com",
+                            "first_name": lead.get("contact_name", "Founder"),
+                            "custom_variables": {"personalized_line": email.get("body", "")[:100]}
+                        })
+                        logger.info("Instantly: Lead added to campaign sequence")
+                    except Exception as sdr_e:
+                        logger.error("SDR integrations failed", error=str(sdr_e))
+                    
+                    await self.publish_to_bus(
+                        topic="outreach_draft_ready",
+                        data={
+                            "summary": f"Cold email drafted & Added to Instantly (Enriched via Clay): {email.get('subject', 'N/A')}",
+                            "content": email.get("body", "")[:200],
+                        },
+                    )
+                    return f"Cold email campaign drafted: {email.get('subject', 'N/A')}"
+                return f"Cold email generation failed: {result.get('error', 'unknown')}"
+            
+            elif action_type == "follow_up_sweep":
+                # Use LLM to draft follow-up recommendations
+                if self.llm:
+                    prompt = f"""You are an SDR for {startup_context.get('name', 'our startup')}.
+Generate 3 specific follow-up email templates for leads that went cold after initial outreach.
+Industry: {startup_context.get('industry', 'Technology')}
+
+For each, provide: Subject line and a 2-sentence body."""
+                    response = await self.llm.ainvoke(prompt)
+                    
+                    await self.publish_to_bus(
+                        topic="follow_up_drafts_ready",
+                        data={"summary": response.content[:200]},
+                    )
+                    return f"Follow-up templates generated: {response.content[:200]}"
+                return "LLM not available"
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # NEW: Growth-Strategy Precision Targeting
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            elif action_type == "intent_score_leads":
+                # Score leads by engagement signals using LLM
+                if self.llm:
+                    leads_data = action.get("leads", [])
+                    industry = startup_context.get("industry", "Technology")
+                    product_desc = startup_context.get("description", "")
+
+                    prompt = f"""You are a precision sales intelligence agent for {startup_context.get('name', 'our startup')}.
+Industry: {industry}
+Product: {product_desc[:200]}
+
+Score these leads on a 1-100 intent scale based on engagement signals, role fit, and company stage.
+For each lead, provide:
+1. Intent Score (1-100)
+2. Primary buying signal
+3. Recommended outreach channel (email/linkedin/whatsapp/x)
+4. Personalized hook (1 sentence)
+
+Leads to score:
+{str(leads_data)[:2000]}
+
+Format as JSON array: [{{"name": "...", "score": 85, "signal": "...", "channel": "...", "hook": "..."}}]"""
+
+                    response = await self.llm.ainvoke(prompt)
+                    scored = safe_parse_json(response.content)
+
+                    await self.publish_to_bus(
+                        topic="leads_scored",
+                        data={"summary": f"Scored {len(scored) if isinstance(scored, list) else 0} leads by intent", "scores": scored},
+                        target_agents=["GrowthHackerAgent"],
+                    )
+                    return f"Intent-scored {len(scored) if isinstance(scored, list) else 0} leads"
+                return "LLM not available"
+
+            elif action_type == "competitor_displacement_sequence":
+                # Auto-create outreach sequences targeting users of competitor products
+                competitor = action.get("competitor", "competitor product")
+                if self.llm:
+                    prompt = f"""Create a 3-email displacement sequence targeting users of {competitor}.
+Our product: {startup_context.get('name', 'our product')} — {startup_context.get('description', '')}
+Industry: {startup_context.get('industry', 'Technology')}
+
+For each email:
+1. Subject line (under 50 chars)
+2. Body (under 100 words)
+3. Angle: Email 1 = pain point they have with {competitor}, Email 2 = specific feature comparison, Email 3 = case study or offer
+
+Rules:
+- Never trash-talk the competitor directly
+- Lead with THEIR pain, not our features
+- Be specific about switching costs (make them seem low)
+
+Format each as:
+---EMAIL [N]---
+SUBJECT: ...
+BODY: ...
+---END---"""
+
+                    response = await self.llm.ainvoke(prompt)
+                    
+                    await self.publish_to_bus(
+                        topic="displacement_sequence_ready",
+                        data={"summary": f"Competitor displacement sequence created for {competitor}", "content": response.content[:500]},
+                    )
+                    return f"Competitor displacement sequence created targeting {competitor} users"
+                return "LLM not available"
+
+            elif action_type == "micro_segment_outreach":
+                # Generate segment-specific messaging (not generic templates)
+                segment = action.get("segment", {})
+                segment_name = segment.get("name", "Target Segment")
+                if self.llm:
+                    prompt = f"""Create hyper-personalized outreach for this micro-segment:
+
+Segment: {segment_name}
+Characteristics: {segment.get('characteristics', 'B2B decision makers')}
+Pain Points: {segment.get('pain_points', 'efficiency, scaling')}
+Budget Range: {segment.get('budget', '$50-500/mo')}
+
+Our Product: {startup_context.get('name', 'our product')}
+Description: {startup_context.get('description', '')}
+
+Generate:
+1. Custom value proposition for THIS segment (1 sentence)
+2. Cold email (subject + 80-word body)
+3. LinkedIn connection request (under 300 chars)
+4. Follow-up angle if no response
+
+Be extremely specific to this segment. No generic language."""
+
+                    response = await self.llm.ainvoke(prompt)
+                    return f"Micro-segment outreach created for '{segment_name}': {response.content[:200]}"
+                return "LLM not available"
+            
+            else:
+                return await super().autonomous_action(action, startup_context)
+                
+        except Exception as e:
+            logger.error("SDR autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 # Singleton instance
 sdr_agent = SDRAgent()

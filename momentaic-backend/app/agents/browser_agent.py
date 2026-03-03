@@ -116,7 +116,7 @@ class BrowserAgent:
         import os
         from pathlib import Path
         
-        data_dir = Path("/root/momentaic/momentaic-backend/data/sessions")
+        data_dir = Path("/app/data/sessions")
         data_dir.mkdir(parents=True, exist_ok=True)
         
         try:
@@ -135,7 +135,7 @@ class BrowserAgent:
         from pathlib import Path
         import json
         
-        session_file = Path(f"/root/momentaic/momentaic-backend/data/sessions/session_{user_id}.json")
+        session_file = Path(f"/app/data/sessions/session_{user_id}.json")
         if not session_file.exists():
             logger.info("no_saved_session_found", user_id=user_id)
             return False

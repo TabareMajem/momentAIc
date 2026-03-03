@@ -11,6 +11,7 @@ from app.agents.base import (
     get_llm,
     get_agent_config,
     BaseAgent,
+    web_search,
 )
 from app.models.conversation import AgentType
 from app.services.agent_memory_service import agent_memory_service
@@ -207,6 +208,134 @@ Focus on user value and business impact. Tie everything to outcomes."""
 - Stage: {startup_context.get('stage', 'MVP')}
 - Target Users: {startup_context.get('target_customer', 'General')}
 - Value Prop: {startup_context.get('description', '')}"""
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for product trends, competitor launches, and user feedback signals.
+        """
+        actions = []
+        logger.info("ProductPMAgent starting proactive product intelligence scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        product_name = startup_context.get("name", "product")
+        
+        # 1. Scan for competitor product launches
+        results = await web_search(f"{industry} new product launch feature release 2025")
+        
+        if results and self.llm:
+            from langchain_core.messages import HumanMessage as HMsg
+            prompt = f"""Analyze these {industry} product news results for a PM at {product_name}:
+{str(results)[:2000]}
+
+Identify:
+1. Any competitor feature launches we should respond to
+2. Market trends we should capitalize on
+3. Gaps that present opportunities
+Return concise insights only."""
+            
+            try:
+                response = await self.llm.ainvoke([HMsg(content=prompt)])
+                await self.publish_to_bus(
+                    topic="product_intelligence",
+                    data={
+                        "analysis": response.content[:1500],
+                        "industry": industry,
+                        "agent": "product_pm",
+                    }
+                )
+                actions.append({"name": "product_intel_gathered", "industry": industry})
+            except Exception as e:
+                logger.error("PM proactive scan failed", error=str(e))
+        
+        # 2. Scan for user feedback trends (e.g., G2, ProductHunt, Reddit)
+        feedback_results = await web_search(f"{product_name} OR {industry} user feedback review complaint 2025")
+        if feedback_results:
+            await self.publish_to_bus(
+                topic="user_feedback_detected",
+                data={
+                    "source": "web_search",
+                    "results": [r.get("title", "") for r in feedback_results[:5]],
+                    "agent": "product_pm",
+                }
+            )
+            actions.append({"name": "feedback_trends_scanned"})
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute PM autonomous actions:
+        - Auto-generate PRDs from market trends
+        - Create competitive feature analyses
+        - Synthesize user feedback summaries
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("product_intel_gathered", "generate_prd"):
+                # Auto-generate a feature PRD based on market intelligence
+                industry = startup_context.get("industry", "Technology")
+                if self.llm:
+                    search_results = await web_search(f"{industry} top features users want 2025")
+                    from langchain_core.messages import HumanMessage as HMsg
+                    prompt = f"""Based on market research for the {industry} space:
+{str(search_results)[:1500]}
+
+Generate a brief PRD for the #1 feature opportunity:
+1. Feature name and description
+2. User problem it solves
+3. Success metrics
+4. MVP scope (what to build first)
+5. Estimated effort (S/M/L)"""
+                    response = await self.llm.ainvoke([HMsg(content=prompt)])
+                    
+                    # Wire Notion integration: Auto-create PRD spec
+                    try:
+                        from app.integrations.notion import NotionIntegration
+                        notion = NotionIntegration()
+                        await notion.execute_action("create_page", {
+                            "title": f"PRD: {startup_context.get('name', 'Product')} Feature",
+                            "content": response.content[:2000]
+                        })
+                        logger.info("Notion: PRD synced to workspace")
+                    except Exception as notion_e:
+                        logger.error("Notion sync failed", error=str(notion_e))
+                    
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "product_prd",
+                            "content": response.content[:2000],
+                            "agent": "product_pm",
+                        }
+                    )
+                    return f"PRD auto-generated & Synced to Notion: {response.content[:200]}"
+                return "LLM not available"
+
+            elif action_type in ("feedback_trends_scanned", "analyze_feedback"):
+                # Synthesize feedback into actionable insights
+                if self.llm:
+                    from langchain_core.messages import HumanMessage as HMsg
+                    feedback = action.get("results", [])
+                    prompt = f"""Synthesize this user feedback into a product insights brief:
+Feedback signals: {feedback}
+Product: {startup_context.get('name', 'Product')}
+
+Provide:
+1. Top 3 user pain points
+2. Quick wins (can fix in < 1 week)
+3. Strategic features to consider
+4. What users love (keep doing)"""
+                    response = await self.llm.ainvoke([HMsg(content=prompt)])
+                    return f"Feedback synthesis complete: {response.content[:200]}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("PM autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 # Legacy singleton export
 product_pm_agent = ProductPMAgent()

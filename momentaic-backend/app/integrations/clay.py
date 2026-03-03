@@ -88,55 +88,45 @@ class ClayIntegration(BaseIntegration):
         """
         Enrich a company domain with Clay (Waterfall)
         """
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Clay: Mocking company enrichment", domain=domain)
-            return {
-                "success": True,
-                "data": {
-                    "name": f"{domain.split('.')[0].capitalize()} Inc.",
-                    "domain": domain,
-                    "linkedin_url": f"https://linkedin.com/company/{domain.split('.')[0]}",
-                    "estimated_revenue": "$5M - $10M",
-                    "employee_count": "50-100",
-                    "tech_stack": ["HubSpot", "AWS", "Segment", "React"],
-                    "location": "San Francisco, CA"
-                }
-            }
-            
         try:
-            # Real Clay API call would enable a workflow
-            # For now, we stub this connection
-            # async with httpx.AsyncClient() as client:
-            #     resp = await client.post(...)
-            
-            return {"error": "Clay API integration pending specific Table ID configuration"}
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Based on Clay V3 webhook triggers for table enrichment
+                # Assuming standard workspace/table config mapping
+                response = await client.post(
+                    f"{self.base_url}/tables/enrich",
+                    headers=self.headers,
+                    json={"domain": domain}
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "data": result.get("data", {})
+                }
         except Exception as e:
-            return {"error": str(e)}
+            logger.error("Clay enrich_company failed", error=str(e))
+            return {"success": False, "error": str(e)}
 
     async def find_people(self, domain: str, role_keyword: str) -> Dict[str, Any]:
         """
         Find people at a company matching a role
         """
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Clay: Mocking people search", domain=domain, role=role_keyword)
-            return {
-                "success": True,
-                "people": [
-                    {
-                        "name": "Jane Doe",
-                        "title": f"Head of {role_keyword}",
-                        "email": f"jane@{domain}",
-                        "linkedin": f"https://linkedin.com/in/jane-doe-{domain}",
-                        "confidence": 0.95
-                    },
-                    {
-                        "name": "John Smith",
-                        "title": f"Senior {role_keyword} Manager",
-                        "email": f"john@{domain}",
-                        "linkedin": f"https://linkedin.com/in/john-smith-{domain}",
-                        "confidence": 0.88
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/tables/find_people",
+                    headers=self.headers,
+                    json={
+                        "domain": domain,
+                        "role": role_keyword
                     }
-                ]
-            }
-            
-        return {"error": "Clay API implementation incomplete"}
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "people": result.get("data", [])
+                }
+        except Exception as e:
+            logger.error("Clay find_people failed", error=str(e))
+            return {"success": False, "error": str(e)}

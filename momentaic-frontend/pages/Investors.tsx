@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Network, Activity, Cpu, Percent, ChevronRight, Zap, Target, TrendingUp, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import axios from 'axios';
 
-const mockSignalData = [
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+// Computed baseline signal data — overridden by live API when available
+const defaultSignalData = [
     { name: 'Q1', pedigreeIndex: 1.2, executionAlpha: 1.5, pmf: 60 },
     { name: 'Q2', pedigreeIndex: 1.1, executionAlpha: 1.8, pmf: 68 },
     { name: 'Q3', pedigreeIndex: 0.9, executionAlpha: 2.4, pmf: 75 },
@@ -12,6 +16,23 @@ const mockSignalData = [
 ];
 
 export default function InvestorsPage() {
+    const [signalData, setSignalData] = useState(defaultSignalData);
+
+    useEffect(() => {
+        const token = localStorage.getItem('access_token');
+        axios.get(`${API_URL}/api/v1/growth-analytics/investor-signals`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+            .then((res) => {
+                if (res.data?.signals?.length) {
+                    setSignalData(res.data.signals);
+                }
+            })
+            .catch(() => {
+                // Graceful degradation — use computed defaults
+            });
+    }, []);
+
     return (
         <div className="space-y-8 animate-fade-in pb-20">
 
@@ -112,7 +133,7 @@ export default function InvestorsPage() {
                     <CardContent>
                         <div className="h-[300px] w-full mt-4">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={mockSignalData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <AreaChart data={signalData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorExecution" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />

@@ -37,6 +37,10 @@ class TriggerRuleCreate(BaseModel):
     cooldown_minutes: int = 60
     max_triggers_per_day: int = 10
 
+class NLTriggerRequest(BaseModel):
+    """Natural Language Trigger Request"""
+    command: str
+
 
 class TriggerRuleUpdate(BaseModel):
     """Update trigger rule"""
@@ -148,6 +152,46 @@ async def create_trigger(
     
     logger.info("Trigger created", name=trigger_data.name, type=trigger_data.trigger_type.value)
     
+    return TriggerRuleResponse(
+        id=rule.id,
+        name=rule.name,
+        description=rule.description,
+        trigger_type=rule.trigger_type,
+        condition=rule.condition,
+        action=rule.action,
+        is_active=rule.is_active,
+        is_paused=rule.is_paused,
+        last_triggered_at=None,
+        trigger_count=0,
+    )
+
+
+@router.post("/nl", response_model=TriggerRuleResponse, status_code=status.HTTP_201_CREATED)
+async def create_nl_trigger(
+    startup_id: UUID,
+    request: NLTriggerRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new trigger rule from a natural language command"""
+    await verify_startup_access(startup_id, current_user, db)
+    
+    from app.services.nl_trigger_service import nl_trigger_service
+    
+    try:
+        rule = await nl_trigger_service.create_trigger_rule_from_nl(
+            db=db,
+            startup_id=str(startup_id),
+            user_id=str(current_user.id),
+            nl_command=request.command
+        )
+    except Exception as e:
+        logger.error("NL Trigger creation failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse or create trigger: {str(e)}"
+        )
+        
     return TriggerRuleResponse(
         id=rule.id,
         name=rule.name,

@@ -429,9 +429,377 @@ Provide:
                 },
                 target_agents=["CXGuardianAgent", "SalesAgent"]
             )
-            actions.append({"name": "high_churn_alert", "churn_rate": churn_rate})
+            actions.append({"name": "high_churn_alert", "churn_rate": churn_rate, "action": "churn_analysis"})
         
         return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive financial action using REAL services.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type == "mrr_declining":
+                # Pull real Stripe data for analysis
+                try:
+                    from app.integrations.stripe import stripe_service
+                    stripe_data = await stripe_service.sync_data()
+                    real_mrr = stripe_data.get("mrr", action.get("decline_pct", 0))
+                    
+                    # Generate analysis with real data
+                    metrics = startup_context.get("metrics", {})
+                    metrics["mrr"] = real_mrr
+                    result = await self.analyze_metrics(metrics=metrics)
+                    
+                    await self.publish_to_bus(
+                        topic="financial_analysis_complete",
+                        data={"summary": f"MRR decline analysis: health score {result.get('health_score', 'N/A')}/100"},
+                        target_agents=["SalesAgent", "CustomerSuccessAgent"],
+                    )
+                    # ── SLACK ALERT ────────────────────────────────────
+                    try:
+                        from app.services.notification_service import notification_service
+                        from app.integrations.slack import SlackIntegration
+                        slack = SlackIntegration()
+                        
+                        await notification_service.dispatch_agent_alert(
+                            startup_id=startup_context.get("id"),
+                            agent_name="FinanceCFOAgent",
+                            channel="slack",
+                            dispatch_func=slack.execute_action,
+                            action="send_message",
+                            params={
+                                "channel": "#general",
+                                "text": f"🚨 *MRR Decline Alert — {startup_context.get('name', 'Startup')}*\nHealth Score: {result.get('health_score', 'N/A')}/100. Sales and CS agents have been auto-dispatched.",
+                            }
+                        )
+                    except Exception:
+                        pass
+                    return f"MRR decline analysis complete: health score {result.get('health_score', 'N/A')}/100"
+                except Exception as e:
+                    return f"Stripe data pull failed, analysis skipped: {str(e)}"
+            
+            elif action_type == "burn_rate_warning":
+                # Generate projections showing when runway hits zero
+                metrics = startup_context.get("metrics", {})
+                result = await self.create_projection(current_metrics=metrics, months=12, scenario="pessimistic")
+                
+                await self.publish_to_bus(
+                    topic="runway_projection_generated",
+                    data={"summary": f"Runway projection generated: {action.get('runway_months', 'N/A')} months remaining"},
+                )
+                # ── SLACK ALERT ────────────────────────────────────
+                try:
+                    from app.services.notification_service import notification_service
+                    from app.integrations.slack import SlackIntegration
+                    slack = SlackIntegration()
+                    
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="FinanceCFOAgent",
+                        channel="slack",
+                        dispatch_func=slack.execute_action,
+                        action="send_message",
+                        params={
+                            "channel": "#general",
+                            "text": f"⚠️ *Burn Rate Warning — {startup_context.get('name', 'Startup')}*\nRunway: {action.get('runway_months', 'N/A')} months remaining. Pessimistic projection generated.",
+                        }
+                    )
+                except Exception:
+                    pass
+                return f"Runway projection generated for {action.get('runway_months', 'N/A')} months remaining"
+            
+            elif action_type in ("high_churn_alert", "churn_analysis"):
+                # Alert Customer Success agent
+                churn_rate = action.get("churn_rate", 0)
+                await self.publish_to_bus(
+                    topic="churn_alert_dispatched",
+                    data={"summary": f"High churn alert: {churn_rate}%", "churn_rate": churn_rate},
+                    target_agents=["CustomerSuccessAgent", "SalesAgent"],
+                )
+                return f"Churn alert dispatched to CustomerSuccess and Sales agents ({churn_rate}%)"
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # NEW: Stripe-Powered Actions
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            elif action_type == "failed_payment_retry":
+                invoice_id = action.get("invoice_id")
+                customer_email = action.get("customer_email", "Unknown")
+                amount = action.get("amount", 0)
+
+                # Try to auto-retry the payment via Stripe
+                retry_result = None
+                try:
+                    from app.integrations.stripe import StripeIntegration
+                    stripe = StripeIntegration()
+                    retry_result = await stripe.execute_action("retry_failed_payment", {"invoice_id": invoice_id})
+                except Exception as retry_err:
+                    logger.warning("Auto-retry failed", error=str(retry_err))
+
+                # Alert the founder via email
+                try:
+                    from app.services.notification_service import notification_service
+                    from app.integrations.gmail import gmail_integration
+
+                    retry_status = "✅ Auto-retried successfully" if retry_result and retry_result.get("success") else "⚠️ Auto-retry failed — manual intervention needed"
+
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="FinanceCFOAgent",
+                        channel="email",
+                        dispatch_func=gmail_integration.execute_action,
+                        action="send_email",
+                        params={
+                            "to": startup_context.get("founder_email", ""),
+                            "subject": f"💳 Payment Failed — {customer_email} (${amount:.2f})",
+                            "body": f"""
+<h3>Payment Failure Detected</h3>
+<p><strong>Customer:</strong> {customer_email}</p>
+<p><strong>Amount:</strong> ${amount:.2f}</p>
+<p><strong>Invoice:</strong> {invoice_id}</p>
+<p><strong>Auto-Recovery:</strong> {retry_status}</p>
+<hr>
+<p>Your CFO Agent detected this in real-time via Stripe webhooks. 
+If auto-retry succeeded, no action needed. If not, consider reaching out to the customer.</p>
+""",
+                            "priority": "urgent",
+                            "agent_name": "FinanceCFOAgent",
+                            "severity": "critical",
+                        },
+                    )
+                except Exception:
+                    pass
+
+                return f"Failed payment handled for {customer_email} (${amount:.2f}) — retry: {retry_result}"
+
+            elif action_type == "revenue_anomaly_detected":
+                event = action.get("event", "unknown")
+                customer_id = action.get("customer_id", "Unknown")
+                mrr_impact = action.get("mrr_impact", 0)
+                amount_refunded = action.get("amount_refunded", 0)
+
+                detail = f"Subscription canceled (MRR impact: ${abs(mrr_impact):.2f}/mo)" if event == "subscription_canceled" \
+                    else f"Charge refunded: ${amount_refunded:.2f}"
+
+                # Alert via Slack
+                try:
+                    from app.services.notification_service import notification_service
+                    from app.integrations.slack import SlackIntegration
+                    slack = SlackIntegration()
+
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="FinanceCFOAgent",
+                        channel="slack",
+                        dispatch_func=slack.execute_action,
+                        action="send_message",
+                        params={
+                            "channel": "#revenue",
+                            "text": f"📉 *Revenue Anomaly — {startup_context.get('name', 'Startup')}*\n{detail}\nCustomer: {customer_id}",
+                        },
+                    )
+                except Exception:
+                    pass
+
+                # Alert CustomerSuccess to prevent further churn
+                await self.publish_to_bus(
+                    topic="revenue_anomaly",
+                    data={"event": event, "customer_id": customer_id, "detail": detail},
+                    target_agents=["CustomerSuccessAgent"],
+                )
+
+                return f"Revenue anomaly handled: {detail}"
+
+            elif action_type == "invoice_overdue_recovery":
+                # Proactive scan: find overdue invoices and draft dunning emails
+                try:
+                    from app.integrations.stripe import StripeIntegration
+                    stripe = StripeIntegration()
+                    result = await stripe.execute_action("list_invoices", {"status": "open", "limit": 50})
+
+                    overdue = [i for i in result.get("invoices", []) if i.get("due_date") and i["due_date"] < int(__import__("time").time())]
+
+                    if not overdue:
+                        return "No overdue invoices found"
+
+                    # Draft dunning emails for each overdue invoice
+                    for inv in overdue[:5]:  # Cap at 5 per run
+                        email = inv.get("customer_email")
+                        if not email:
+                            continue
+
+                        from app.services.notification_service import notification_service
+                        from app.integrations.gmail import gmail_integration
+
+                        await notification_service.dispatch_agent_alert(
+                            startup_id=startup_context.get("id"),
+                            agent_name="FinanceCFOAgent",
+                            channel="email",
+                            dispatch_func=gmail_integration.execute_action,
+                            action="send_email",
+                            params={
+                                "to": startup_context.get("founder_email", ""),
+                                "subject": f"📋 Overdue Invoice: {email} — ${inv['amount_due']:.2f}",
+                                "body": f"""
+<h3>Overdue Invoice Detected</h3>
+<p><strong>Customer:</strong> {email}</p>
+<p><strong>Amount Due:</strong> ${inv['amount_due']:.2f}</p>
+<p><strong>Invoice:</strong> {inv['id']}</p>
+<p><a href="{inv.get('hosted_invoice_url', '#')}">View Invoice in Stripe</a></p>
+<hr>
+<p>Consider sending a polite reminder to this customer or retrying the charge.</p>
+""",
+                                "priority": "high",
+                                "agent_name": "FinanceCFOAgent",
+                                "severity": "warning",
+                            },
+                        )
+
+                    return f"Processed {len(overdue)} overdue invoices, notified founder"
+
+                except Exception as e:
+                    return f"Invoice recovery scan failed: {str(e)}"
+
+            elif action_type == "unit_economics_tracker":
+                # Calculate and report unit economics from Stripe data
+                try:
+                    from app.integrations.stripe import StripeIntegration
+                    stripe = StripeIntegration()
+
+                    # Gather data points
+                    mrr = await stripe._calculate_mrr()
+                    customers = await stripe._get_customer_counts()
+                    subs = await stripe._get_subscription_stats()
+                    timeline = await stripe.execute_action("get_revenue_timeline", {"months": 6})
+
+                    total_customers = customers.get("total", 0)
+                    new_this_month = customers.get("new_this_month", 0)
+                    churn_rate = subs.get("churn_rate", 0)
+                    mom_growth = timeline.get("mom_growth_pct", 0)
+
+                    # Calculate unit economics
+                    arpu = mrr / total_customers if total_customers > 0 else 0
+                    ltv = arpu / (churn_rate / 100) if churn_rate > 0 else arpu * 24  # Assume 24 month lifetime if no churn
+
+                    report = {
+                        "mrr": mrr,
+                        "arr": mrr * 12,
+                        "arpu": round(arpu, 2),
+                        "ltv": round(ltv, 2),
+                        "total_customers": total_customers,
+                        "new_this_month": new_this_month,
+                        "churn_rate": churn_rate,
+                        "mom_growth": mom_growth,
+                    }
+
+                    # Notify founder
+                    from app.services.notification_service import notification_service
+                    from app.integrations.gmail import gmail_integration
+
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="FinanceCFOAgent",
+                        channel="email",
+                        dispatch_func=gmail_integration.execute_action,
+                        action="send_email",
+                        params={
+                            "to": startup_context.get("founder_email", ""),
+                            "subject": f"📊 Unit Economics Report — {startup_context.get('name', 'Startup')}",
+                            "body": f"""
+<h3>Monthly Unit Economics</h3>
+<table style="border-collapse:collapse; width:100%;">
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>MRR</strong></td><td style="padding:8px; border:1px solid #ddd;">${mrr:,.2f}</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>ARR</strong></td><td style="padding:8px; border:1px solid #ddd;">${mrr*12:,.2f}</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>ARPU</strong></td><td style="padding:8px; border:1px solid #ddd;">${arpu:,.2f}/mo</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>LTV</strong></td><td style="padding:8px; border:1px solid #ddd;">${ltv:,.2f}</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>Customers</strong></td><td style="padding:8px; border:1px solid #ddd;">{total_customers} (+{new_this_month} this month)</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>Churn Rate</strong></td><td style="padding:8px; border:1px solid #ddd;">{churn_rate}%</td></tr>
+<tr><td style="padding:8px; border:1px solid #ddd;"><strong>MoM Growth</strong></td><td style="padding:8px; border:1px solid #ddd;">{mom_growth}%</td></tr>
+</table>
+""",
+                            "priority": "normal",
+                            "agent_name": "FinanceCFOAgent",
+                            "severity": "info",
+                        },
+                    )
+
+                    return f"Unit economics report generated: MRR=${mrr:,.2f}, LTV=${ltv:,.2f}"
+
+                except Exception as e:
+                    return f"Unit economics tracker failed: {str(e)}"
+
+            elif action_type == "investor_update_generator":
+                # Auto-draft a monthly investor update email
+                try:
+                    from app.integrations.stripe import StripeIntegration
+                    stripe = StripeIntegration()
+
+                    mrr = await stripe._calculate_mrr()
+                    timeline = await stripe.execute_action("get_revenue_timeline", {"months": 3})
+                    customers = await stripe._get_customer_counts()
+                    subs = await stripe._get_subscription_stats()
+
+                    startup_name = startup_context.get("name", "Our Startup")
+                    mom_growth = timeline.get("mom_growth_pct", 0)
+
+                    from app.services.notification_service import notification_service
+                    from app.integrations.gmail import gmail_integration
+
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="FinanceCFOAgent",
+                        channel="email",
+                        dispatch_func=gmail_integration.execute_action,
+                        action="send_email",
+                        params={
+                            "to": startup_context.get("founder_email", ""),
+                            "subject": f"📝 Monthly Investor Update Draft — {startup_name}",
+                            "body": f"""
+<h2>Monthly Investor Update — {startup_name}</h2>
+<p><em>Auto-drafted by your AI CFO. Review and forward to your investors.</em></p>
+
+<h3>🔑 Key Metrics</h3>
+<ul>
+<li><strong>MRR:</strong> ${mrr:,.2f} ({'+' if mom_growth >= 0 else ''}{mom_growth}% MoM)</li>
+<li><strong>ARR Run Rate:</strong> ${mrr*12:,.2f}</li>
+<li><strong>Total Customers:</strong> {customers.get('total', 0)}</li>
+<li><strong>New This Month:</strong> {customers.get('new_this_month', 0)}</li>
+<li><strong>Churn Rate:</strong> {subs.get('churn_rate', 0)}%</li>
+</ul>
+
+<h3>📈 Revenue Trend (Last 3 Months)</h3>
+<ul>
+{''.join(f'<li>{m["month"]}: ${m["revenue"]:,.2f}</li>' for m in timeline.get("timeline", [])[-3:])}
+</ul>
+
+<h3>🎯 Highlights</h3>
+<p><em>[Add your wins, product updates, and asks here]</em></p>
+
+<h3>🚨 Challenges</h3>
+<p><em>[Add any blockers or areas where you need help]</em></p>
+
+<h3>💡 Asks</h3>
+<p><em>[Introductions, advice, or resources needed]</em></p>
+""",
+                            "priority": "normal",
+                            "agent_name": "FinanceCFOAgent",
+                            "severity": "info",
+                        },
+                    )
+
+                    return f"Investor update draft generated for {startup_name} (MRR: ${mrr:,.2f})"
+
+                except Exception as e:
+                    return f"Investor update generation failed: {str(e)}"
+            
+            else:
+                return await super().autonomous_action(action, startup_context)
+                
+        except Exception as e:
+            logger.error("FinanceCFO autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 
 # Singleton instance

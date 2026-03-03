@@ -77,15 +77,6 @@ class InstantlyIntegration(BaseIntegration):
         campaign_id = data.get("campaign_id")
         email = data.get("email")
         
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Instantly: Mocking add lead", email=email, campaign=campaign_id)
-            return {
-                "success": True,
-                "lead_id": f"mock_lead_{email.replace('@', '_')}",
-                "campaign_id": campaign_id,
-                "status": "added"
-            }
-            
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -119,43 +110,44 @@ class InstantlyIntegration(BaseIntegration):
         """
         campaign_id = params.get("campaign_id")
         
-        if not self.api_key or self.api_key == "mock_key":
-            return {
-                "success": True,
-                "campaign_id": campaign_id,
-                "analytics": {
-                    "sent": 1250,
-                    "opened": 875,
-                    "open_rate": 70.0,
-                    "replied": 125,
-                    "reply_rate": 10.0,
-                    "bounced": 15,
-                    "unsubscribed": 5
-                },
-                "mock": True
-            }
-        
-        # Real API call would use:
-        # GET /campaign/summary
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.base_url}/campaign/summary",
+                    params={"api_key": self.api_key, "campaign_id": campaign_id},
+                    headers=self.headers
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "campaign_id": campaign_id,
+                    "analytics": result
+                }
+        except Exception as e:
+            logger.error("Instantly get_campaign_analytics failed", error=str(e))
+            return {"success": False, "error": str(e)}
 
     async def list_campaigns(self) -> Dict[str, Any]:
         """
         List all campaigns
         """
-        if not self.api_key or self.api_key == "mock_key":
-            return {
-                "success": True,
-                "campaigns": [
-                    {"id": "camp_001", "name": "Q1 Outreach", "status": "active"},
-                    {"id": "camp_002", "name": "Follow-up Sequence", "status": "active"},
-                    {"id": "camp_003", "name": "Re-engagement", "status": "paused"}
-                ],
-                "mock": True
-            }
-        
-        # Real API call
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.base_url}/campaign/list",
+                    params={"api_key": self.api_key},
+                    headers=self.headers
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "campaigns": result
+                }
+        except Exception as e:
+            logger.error("Instantly list_campaigns failed", error=str(e))
+            return {"success": False, "error": str(e)}
 
     async def check_replies(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -163,19 +155,19 @@ class InstantlyIntegration(BaseIntegration):
         """
         campaign_id = params.get("campaign_id")
         
-        if not self.api_key or self.api_key == "mock_key":
-            return {
-                "success": True,
-                "replies": [
-                    {
-                        "email": "john@example.com",
-                        "subject": "Re: Quick question",
-                        "snippet": "Sure, I'd be happy to chat. Does Tuesday work?",
-                        "sentiment": "positive",
-                        "received_at": "2026-01-30T10:30:00Z"
-                    }
-                ],
-                "mock": True
-            }
-        
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.base_url}/lead/replies",
+                    params={"api_key": self.api_key, "campaign_id": campaign_id},
+                    headers=self.headers
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "replies": result
+                }
+        except Exception as e:
+            logger.error("Instantly check_replies failed", error=str(e))
+            return {"success": False, "error": str(e)}

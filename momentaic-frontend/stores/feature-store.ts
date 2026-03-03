@@ -17,6 +17,7 @@ export interface FeatureDefinition {
 export const FEATURE_REGISTRY: FeatureDefinition[] = [
     // ── Essential (always on) ──
     { id: 'dashboard', name: 'Command Center', description: 'Your AI team working in real-time', href: '/dashboard', icon: 'LayoutDashboard', tier: 'essential', category: 'core' },
+    { id: 'ghost_board', name: 'Ghost Board', description: 'Your daily synthetic co-founder brief', href: '/ghost-board', icon: 'Terminal', tier: 'essential', category: 'core' },
     { id: 'hitl', name: 'Action Queue', description: 'Review and approve autonomous agent proposals', href: '/hitl', icon: 'Zap', tier: 'essential', category: 'core' },
     { id: 'vault', name: 'The Vault', description: 'AI-generated documents, contracts, and models', href: '/vault', icon: 'Shield', tier: 'essential', category: 'core' },
     { id: 'settings', name: 'Settings', description: 'Account, billing, and preferences', href: '/settings', icon: 'Settings', tier: 'essential', category: 'core' },
@@ -33,14 +34,12 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
 
     // ── God Mode (advanced) ──
     { id: 'telemetry', name: 'Telemetry Core', description: 'Deep platform analytics and system health', href: '/telemetry', icon: 'BarChart2', tier: 'godmode', category: 'operations', stageRecommended: ['scaling', 'mature'] },
-    { id: 'call_center', name: 'Call Center', description: 'AI-powered voice calls and phone outreach', href: '/call-center', icon: 'Phone', tier: 'godmode', category: 'marketing', stageRecommended: ['pmf', 'scaling'] },
     { id: 'viral_swarm', name: 'Viral Swarm', description: 'Coordinated multi-platform viral campaigns', href: '/viral-swarm', icon: 'Zap', tier: 'godmode', category: 'marketing', stageRecommended: ['pmf', 'scaling'] },
     { id: 'guerrilla', name: 'Guerrilla Warfare', description: 'Unconventional growth hacking strategies', href: '/guerrilla', icon: 'Target', tier: 'godmode', category: 'marketing', stageRecommended: ['mvp', 'pmf'] },
     { id: 'global_campaign', name: 'Global Campaign', description: 'Worldwide coordinated marketing operations', href: '/global-campaign', icon: 'Globe', tier: 'godmode', category: 'marketing', stageRecommended: ['scaling', 'mature'] },
     { id: 'integrations', name: 'Integrations', description: 'Connect third-party tools and APIs', href: '/integrations', icon: 'Plug', tier: 'godmode', category: 'operations', stageRecommended: ['pmf', 'scaling'] },
     { id: 'triggers', name: 'Triggers', description: 'Event-driven automation workflows', href: '/triggers', icon: 'Bell', tier: 'godmode', category: 'operations', stageRecommended: ['scaling', 'mature'] },
     { id: 'experiments', name: 'Experiments Lab', description: 'A/B testing and hypothesis validation', href: '/experiments', icon: 'FlaskConical', tier: 'godmode', category: 'intelligence', stageRecommended: ['pmf', 'scaling'] },
-    { id: 'openclaw', name: 'OpenClaw Proxy', description: 'Direct AI model access and orchestration', href: '/openclaw', icon: 'Terminal', tier: 'godmode', category: 'agents', stageRecommended: ['scaling', 'mature'] },
     { id: 'ambassador', name: 'Revenue Program', description: 'Ambassador dashboard and referral commissions', href: '/ambassador', icon: 'DollarSign', tier: 'godmode', category: 'core', stageRecommended: ['pmf', 'scaling', 'mature'] },
 ];
 

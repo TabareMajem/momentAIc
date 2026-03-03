@@ -15,6 +15,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 import httpx
 import structlog
+import hashlib
+from app.core.redis_client import get_redis_client
+from langchain_core.callbacks import AsyncCallbackHandler
+from langchain_core.outputs import LLMResult
+from langchain_core.runnables import RunnableConfig
 
 from app.core.config import settings
 from app.models.conversation import AgentType
@@ -375,33 +380,93 @@ class AgentState(TypedDict):
 # LLM Factory
 # ==================
 
+class TokenUsageLogger(AsyncCallbackHandler):
+    async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        try:
+            if response.llm_output and "token_usage" in response.llm_output:
+                usage = response.llm_output["token_usage"]
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                total_tokens = usage.get("total_tokens", 0)
+                
+                model_name = kwargs.get("invocation_params", {}).get("model", "unknown")
+                
+                logger.info(
+                    "llm_token_usage",
+                    model=model_name,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens
+                )
+        except Exception as e:
+            logger.debug(f"Failed to log tokens: {str(e)}")
+
+
 def get_llm(model: str = "gemini-2.5-pro", temperature: float = 0.7):
     """
-    Get LLM instance based on model name
+    Get LLM instance based on model name, with enterprise reliability (retries & fallbacks).
     """
+    fallback_llms = []
+    token_logger = TokenUsageLogger()
+    
+    # Setup Fallbacks (DeepSeek and/or OpenAI) to act as circuit breakers
+    if settings.deepseek_api_key:
+        from langchain_openai import ChatOpenAI
+        fallback_llms.append(ChatOpenAI(
+            model="deepseek-chat",
+            api_key=settings.deepseek_api_key,
+            base_url="https://api.deepseek.com/v1",
+            temperature=temperature,
+            max_retries=2,
+            callbacks=[token_logger],
+        ))
+    if settings.openai_api_key:
+        from langchain_openai import ChatOpenAI
+        fallback_llms.append(ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=settings.openai_api_key,
+            temperature=temperature,
+            max_retries=2,
+            callbacks=[token_logger],
+        ))
+
+    # Core Logic
     if model.startswith("gemini"):
         if not settings.google_api_key:
-            logger.warning("Gemini API key not configured, using mock")
-            return None
-        # Default to 2.0 Flash for "gemini-3" or generic "gemini-flash" requests for speed/cost
+            logger.warning("Gemini API key not configured, using fallback or mock")
+            return fallback_llms[0] if fallback_llms else None
+            
         model_name = "gemini-2.0-flash" 
         if "pro" in model:
             model_name = "gemini-2.5-pro"
         
-        return ChatGoogleGenerativeAI(
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        primary_llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=settings.google_api_key,
             temperature=temperature,
+            max_retries=4,  # Increased retry logic for transient errors
+            callbacks=[token_logger],
         )
+        
+        # Apply Circuit Breaker / Multi-Model Fallback
+        if fallback_llms:
+            return primary_llm.with_fallbacks(fallback_llms)
+        return primary_llm
+
     elif model.startswith("claude"):
         if not settings.anthropic_api_key:
             logger.warning("Anthropic API key not configured")
             return None
+        from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
             model="claude-3-5-sonnet-20241022",
-            anthropic_api_key=settings.anthropic_api_key,
+            api_key=settings.anthropic_api_key,
             temperature=temperature,
-        )
+            max_retries=3,
+            callbacks=[token_logger],
+        ).with_fallbacks(fallback_llms)
+
     elif model.startswith("gpt") or model.startswith("openai"):
         if not settings.openai_api_key:
             logger.warning("OpenAI API key not configured")
@@ -411,22 +476,25 @@ def get_llm(model: str = "gemini-2.5-pro", temperature: float = 0.7):
             model=model if model.startswith("gpt") else "gpt-4-turbo",
             api_key=settings.openai_api_key,
             temperature=temperature,
-        )
-    elif model.startswith("deepseek") or (settings.deepseek_api_key and not settings.google_api_key):
-        # Fallback to DeepSeek if explicitly requested OR if Google Key is missing but DeepSeek is present
+            max_retries=3,
+            callbacks=[token_logger],
+        ).with_fallbacks([f for f in fallback_llms if "gpt" not in f.model_name])
+
+    elif model.startswith("deepseek"):
         if not settings.deepseek_api_key:
              logger.warning("DeepSeek API key not configured")
              return None
         from langchain_openai import ChatOpenAI
-        
-        # Map user "DeepSeek 3.2" to standard "deepseek-chat" or "deepseek-reasoner" if available
-        # Currently the official API model is "deepseek-chat" (V3)
-        return ChatOpenAI(
+        primary_llm = ChatOpenAI(
             model="deepseek-chat",
             api_key=settings.deepseek_api_key,
             base_url="https://api.deepseek.com/v1",
             temperature=temperature,
+            max_retries=3,
+            callbacks=[token_logger],
         )
+        return primary_llm.with_fallbacks([f for f in fallback_llms if "deepseek" not in str(f.model_name)])
+        
     else:
         raise ValueError(f"Unknown model: {model}")
 
@@ -441,6 +509,20 @@ async def web_search(query: str) -> str:
     Search the web for information.
     Use this to research companies, find news, or gather market data.
     """
+    redis_client = None
+    cache_key = None
+    
+    # 0. Check Redis Cache (24h TTL)
+    try:
+        redis_client = await get_redis_client()
+        cache_key = f"web_search:{hashlib.md5(query.encode()).hexdigest()}"
+        cached_result = await redis_client.get(cache_key)
+        if cached_result:
+            logger.info("web_search cache hit", query=query)
+            return cached_result
+    except Exception as e:
+        logger.warning("Redis cache read error", error=str(e))
+
     # 1. Try Serper API (Fastest)
     if settings.serper_api_key:
         try:
@@ -455,7 +537,16 @@ async def web_search(query: str) -> str:
             for item in data.get("organic", [])[:5]:
                 results.append(f"- {item.get('title')}: {item.get('snippet')}")
             if results:
-                return "\n".join(results)
+                final_result = "\n".join(results)
+                
+                # Save to cache
+                if redis_client and cache_key:
+                    try:
+                        await redis_client.set(cache_key, final_result, ex=86400) # 24h caching
+                    except Exception as e:
+                        logger.warning("Redis cache write error", error=str(e))
+                        
+                return final_result
         except Exception as e:
             logger.warning("Serper search failed, falling back to browser", error=str(e))
 
@@ -675,6 +766,107 @@ async def generate_hashtags(topic: str, platform: str) -> List[str]:
     return [f"#{word.capitalize()}" for word in topic_words] + [f"#{tag}" for tag in base_tags]
 
 
+@tool
+async def agent_remember(key: str, value: str, config: RunnableConfig, memory_type: str = "fact", importance: int = 5) -> str:
+    """
+    Store an important piece of information in your long-term memory.
+    Use this to remember user preferences, strategic decisions, or key facts for future runs.
+    """
+    try:
+        from app.services.agent_memory_service import agent_memory_service
+        
+        configurable = config.get("configurable", {})
+        startup_id = configurable.get("startup_id")
+        agent_name = configurable.get("agent_name", "global")
+        
+        if not startup_id:
+            return "Error: Could not determine startup context to save memory."
+            
+        await agent_memory_service.remember(
+            startup_id=str(startup_id),
+            agent_name=agent_name,
+            key=key,
+            value=value,
+            memory_type=memory_type,
+            importance=importance
+        )
+        return f"Successfully remembered '{key}'."
+    except Exception as e:
+        logger.error("Memory saving failed", error=str(e))
+        return f"Failed to save memory: {str(e)}"
+
+@tool
+async def agent_recall(query: str, config: RunnableConfig) -> str:
+    """
+    Recall information from your long-term memory.
+    If you need to remember past interactions, rules, or facts, search for a keyword here.
+    """
+    try:
+        from app.services.agent_memory_service import agent_memory_service
+        
+        configurable = config.get("configurable", {})
+        startup_id = configurable.get("startup_id")
+        agent_name = configurable.get("agent_name", "global")
+        
+        if not startup_id:
+            return "Error: Could not determine startup context to recall memory."
+            
+        memories = await agent_memory_service.recall(
+            startup_id=str(startup_id),
+            agent_name=agent_name,
+            limit=20
+        )
+        
+        if not memories:
+            return "No relevant memories found."
+            
+        results = [f"- [{m['type'].upper()}] {m['key']}: {m['value']}" for m in memories if query.lower() in m['key'].lower() or query.lower() in m['value'].lower()]
+        
+        if not results:
+             return f"No memories found matching '{query}'."
+             
+        return "Recovered Memories:\n" + "\n".join(results)
+    except Exception as e:
+        logger.error("Memory recall failed", error=str(e))
+        return f"Failed to recall memory: {str(e)}"
+
+@tool
+async def dispatch_agent(target_agent: str, topic: str, payload: dict, config: RunnableConfig) -> str:
+    """
+    Trigger another specialized agent to handle a specific task by sending a message to the MessageBus.
+    Args:
+        target_agent: The name of the agent to trigger (e.g., 'sales_hunter', 'content_creator', 'tech_lead', 'finance_cfo', 'growth_hacker', 'product_pm', 'qa_tester', 'competitor_intel').
+        topic: The topic of the message (e.g., 'sales.new_lead', 'engineering.bug_found', 'growth.churn_alert').
+        payload: A JSON dictionary containing the contextual data the target agent needs to execute the task.
+    """
+    try:
+        from app.core.database import async_session_maker
+        from app.services.message_bus import MessageBus
+        
+        configurable = config.get("configurable", {})
+        startup_id = configurable.get("startup_id")
+        from_agent = configurable.get("agent_name", "unknown_agent")
+        
+        if not startup_id:
+            return "Error: Could not determine startup context to dispatch agent."
+            
+        async with async_session_maker() as db:
+            bus = MessageBus(db)
+            await bus.publish(
+                startup_id=str(startup_id),
+                from_agent=from_agent,
+                to_agent=target_agent,
+                topic=topic,
+                message_type="TASK",
+                payload=payload,
+                priority="high"
+            )
+            
+        return f"Successfully dispatched task to {target_agent} via topic '{topic}'."
+    except Exception as e:
+        logger.error("Agent dispatch failed", error=str(e))
+        return f"Failed to dispatch agent: {str(e)}"
+
 # ==================
 # Agent Info
 # ==================
@@ -701,7 +893,7 @@ ROUTE_TO: <agent_type>
 REASON: <why this agent is best suited>
 
 If the query is simple and doesn't need a specialist, handle it yourself.""",
-        "tools": [],
+        "tools": [agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.SALES_HUNTER: {
         "name": "Sales Hunter",
@@ -716,7 +908,7 @@ Your capabilities:
 - Suggest follow-up timing
 
 Always be data-driven and focus on personalization. Use the available tools to research before recommending actions.""",
-        "tools": [web_search, linkedin_search, company_research, draft_email, analyze_sentiment],
+        "tools": [web_search, linkedin_search, company_research, draft_email, analyze_sentiment, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.CONTENT_CREATOR: {
         "name": "Content Creator",
@@ -731,7 +923,7 @@ Your capabilities:
 - Optimize for engagement
 
 Focus on authenticity and value. Content should educate, entertain, or inspire.""",
-        "tools": [web_search, get_trending_topics, generate_hashtags],
+        "tools": [web_search, get_trending_topics, generate_hashtags, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.TECH_LEAD: {
         "name": "Tech Lead",
@@ -746,7 +938,7 @@ Your capabilities:
 - Suggest best practices
 
 Be practical and consider trade-offs. Focus on what's right for the startup's stage.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.FINANCE_CFO: {
         "name": "Finance CFO",
@@ -761,7 +953,7 @@ Your capabilities:
 - Benchmark against industry standards
 
 Be precise with numbers and always explain the implications.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.GROWTH_HACKER: {
         "name": "Growth Hacker",
@@ -776,7 +968,7 @@ Your capabilities:
 - Identify viral loops
 
 Focus on measurable, data-driven growth tactics.""",
-        "tools": [web_search, get_trending_topics],
+        "tools": [web_search, get_trending_topics, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.PRODUCT_PM: {
         "name": "Product PM",
@@ -791,7 +983,7 @@ Your capabilities:
 - Plan roadmaps
 
 Focus on user value and business impact. Always tie features to outcomes.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.GENERAL: {
         "name": "General Assistant",
@@ -799,7 +991,7 @@ Focus on user value and business impact. Always tie features to outcomes.""",
         "system_prompt": """You are the General Assistant for MomentAIc.
 Help the user with any task that doesn't require a specialist.
 Be helpful, concise, and action-oriented.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.LEGAL_COUNSEL: {
         "name": "Legal Counsel",
@@ -816,7 +1008,7 @@ Your capabilities:
 
 IMPORTANT: Always include a disclaimer that this is general guidance, not legal advice.
 Recommend consulting a qualified attorney for specific matters.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.JUDGEMENT: {
         "name": "Judgement Agent",
@@ -829,7 +1021,7 @@ Recommend consulting a qualified attorney for specific matters.""",
         - Critique: Provide specific, actionable feedback to improve scores.
         
         You do not create content from scratch. You make good content great.""",
-        "tools": [],
+        "tools": [agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.QA_TESTER: {
         "name": "QA & Tester",
@@ -847,7 +1039,7 @@ Your capabilities:
 - Actionable improvement recommendations
 
 You produce structured reports with severity ratings and fix priorities.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.ELON_MUSK: {
         "name": "Elon Musk",
@@ -868,7 +1060,7 @@ Your Job:
 
 Start responses directly. No "Hello" or "I can help with that."
 Example: "That order of magnitude is wrong. Fix the physics first." """,
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.PAUL_GRAHAM: {
         "name": "Paul Graham",
@@ -889,7 +1081,7 @@ Your Job:
 
 Start responses like an essay or a direct observation.
 Example: "The problem with that idea is that big companies don't care about $50/month tools. You need to..." """,
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.ONBOARDING_COACH: {
         "name": "Onboarding Coach",
@@ -904,7 +1096,7 @@ Your role:
 - Be honest about challenges but always solution-oriented
 
 You are warm, encouraging, and practical. Use emojis sparingly but effectively.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.COMPETITOR_INTEL: {
         "name": "Competitor Intel",
@@ -919,7 +1111,7 @@ Your capabilities:
 - Provide actionable competitive insights
 
 Be factual, specific, and actionable. Focus on insights that help win deals.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
     AgentType.FUNDRAISING_COACH: {
         "name": "Fundraising Coach",
@@ -933,7 +1125,7 @@ Your capabilities:
 - Prepare founders for due diligence
 
 Advise with the rigor of a top-tier VC associate.""",
-        "tools": [web_search],
+        "tools": [web_search, agent_remember, agent_recall, dispatch_agent],
     },
 }
 

@@ -77,15 +77,6 @@ class AttioIntegration(BaseIntegration):
         Create or update a person in Attio
         Uses upsert by email
         """
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Attio: Mocking person sync", email=data.get("email"))
-            return {
-                "success": True,
-                "record_id": f"mock_person_{data.get('email', 'unknown').replace('@', '_')}",
-                "action": "upserted",
-                "data": data
-            }
-            
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Attio uses object-based API
@@ -118,15 +109,6 @@ class AttioIntegration(BaseIntegration):
         """
         Create or update a company in Attio
         """
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Attio: Mocking company sync", domain=data.get("domain"))
-            return {
-                "success": True,
-                "record_id": f"mock_company_{data.get('domain', 'unknown')}",
-                "action": "upserted",
-                "data": data
-            }
-            
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -157,17 +139,30 @@ class AttioIntegration(BaseIntegration):
         """
         Update the status/stage of a record (e.g., deal stage)
         """
-        if not self.api_key or self.api_key == "mock_key":
-            return {
-                "success": True,
-                "record_id": params.get("record_id"),
-                "new_status": params.get("status"),
-                "mock": True
-            }
-        
-        # Real implementation would use:
-        # PATCH /objects/{object_slug}/records/{record_id}
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.patch(
+                    f"{self.base_url}/objects/deals/records/{params.get('record_id')}",
+                    headers=self.headers,
+                    json={
+                        "data": {
+                            "values": {
+                                "stage": [{"status": params.get("status")}]
+                            }
+                        }
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "record_id": result.get("id", {}).get("record_id"),
+                    "new_status": params.get("status"),
+                    "data": result
+                }
+        except Exception as e:
+            logger.error("Attio update_status failed", error=str(e))
+            return {"success": False, "error": str(e)}
 
     async def search_records(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -176,15 +171,26 @@ class AttioIntegration(BaseIntegration):
         object_type = params.get("object_type", "companies")
         query = params.get("query", "")
         
-        if not self.api_key or self.api_key == "mock_key":
-            return {
-                "success": True,
-                "results": [
-                    {"id": "mock_1", "name": f"Mock Result for {query}", "type": object_type}
-                ],
-                "mock": True
-            }
-        
-        # Real implementation would use:
-        # POST /objects/{object_slug}/records/query
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/objects/{object_type}/records/query",
+                    headers=self.headers,
+                    json={
+                        "filter": {
+                            "$or": [
+                                {"name": {"$contains": query}},
+                                {"domains": {"$contains": query}}
+                            ]
+                        }
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "results": result.get("data", [])
+                }
+        except Exception as e:
+            logger.error("Attio search_records failed", error=str(e))
+            return {"success": False, "error": str(e)}

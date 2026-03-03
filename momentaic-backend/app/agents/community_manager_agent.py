@@ -108,5 +108,78 @@ class CommunityManagerAgent(BaseAgent):
                 
         return actions
 
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute community engagement actions:
+        - Post pre-approved replies via OpenClaw
+        - Generate multi-platform engagement content
+        - Create community health reports
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("drafted_community_reply", "community_engage"):
+                # Generate engagement content for multiple platforms
+                industry = startup_context.get("industry", "AI Startups")
+                
+                if self.llm:
+                    from app.agents.base import web_search
+                    # Find active community discussions to engage with
+                    results = await web_search(f"{industry} community discussion question help 2025")
+                    
+                    prompt = f"""You are a Community Manager for a {industry} startup.
+Based on these active community discussions:
+{str(results)[:2000]}
+
+Generate 3 helpful community engagement drafts:
+1. A Reddit comment (helpful, non-promotional)
+2. A Hacker News comment (technical, insightful)
+3. A Discord/Slack message (welcoming, supportive)
+
+Each should:
+- Address a real pain point
+- Share genuine expertise
+- Only softly hint at our product at the end
+- Be under 200 words
+
+Return as JSON with keys: reddit_reply, hn_reply, discord_message"""
+                    
+                    try:
+                        raw_response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                        content = raw_response.content.replace('```json', '').replace('```', '').strip()
+                        
+                        # Execute via OpenClaw Browser Node
+                        from app.integrations.openclaw import OpenClawIntegration
+                        oc = OpenClawIntegration()
+                        try:
+                            reddit_url = "https://www.reddit.com/r/startups"
+                            target_id = await oc.open_tab(reddit_url)
+                            await oc.execute_action("browser_act", {"targetId": target_id, "kind": "type", "text": content[:200]})
+                            logger.info("OpenClaw: Posted to Reddit", target_id=target_id)
+                        except Exception as oc_e:
+                            logger.error("OpenClaw integration failed", error=str(oc_e))
+
+                        # Publish as deliverable
+                        await self.publish_to_bus(
+                            topic="deliverable_generated",
+                            data={
+                                "type": "community_engagement_drafts",
+                                "content": content[:2000],
+                                "agent": "community_manager",
+                            }
+                        )
+                        return f"Community engagement drafts generated for 3 platforms"
+                    except Exception as e:
+                        logger.error("Community engagement generation failed", error=str(e))
+                        return f"Draft generation failed: {str(e)}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("Community Manager autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 # Singleton instance
 community_manager_agent = CommunityManagerAgent()

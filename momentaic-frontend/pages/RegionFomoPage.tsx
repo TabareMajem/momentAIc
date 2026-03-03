@@ -125,36 +125,6 @@ export default function RegionFomoPage() {
 
     const region = selectedRegion ? REGIONS[selectedRegion as keyof typeof REGIONS] : REGIONS['US'];
 
-    // 1. Live spot decrement simulation
-    useEffect(() => {
-        // Randomly decrement a spot every 10-40 seconds
-        const spotInterval = setInterval(() => {
-            if (Math.random() > 0.5) {
-                setRemainingSpots(prev => Math.max(3, prev - 1));
-                // Show a fake signup notification when spot drops
-                triggerSignupNotification();
-            }
-        }, 15000 + Math.random() * 20000);
-
-        return () => clearInterval(spotInterval);
-    }, []);
-
-    // 2. Fake signup ticker
-    const triggerSignupNotification = () => {
-        const location = LIVE_LOCATIONS[Math.floor(Math.random() * LIVE_LOCATIONS.length)];
-        const names = ['Alex', 'Sarah', 'Jorge', 'Mike', 'Emma', 'David', 'Maria', 'Chen'];
-        const name = names[Math.floor(Math.random() * names.length)];
-        setRecentSignup(`${name} from ${location} just joined!`);
-
-        setTimeout(() => setRecentSignup(null), 4000);
-    };
-
-    // Initial random signups
-    useEffect(() => {
-        const initialTimer = setTimeout(triggerSignupNotification, 3000);
-        return () => clearTimeout(initialTimer);
-    }, []);
-
     // End date: 48 hours from now (Aggressive)
     const endDate = new Date();
     endDate.setHours(endDate.getHours() + 48);
@@ -255,7 +225,7 @@ export default function RegionFomoPage() {
                         </div>
                         <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
                             <Zap className="w-3 h-3" />
-                            Selling out fast - 4 people viewing this page
+                            Selling out fast
                         </div>
                     </div>
 
@@ -306,8 +276,8 @@ export default function RegionFomoPage() {
                                 setRemainingSpots(r.initialRemaining);
                             }}
                             className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${selectedRegion === key
-                                    ? 'bg-white text-black border-white'
-                                    : 'bg-transparent text-white/60 border-white/10 hover:border-white/30'
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-white/60 border-white/10 hover:border-white/30'
                                 }`}
                         >
                             {r.flag} {r.name}

@@ -171,6 +171,21 @@ class MessageBus:
 
         await self.db.flush()
 
+        # Emit real-time telemetry to the UI via WebSocket
+        try:
+            from app.core.websocket import websocket_manager
+            import asyncio
+            payload_summary = str(payload.get("summary", topic))[:50] if payload else topic
+            ws_event = {
+                "type": "agent_action",
+                "agent": from_agent,
+                "action": f"Published to Bus: {payload_summary}",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            asyncio.create_task(websocket_manager.broadcast_to_startup(startup_id, ws_event))
+        except Exception as e:
+            logger.error("Failed to broadcast WS telemetry", error=str(e))
+
         logger.info(
             "A2A message published",
             from_agent=from_agent,

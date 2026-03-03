@@ -128,4 +128,88 @@ class CXGuardianAgent(BaseAgent):
                 logger.error("Failed to parse CX support reply", error=str(e))
 
 # Singleton instance
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for support tickets, customer complaints, and satisfaction drops.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        
+        from app.agents.base import web_search
+        results = await web_search(f"{industry} support tickets, customer complaints, and satisfaction drops 2025")
+        
+        if results:
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-pro", temperature=0.3)
+            if llm:
+                from langchain_core.messages import HumanMessage
+                prompt = f"""Analyze these results for a {industry} startup:
+{str(results)[:2000]}
+
+Identify the top 3 actionable insights. Be concise."""
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+                    from app.agents.base import BaseAgent
+                    if hasattr(self, 'publish_to_bus'):
+                        await self.publish_to_bus(
+                            topic="intelligence_gathered",
+                            data={
+                                "source": "CXGuardianAgent",
+                                "analysis": response.content[:1500],
+                                "agent": "cx_guardian_agent",
+                            }
+                        )
+                    actions.append({"name": "cx_issue_detected", "industry": industry})
+                except Exception as e:
+                    logger.error(f"CXGuardianAgent proactive scan failed", error=str(e))
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Auto-drafts support responses and escalates critical CX issues.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Customer experience monitoring and support automation agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "cx_guardian_agent",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("CXGuardianAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 cx_guardian_agent = CXGuardianAgent()

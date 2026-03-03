@@ -107,3 +107,55 @@ async def review_actions(
         "message": f"{updated_count} actions {new_status.value}",
         "updated_ids": [item.id for item in items if item.status == new_status]
     }
+
+@router.get("/magic-resolve")
+async def magic_resolve_action(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    1-Click Magic Link approval/rejection straight from the founder's email inbox.
+    No login required as the JWT is cryptographically signed.
+    """
+    import jwt
+    from fastapi.responses import HTMLResponse
+    from app.core.config import settings
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        action_id = payload.get("action_id")
+        approve = payload.get("approve", True)
+        
+        result = await db.execute(select(ActionItem).where(ActionItem.id == action_id))
+        item = result.scalars().first()
+        
+        if not item or item.status != ActionStatus.pending:
+            return HTMLResponse(
+                content="<body style='background:#000; color:#fff; font-family:sans-serif; text-align:center; padding:50px;'>"
+                        "<h2>Link Expired or Already Resolved</h2><p>This action is no longer pending.</p></body>",
+                status_code=400
+            )
+            
+        new_status = ActionStatus.approved if approve else ActionStatus.rejected
+        item.status = new_status
+        await db.commit()
+        
+        # In a real environment we would trigger the engine, but this MVPs it as approved
+        logger.info(f"Action {action_id} {'approved' if approve else 'rejected'} via Magic Link")
+        
+        color = "#10b981" if approve else "#ef4444"
+        verb = "Approved" if approve else "Rejected"
+        
+        return HTMLResponse(content=f"""
+        <body style='background:#000; color:#fff; font-family:sans-serif; text-align:center; padding:50px;'>
+            <h1 style='color: {color}'>Action {verb} Successfully</h1>
+            <p>The agent will proceed accordingly. You may close this window.</p>
+        </body>
+        """)
+        
+    except jwt.PyJWTError:
+        return HTMLResponse(
+            content="<body style='background:#000; color:#fff; font-family:sans-serif; text-align:center; padding:50px;'>"
+                    "<h2>Invalid or Expired Magic Link</h2></body>",
+            status_code=400
+        )

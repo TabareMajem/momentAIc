@@ -71,15 +71,6 @@ class TypefullyIntegration(BaseIntegration):
         """
         content = params.get("content")
         
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Typefully: Mocking create draft", content_preview=content[:50])
-            return {
-                "success": True,
-                "draft_id": "mock_draft_123",
-                "url": "https://typefully.com/draft/mock_123",
-                "status": "draft"
-            }
-            
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -109,14 +100,25 @@ class TypefullyIntegration(BaseIntegration):
         content = params.get("content")
         date = params.get("date") # ISO 8601
         
-        if not self.api_key or self.api_key == "mock_key":
-            logger.info("Typefully: Mocking schedule thread", date=date)
-            return {
-                "success": True,
-                "thread_id": "mock_thread_456",
-                "scheduled_at": date,
-                "status": "scheduled"
-            }
-        
-        # Real API call
-        return {"error": "Real API implementation pending"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/drafts/",
+                    headers=self.headers,
+                    json={
+                        "content": content,
+                        "threadify": True,
+                        "schedule-date": date
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                return {
+                    "success": True,
+                    "thread_id": result.get("id"),
+                    "scheduled_at": date,
+                    "status": "scheduled"
+                }
+        except Exception as e:
+            logger.error("Typefully schedule_thread failed", error=str(e))
+            return {"success": False, "error": str(e)}

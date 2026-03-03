@@ -541,3 +541,11 @@ api_router.include_router(
     prefix="/campaigns/global",
     tags=["Global Campaign"],
 )
+
+# Stripe Revenue Webhooks (CFO Agent Real-Time Triggers)
+from app.api.v1.endpoints import stripe_webhooks
+api_router.include_router(
+    stripe_webhooks.router,
+    prefix="/webhooks",
+    tags=["Stripe Webhooks"],
+)

@@ -16,6 +16,7 @@ import math
 from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.api.v1.router import api_router
+from app.middleware.rate_limit import RateLimitMiddleware
 
 # Configure structured logging
 structlog.configure(
@@ -307,6 +308,12 @@ async def lifespan(app: FastAPI):
     async def schedule_trend_scan():
         await run_trend_scan()
 
+    # 6e. SMS Urgency Escalation Check: Every 5 minutes
+    @scheduler.scheduled_job(IntervalTrigger(minutes=5), id='sms_escalation_check')
+    async def schedule_sms_escalation_check():
+        from app.services.notification_service import notification_service
+        await notification_service.check_sms_escalations()
+
     # 7. OpenClaw Heartbeat Engine: Every 30 minutes
     @scheduler.scheduled_job(IntervalTrigger(minutes=30), id='openclaw_heartbeat')
     async def schedule_openclaw_heartbeat():
@@ -327,9 +334,35 @@ async def lifespan(app: FastAPI):
         if char_config:
             await run_heartbeat_for_agent(char_config)
 
+    # ── SUPERBUILD: Real Execution Cron Jobs ─────────────────────
+
+    # 9. Social Post Publisher: Every 5 minutes
+    @scheduler.scheduled_job(IntervalTrigger(minutes=5), id='social_publisher')
+    async def schedule_social_publishing():
+        """Publish due social posts to Twitter/LinkedIn via real APIs"""
+        from app.services.social_scheduler import social_scheduler
+        await social_scheduler.publish_due_posts()
+
+    # 10. Email Outreach Queue: Every 5 minutes
+    @scheduler.scheduled_job(IntervalTrigger(minutes=5), id='outreach_queue')
+    async def schedule_outreach_queue():
+        """Process pending outreach emails via SendGrid/SMTP"""
+        from app.services.outreach_service import outreach_service
+        await outreach_service.process_queue()
+
+    # 11. Autonomous Agent Scan: Every 2 hours
+    @scheduler.scheduled_job(IntervalTrigger(hours=2), id='autonomous_scan')
+    async def schedule_autonomous_scan():
+        """Run proactive agent scan cycle on all real startups from DB"""
+        from app.services.autonomous_loop import autonomous_loop
+        await autonomous_loop.run_scan_cycle()
+
     scheduler.start()
     logger.info("🚀 SuperOS Heartbeat Scheduler: ACTIVE", jobs=len(scheduler.get_jobs()))
     logger.info("🧬 OpenClaw Heartbeat Engine: ACTIVE (runs every 30 min)")
+    logger.info("📡 Social Publisher: ACTIVE (runs every 5 min)")
+    logger.info("📧 Outreach Queue: ACTIVE (runs every 5 min)")
+    logger.info("🤖 Autonomous Agent Scan: ACTIVE (runs every 2 hours)")
     # === END SUPEROS ===
     
     yield
@@ -364,62 +397,7 @@ app.add_middleware(
 
 
 # Rate limiting middleware
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    """
-    Redis-backed rate limiting middleware.
-    Limits standard API requests based on settings.rate_limit_requests per settings.rate_limit_window.
-    """
-    # Skip rate limiting for static files, docs, health, and webhooks
-    path = request.url.path
-    if path.startswith(("/static", "/assets", "/api/v1/health", "/api/v1/docs", "/api/v1/redoc", "/api/stripe/webhook", "/api/v1/billing/webhook")):
-        return await call_next(request)
-        
-    # Get client IP (fallback to 127.0.0.1 if not behind proxy)
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    
-    # Optional: authenticated user rate limiting is better, but IP is a generic fallback
-    # In a full production app, you'd extract the JWT user ID here if present.
-    limit_key = f"rate_limit:{client_ip}"
-    
-    try:
-        import redis.asyncio as aioredis
-        redis_client = aioredis.from_url(settings.redis_url or "redis://localhost:6379/0", decode_responses=True)
-        
-        # Determine current window bucket (e.g., current minute)
-        current_time = int(time.time())
-        window_start = current_time - (current_time % settings.rate_limit_window)
-        bucket_key = f"{limit_key}:{window_start}"
-        
-        async with redis_client.pipeline(transaction=True) as pipe:
-            # Increment and set expiry concurrently
-            pipe.incr(bucket_key)
-            pipe.expire(bucket_key, settings.rate_limit_window * 2)
-            results = await pipe.execute()
-            
-            request_count = results[0]
-            
-            if request_count > settings.rate_limit_requests:
-                logger.warning("Rate limit exceeded", ip=client_ip, path=path, count=request_count, limit=settings.rate_limit_requests)
-                return JSONResponse(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    content={
-                        "success": False,
-                        "error": "Too many requests",
-                        "detail": f"Rate limit exceeded. Maximum {settings.rate_limit_requests} requests per {settings.rate_limit_window} seconds."
-                    },
-                    headers={"Retry-After": str(settings.rate_limit_window)}
-                )
-        
-        await redis_client.aclose()
-    except ImportError:
-        # Ignore if aioredis isn't installed (tests/dev)
-        pass
-    except Exception as e:
-        # Fail open if Redis is down
-        logger.warning("Rate limiter bypass (Redis error)", error=str(e))
-
-    return await call_next(request)
+app.add_middleware(RateLimitMiddleware)
 
 
 # Request logging middleware

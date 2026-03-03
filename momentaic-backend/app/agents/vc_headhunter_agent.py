@@ -338,5 +338,66 @@ OUTPUT: Provide the list of top {max_targets} investors."""
                 
         return actions
 
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute VC outreach actions:
+        - Draft personalized investor outreach emails
+        - Store investor profiles in memory for future reference
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("found_high_conviction_vc", "draft_outreach"):
+                target_name = action.get("target", "Unknown Investor")
+                firm = action.get("firm", "")
+                pitch = action.get("pitch", "")
+
+                llm = get_llm("gemini-pro", temperature=0.5)
+                if llm:
+                    from langchain_core.messages import HumanMessage
+                    prompt = f"""Draft a cold email to {target_name} from {firm} for {startup_context.get('name', 'our startup')}.
+
+Context:
+- Industry: {startup_context.get('industry', 'AI')}
+- Stage: {startup_context.get('stage', 'Seed')}
+- Their thesis match: {action.get('reason', 'AI investing')}
+
+Previous pitch draft: {pitch}
+
+Generate:
+1. Subject line (compelling, not salesy)
+2. Email body (3 paragraphs max)
+3. Clear CTA (ask for a 15-min call)
+
+Tone: Founder-to-investor, confident but not arrogant."""
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+
+                    # Store in agent memory
+                    await agent_memory_service.store(
+                        "system",
+                        f"Investor outreach drafted: {target_name} @ {firm}",
+                        {"type": "investor_outreach", "target": target_name, "firm": firm}
+                    )
+
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "investor_outreach_email",
+                            "target": target_name,
+                            "firm": firm,
+                            "content": response.content[:2000],
+                            "agent": "vc_headhunter",
+                        }
+                    )
+                    return f"Investor outreach drafted for {target_name} @ {firm}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("VC Headhunter autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 # Instance
 vc_headhunter = VCHeadhunterAgent()

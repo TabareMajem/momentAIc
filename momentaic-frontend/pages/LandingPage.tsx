@@ -231,7 +231,7 @@ export default function LandingPage() {
                                         e.preventDefault();
                                         const url = (e.currentTarget.elements.namedItem('startupUrl') as HTMLInputElement).value;
                                         if (url) {
-                                            navigate(`/demo?url=${encodeURIComponent(url)}`);
+                                            toast({ type: 'success', title: 'Analysis Started', message: 'Demo mode is currently being upgraded. Watch out for our real engine.' });
                                         }
                                     }}
                                     className="relative flex items-center"
@@ -260,9 +260,9 @@ export default function LandingPage() {
                         </div>
 
                         {isAuthenticated ? (
-                            <Link to="/dashboard">
+                            <Link to="/ghost-board">
                                 <Button className="h-8 px-4 text-xs font-mono bg-purple-600/20 text-purple-400 border border-purple-500/50 hover:bg-purple-600 hover:text-white clip-corner-4">
-                                    ENTER_DASHBOARD
+                                    ENTER_GHOSTBOARD
                                 </Button>
                             </Link>
                         ) : (

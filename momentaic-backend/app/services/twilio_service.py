@@ -43,4 +43,46 @@ class TwilioService:
             logger.error("Twilio Provisioning Error", error=str(e))
             raise ValueError(f"Failed to provision Twilio number: {str(e)}")
 
+    async def send_sms(self, to_phone: str, message: str) -> bool:
+        """
+        Send an SMS via Twilio REST API.
+        Uses TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SMS_FROM from env.
+        """
+        try:
+            account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            from_number = os.getenv("TWILIO_SMS_FROM", os.getenv("TWILIO_PHONE_NUMBER", ""))
+
+            if not account_sid or not auth_token or not from_number:
+                logger.warning("Twilio SMS credentials not configured, skipping SMS escalation")
+                return False
+
+            # Normalize phone number
+            clean_to = to_phone.strip()
+            if not clean_to.startswith("+"):
+                clean_to = f"+{clean_to}"
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
+                    auth=(account_sid, auth_token),
+                    data={
+                        "From": from_number,
+                        "To": clean_to,
+                        "Body": message[:1600],  # SMS limit
+                    }
+                )
+
+                if response.status_code == 201:
+                    logger.info("SMS sent successfully", to=clean_to)
+                    return True
+                else:
+                    logger.warning("SMS send failed", status=response.status_code, body=response.text[:200])
+                    return False
+
+        except Exception as e:
+            logger.error("SMS send error", error=str(e))
+            return False
+
 twilio_service = TwilioService()

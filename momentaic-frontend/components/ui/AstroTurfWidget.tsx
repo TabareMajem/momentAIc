@@ -13,7 +13,7 @@ interface Mention {
     content: string;
     relevanceScore: number;
     draftReply: string;
-    status: 'pending' | 'drafting' | 'ready' | 'deployed' | 'dismissed';
+    status: 'pending' | 'drafting' | 'drafted' | 'ready' | 'deployed' | 'dismissed';
 }
 
 export function AstroTurfWidget() {
@@ -34,7 +34,7 @@ export function AstroTurfWidget() {
                 platform: m.platform,
                 author: m.author,
                 content: m.content,
-                relevanceScore: Math.floor(Math.random() * 20) + 80, // Mock score for visually missing backend relevance
+                relevanceScore: m.relevanceScore || 85, // Backend score or default
                 draftReply: m.generated_reply,
                 status: m.status
             }));
@@ -93,13 +93,10 @@ export function AstroTurfWidget() {
         setIsScanning(true);
         toast({ type: 'info', title: 'RADAR SWEEP INITIATED', message: 'Scanning deep web communities via AstroTurf Daemon...' });
 
-        // In a full implementation, this could hit an endpoint to force the scan job.
-        // For now, we simulate the 'wait' and then fetch.
-        setTimeout(() => {
+        fetchMentions().finally(() => {
             setIsScanning(false);
-            fetchMentions();
             toast({ type: 'success', title: 'SCAN COMPLETE', message: 'Updated target matrices.' });
-        }, 3000);
+        });
     };
 
     // Filter out dismissed and deployed for active view

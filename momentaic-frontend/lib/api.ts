@@ -828,11 +828,6 @@ class ApiClient {
     return data;
   }
 
-  // === KILL SHOT: MAGIC URL DEMO (60-SECOND) ===
-  async runMagicDemo(url: string) {
-    const { data } = await this.client.post(`/api/v1/onboarding/magic-demo`, { url });
-    return data;
-  }
 }
 
 export const api = new ApiClient();

@@ -10,10 +10,6 @@ from app.core.database import AsyncSessionLocal
 from app.models.social import SocialPost, PostStatus, SocialPlatform
 from app.models.integration import Integration, IntegrationProvider, IntegrationStatus
 
-# Placeholder for real API Clients (we will implement these next)
-# from app.services.social.twitter import twitter_service
-# from app.services.social.linkedin import linkedin_service
-
 logger = structlog.get_logger()
 
 class SocialScheduler:
@@ -73,7 +69,7 @@ class SocialScheduler:
                     all_success = False
                     continue
                 
-                # 2. Publish (MVP: Mocked for now, will call real service)
+                # 2. Publish
                 try:
                     publish_result = await self._publish_to_platform(platform, post.content, creds)
                     results[platform] = publish_result

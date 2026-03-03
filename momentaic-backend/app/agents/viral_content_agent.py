@@ -129,4 +129,49 @@ class ViralContentAgent(BaseAgent):
             raise e
 
 # Singleton instance
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Generates viral content pieces (hooks, carousels, threads) based on trending topics.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Viral content generation and distribution agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "viral_content_agent",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("ViralContentAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 viral_content_agent = ViralContentAgent()

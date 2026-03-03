@@ -276,7 +276,86 @@ Help founders see the bigger picture."""
 - Industry: {ctx.get('industry', 'Technology')}
 - Stage: {ctx.get('stage', 'MVP')}
 - Description: {ctx.get('description', '')}"""
-    
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for strategic opportunities:
+        - Market landscape changes
+        - Competitive shifts
+        - Strategic pivots to consider
+        """
+        actions = []
+        industry = startup_context.get("industry", "Technology")
+        
+        # 1. Weekly market intelligence sweep
+        actions.append({
+            "action": "market_intelligence",
+            "name": "market_sweep",
+            "description": f"Scan for strategic shifts in {industry} landscape.",
+            "priority": "medium",
+            "agent": "StrategyAgent",
+        })
+        
+        # 2. Monthly strategy review
+        actions.append({
+            "action": "strategy_review",
+            "name": "strategy_review",
+            "description": "Generate monthly strategic positioning assessment.",
+            "priority": "low",
+            "agent": "StrategyAgent",
+        })
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive strategy action using REAL web search and LLM analysis.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type == "market_intelligence":
+                # Real web search for market shifts
+                industry = startup_context.get("industry", "Technology")
+                search_results = await web_search.ainvoke(f"{industry} market trends 2025 funding landscape shifts")
+                
+                if self.llm:
+                    prompt = f"""Analyze these market signals for a {industry} startup:
+
+{str(search_results)[:2000]}
+
+Provide:
+1. Top 3 strategic implications
+2. Emerging threats
+3. New opportunities
+4. Recommended strategic adjustments"""
+                    response = await self.llm.ainvoke(prompt)
+                    return f"Market intelligence brief generated: {response.content[:200]}"
+                return f"Market data collected: {str(search_results)[:200]}"
+            
+            elif action_type == "strategy_review":
+                # Generate strategic positioning assessment
+                if self.llm:
+                    prompt = f"""Strategic positioning assessment for {startup_context.get('name', 'startup')}.
+Industry: {startup_context.get('industry', 'Technology')}
+Stage: {startup_context.get('stage', 'MVP')}
+Description: {startup_context.get('description', '')}
+
+Generate:
+1. Current market position analysis
+2. Competitive advantages
+3. Strategic vulnerabilities
+4. Top 3 strategic priorities for next quarter"""
+                    response = await self.llm.ainvoke(prompt)
+                    return f"Strategy review generated: {response.content[:200]}"
+                return "LLM not available"
+            
+            else:
+                return f"Unknown action type: {action_type}"
+                
+        except Exception as e:
+            logger.error("Strategy autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 
 # Singleton

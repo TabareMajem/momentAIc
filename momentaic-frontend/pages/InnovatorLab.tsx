@@ -3,9 +3,8 @@ import { Brain, Search, Users, ShieldAlert, Rocket, Newspaper, AlertTriangle, Ch
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import toast from 'react-hot-toast';
-import { api } from '../lib/api'; // Import our API client
+import { api } from '../lib/api';
 
-// Helper for mocked API calls during development if backend isn't reachable yet
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const InnovatorLab: React.FC = () => {
@@ -73,23 +72,16 @@ const ProductArchitectWidget = () => {
         setIsLoading(true);
         setResult(null);
         try {
-            // Use local storage startup ID or mock
-            const startupId = localStorage.getItem('currentStartupId') || 'demo_startup';
+            // Get the active startup ID from local storage
+            const startupId = localStorage.getItem('currentStartupId') || '';
 
-            await api.runProductMission("spec_feature", feature, startupId);
+            const response = await api.runProductMission("spec_feature", feature, startupId);
             toast.success("Architect Agent started! Check back momentarily.");
 
-            // In a real app, we'd poll or wait for SSE. 
-            // For now, simulate a "thinking" delay then show a success message or mock result if instant.
-            // Since it's a background task, we might not get result immediately.
-            // But let's assume for demo purposes we want to simulate the interaction.
-
-            setTimeout(() => {
-                setResult({
-                    status: "started",
-                    message: "Agents are drafting the PRD. Check the 'Requests' log or Vault for output."
-                });
-            }, 1000);
+            setResult({
+                status: "started",
+                message: response?.data?.message || "Agents are drafting the PRD. Check the Vault for output."
+            });
 
         } catch (error) {
             console.error(error);

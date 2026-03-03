@@ -639,5 +639,252 @@ Format as JSON with 'steal_this' array."""
 # Import datetime for reports
 from datetime import datetime
 
+
+    # ── AUTONOMOUS PROACTIVITY ───────────────────────────────────────
+
+class _GrowthHackerProactiveMixin:
+    """Mixin added to GrowthHackerAgent below for proactive scanning."""
+    
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively identify growth opportunities:
+        - Scan trending topics in the startup's industry
+        - Propose social monitoring sweeps for Reddit/HN
+        - Suggest weekly growth reports
+        """
+        actions = []
+        industry = startup_context.get("industry", "Technology")
+        
+        # 1. Trending topic scan for content opportunities
+        try:
+            trends = await get_trending_topics.ainvoke({"industry": industry, "platform": "twitter"})
+            if trends and isinstance(trends, list) and len(trends) > 0:
+                actions.append({
+                    "action": "generate_trend_content",
+                    "name": "trend_content",
+                    "description": f"Generate content around trending topic: {trends[0]}",
+                    "priority": "high",
+                    "agent": "GrowthHackerAgent",
+                    "topic": trends[0] if isinstance(trends[0], str) else str(trends[0]),
+                })
+        except Exception as e:
+            logger.warning("GrowthHacker proactive trend scan failed", error=str(e))
+        
+        # 2. Social monitoring sweep (Reddit, HN)
+        keywords = [
+            startup_context.get("name", ""),
+            industry,
+            startup_context.get("description", "")[:30],
+        ]
+        keywords = [k for k in keywords if k]
+        
+        if keywords:
+            actions.append({
+                "action": "social_monitor",
+                "name": "reddit_monitor",
+                "description": f"Monitor Reddit/HN for discussions about: {', '.join(keywords[:3])}",
+                "priority": "medium",
+                "agent": "GrowthHackerAgent",
+                "keywords": keywords[:3],
+            })
+        
+        # 3. Weekly growth report
+        actions.append({
+            "action": "weekly_report",
+            "name": "growth_report",
+            "description": "Generate weekly growth report with metrics analysis and recommendations.",
+            "priority": "low",
+            "agent": "GrowthHackerAgent",
+        })
+        
+        if actions:
+            await self.publish_to_bus(
+                topic="growth_opportunities_found",
+                data={"summary": f"Found {len(actions)} growth opportunities", "count": len(actions)},
+            )
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive growth action using REAL services.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        agent_name = "GrowthHackerAgent"
+        
+        try:
+            if action_type == "generate_trend_content":
+                # Generate real content about the trending topic
+                from app.agents.content_agent import content_agent
+                from app.models.growth import ContentPlatform
+                
+                topic = action.get("topic", startup_context.get("industry", "Technology"))
+                result = await content_agent.generate(
+                    platform=ContentPlatform.LINKEDIN,
+                    topic=topic,
+                    startup_context=startup_context,
+                    content_type="post",
+                    tone="professional",
+                    trend_based=False,
+                )
+                
+                if result.get("success"):
+                    # Schedule the generated content for posting
+                    from app.services.social_scheduler import social_scheduler
+                    content_body = result.get("content", {}).get("full_body", "")
+                    if content_body:
+                        post = await social_scheduler.schedule_post(
+                            startup_id=startup_context.get("id", startup_context.get("startup_id", "")),
+                            content=content_body,
+                            platforms=["linkedin"],
+                            scheduled_at=datetime.utcnow(),
+                        )
+                        return f"Content generated and scheduled for LinkedIn (post_id: {post.id})"
+                    return f"Content generated but empty body: {result}"
+                return f"Content generation failed: {result.get('error', 'unknown')}"
+                    
+            elif action_type == "social_monitor":
+                # Run real social monitoring
+                keywords = action.get("keywords", [startup_context.get("industry", "tech")])
+                result = await self.monitor_social(keywords=keywords, platform="reddit", limit=3)
+                opportunities = result.get("opportunities", [])
+                return f"Social monitor found {len(opportunities)} relevant discussions"
+                
+            elif action_type == "weekly_report":
+                # Generate real weekly report
+                result = await self.weekly_growth_report(startup_context=startup_context)
+                if result.get("success"):
+                    return f"Weekly growth report generated successfully"
+                return f"Report generation incomplete: {result.get('error', 'no data')}"
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # NEW: 2025/2026 Growth-Strategy Actions
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            elif action_type == "plg_funnel_audit":
+                # Product-Led Growth: analyze signup-to-activation funnel
+                if self.llm:
+                    metrics = startup_context.get("metrics", {})
+                    prompt = f"""You are a Product-Led Growth expert auditing {startup_context.get('name', 'this startup')}.
+
+Industry: {startup_context.get('industry', 'SaaS')}
+Current Metrics:
+- Visitors/mo: {metrics.get('visitors', 'N/A')}
+- Signup Rate: {metrics.get('signup_rate', 'N/A')}%
+- Activation Rate: {metrics.get('activation_rate', 'N/A')}%
+- Time to Value: {metrics.get('time_to_value', 'N/A')}
+
+Perform a comprehensive PLG audit:
+
+1. **Friction Points**: Identify the top 5 friction points in signup → activation
+2. **Quick Wins**: 3 changes that can be implemented in <1 day to improve activation
+3. **Self-Serve Blockers**: What prevents users from getting value without human help?
+4. **Aha Moment Analysis**: What's the likely "aha moment"? How fast do users reach it?
+5. **Free-to-Paid Conversion**: Optimal paywall placement and pricing trigger points
+6. **Benchmark Comparison**: Compare to industry PLG benchmarks (Slack, Notion, Figma patterns)
+
+Format as structured JSON with actionable recommendations."""
+
+                    response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                    parsed = safe_parse_json(response.content)
+
+                    await self.publish_to_bus(
+                        topic="plg_audit_complete",
+                        data={"summary": "PLG funnel audit completed with actionable recommendations", "audit": parsed or response.content[:500]},
+                        target_agents=["ContentAgent", "SDRAgent"],
+                    )
+                    return f"PLG funnel audit completed for {startup_context.get('name', 'startup')}"
+                return "LLM not available"
+
+            elif action_type == "viral_loop_designer":
+                # Design referral/invite mechanics based on the startup's product type
+                if self.llm:
+                    product_type = startup_context.get("description", startup_context.get("industry", "SaaS"))
+                    prompt = f"""You are a viral growth engineer. Design a complete viral loop system for:
+
+Product: {startup_context.get('name', 'this product')}
+Type: {product_type[:200]}
+Industry: {startup_context.get('industry', 'SaaS')}
+
+Design 3 viral loop mechanisms:
+
+**Loop 1: Built-in Viral (Product-Native)**
+- What action naturally shares the product?
+- How to amplify it (e.g., "Made with [Product]" watermarks, shared workspaces)
+- Expected K-factor improvement
+
+**Loop 2: Incentive-Based Referral**
+- Reward structure (2-sided: referrer + referee)
+- Optimal reward type (credits, features, cash)
+- Friction-minimized sharing flow (1-click)
+
+**Loop 3: Content Viral**
+- User-generated content that promotes the product
+- Templates/tools that users share naturally
+- Social proof mechanics
+
+For each loop:
+- Implementation effort (Low/Med/High)
+- Expected K-factor contribution
+- Time to first results
+
+Format as structured JSON."""
+
+                    response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                    parsed = safe_parse_json(response.content)
+                    return f"Viral loop system designed: {str(parsed)[:300] if parsed else response.content[:300]}"
+                return "LLM not available"
+
+            elif action_type == "expansion_revenue_finder":
+                # Identify upsell opportunities from usage data
+                if self.llm:
+                    metrics = startup_context.get("metrics", {})
+                    prompt = f"""You are a revenue expansion specialist for {startup_context.get('name', 'this SaaS')}.
+
+Current Metrics:
+- MRR: ${metrics.get('mrr', 0)}
+- Active Customers: {metrics.get('customers', 0)}
+- ARPU: ${metrics.get('arpu', 0)}
+- Industry: {startup_context.get('industry', 'SaaS')}
+
+Identify expansion revenue opportunities:
+
+1. **Usage-Based Upsells**: What usage thresholds should trigger upgrade prompts?
+2. **Feature Gating Strategy**: Which features should be premium vs free?
+3. **Seat Expansion**: How to encourage team-wide adoption (land-and-expand)?
+4. **Add-On Products**: What complementary products/services can be offered?
+5. **Annual Plan Incentives**: Optimal discount for annual commitment
+6. **Enterprise Tier Design**: What separates a $50/mo plan from a $500/mo plan?
+
+For each opportunity, estimate:
+- Revenue impact (% MRR increase)
+- Implementation complexity
+- Time to revenue
+
+Format as JSON with priorities ranked by effort-to-impact ratio."""
+
+                    response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+                    parsed = safe_parse_json(response.content)
+
+                    await self.publish_to_bus(
+                        topic="expansion_opportunities_found",
+                        data={"summary": "Expansion revenue opportunities identified", "opportunities": parsed or response.content[:500]},
+                        target_agents=["FinanceCFOAgent", "SDRAgent"],
+                    )
+                    return f"Expansion revenue opportunities identified for {startup_context.get('name', 'startup')}"
+                return "LLM not available"
+                
+            else:
+                return f"Unknown action type: {action_type}"
+                
+        except Exception as e:
+            logger.error(f"{agent_name} autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
+
+# Apply the mixin to GrowthHackerAgent
+GrowthHackerAgent.proactive_scan = _GrowthHackerProactiveMixin.proactive_scan
+GrowthHackerAgent.autonomous_action = _GrowthHackerProactiveMixin.autonomous_action
+
 # Singleton instance
 growth_hacker_agent = GrowthHackerAgent()

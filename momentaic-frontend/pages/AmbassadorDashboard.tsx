@@ -447,7 +447,7 @@ export default function AmbassadorDashboard() {
         }
     };
 
-    const isSuperAdmin = user?.email === 'tabaremajem@gmail.com';
+    const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'admin@momentaic.com';
 
     if (loading) {
         return (

@@ -22,7 +22,7 @@ class LeadMagnetGenerator:
         # We enforce "deepseek-chat" (V3) or "deepseek-reasoner" (R1) for this
         # because generating valid, complex JSON syntax requires top-tier reasoning.
         self.llm = get_llm("deepseek-chat", temperature=0.7)
-        self.output_dir = Path("/root/momentaic/momentaic-backend/data/blueprints")
+        self.output_dir = Path("/app/data/blueprints")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
     async def generate_n8n_blueprint(self, prospect_context: str, specific_request: str) -> Dict[str, Any]:

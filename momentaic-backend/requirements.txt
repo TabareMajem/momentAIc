@@ -32,11 +32,11 @@ langgraph==0.1.5
 google-generativeai==0.7.2
 google-genai>=0.3.0
 anthropic==0.31.2
-openai==1.35.3
+openai>=1.42.0,<2.0.0
 tiktoken==0.7.0
 
 # HTTP & External APIs
-httpx>=0.27.1,<0.28.0
+httpx>=0.27.1
 aiohttp==3.9.5
 playwright==1.44.0
 twilio==9.0.4
@@ -51,7 +51,7 @@ pywebpush==1.14.0
 fpdf2==2.7.9
 
 # WebSocket
-websockets==12.0
+websockets>=12.0
 
 # Scheduler (for proactive triggers)
 apscheduler==3.10.4

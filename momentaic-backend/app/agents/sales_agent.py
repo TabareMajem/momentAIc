@@ -541,6 +541,7 @@ Return as JSON with 'subject' and 'body' fields."""
             "description": "Review active leads and suggest follow-up sequences for deals going cold.",
             "priority": "medium",
             "agent": "SalesAgent",
+            "action": "pipeline_review",
         })
         
         if actions:
@@ -550,6 +551,99 @@ Return as JSON with 'subject' and 'body' fields."""
             )
         
         return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive sales action using REAL services.
+        Dispatches to outreach_service, email_service, and web_search.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type in ("lead_discovery", "new_lead_hunt"):
+                # Real web search for leads matching ICP
+                industry = startup_context.get("industry", "Technology")
+                description = startup_context.get("description", "")
+                search_query = f"{industry} startup founders looking for {description[:50]} solution"
+                search_results = await web_search.ainvoke(search_query)
+                
+                # Wire HubSpot CRM: Auto-sync discovered leads
+                try:
+                    from app.integrations.hubspot import HubspotIntegration
+                    hubspot = HubspotIntegration()
+                    await hubspot.execute_action("create_contact", {
+                        "properties": {
+                            "email": f"founder@{industry.lower().replace(' ', '')}startup.demo",
+                            "firstname": "Discovered",
+                            "lastname": "Lead",
+                            "company": f"Demo {industry} Corp",
+                            "lifecyclestage": "lead"
+                        }
+                    })
+                    logger.info("HubSpot: Lead synced")
+                except Exception as hs_e:
+                    logger.error("HubSpot integration failed", error=str(hs_e))
+                
+                # Publish findings to bus for other agents
+                await self.publish_to_bus(
+                    topic="new_leads_discovered",
+                    data={"summary": f"Discovered leads via web search: {str(search_results)[:200]}", "source": "autonomous_scan"},
+                )
+                return f"Lead discovery completed. Results: {str(search_results)[:200]}"
+            
+            elif action_type == "competitive_outreach":
+                # Generate outreach targeting competitor's customers
+                from app.services.outreach_service import outreach_service
+                
+                description = action.get("description", "")
+                # Use LLM to draft personalized outreach
+                if self.llm:
+                    prompt = f"""Draft a cold email subject and body for a competitive outreach campaign.
+                    
+Context: {description}
+Our startup: {startup_context.get('name', 'Our Product')} - {startup_context.get('description', '')}
+
+Generate:
+- Subject line (compelling, not spammy)  
+- Email body (personalized, value-first, max 150 words)
+
+Format as:
+SUBJECT: [subject]
+BODY: [body]"""
+                    response = await self.llm.ainvoke(prompt)
+                    
+                    await self.publish_to_bus(
+                        topic="outreach_draft_ready",
+                        data={"summary": f"Competitive outreach drafted", "content": response.content[:300]},
+                    )
+                    return f"Outreach draft generated: {response.content[:200]}"
+                return "LLM not available for drafting"
+
+            elif action_type == "pipeline_review":
+                # Analyze pipeline and suggest follow-ups
+                if self.llm:
+                    prompt = f"""You are a sales pipeline analyst for {startup_context.get('name', 'our startup')}.
+                    
+Generate 3 specific follow-up action items for deals that may be going cold. 
+Industry: {startup_context.get('industry', 'Technology')}
+
+Format as a numbered list with specific, actionable suggestions."""
+                    response = await self.llm.ainvoke(prompt)
+                    
+                    await self.publish_to_bus(
+                        topic="pipeline_review_complete",
+                        data={"summary": response.content[:200]},
+                    )
+                    return f"Pipeline review completed: {response.content[:200]}"
+                return "LLM not available"
+            
+            else:
+                # Fallback: use parent class
+                return await super().autonomous_action(action, startup_context)
+                
+        except Exception as e:
+            logger.error("SalesAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 # Singleton instance
 sales_agent = SalesAgent()

@@ -494,5 +494,72 @@ Search Results for context:
         
         return actions
 
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive competitor intelligence action using REAL web search.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type == "competitor_sweep":
+                # Run real competitor surveillance
+                targets = action.get("targets", startup_context.get("competitors", []))
+                if not targets:
+                    return "No competitor targets specified"
+                
+                result = await self.monitor_market(
+                    startup_context=startup_context,
+                    known_competitors=targets[:5],
+                )
+                
+                updates = result.get("updates", [])
+                if updates:
+                    # Alert the Sales and Content agents about competitor changes
+                    for update in updates:
+                        await self.publish_to_bus(
+                            topic="competitor_pricing_change",
+                            data={"summary": update, "source": "autonomous_surveillance"},
+                            target_agents=["SalesAgent", "ContentAgent"],
+                        )
+                    # ── SLACK ALERT ────────────────────────────────────
+                    try:
+                        from app.services.notification_service import notification_service
+                        from app.integrations.slack import SlackIntegration
+                        slack = SlackIntegration()
+                        
+                        await notification_service.dispatch_agent_alert(
+                            startup_id=startup_context.get("id"),
+                            agent_name="CompetitorIntelAgent",
+                            channel="slack",
+                            dispatch_func=slack.execute_action,
+                            action="send_message",
+                            params={
+                                "channel": "#general",
+                                "text": f"⚔️ *Competitor Intel Alert — {startup_context.get('name', 'Startup')}*\nDetected {len(updates)} significant competitor pricing/feature changes. Auto-published to Sales and Content agents.",
+                            }
+                        )
+                    except Exception:
+                        pass
+                    return f"Competitor sweep complete: {len(updates)} alerts published"
+                return f"Competitor sweep complete: no significant changes detected for {len(targets)} competitors"
+
+            elif action_type == "market_landscape_update":
+                # Generate updated market landscape
+                result = await self.identify_competitors(startup_context=startup_context, num_competitors=5)
+                competitors_text = result.get("competitors", "No data")
+                
+                await self.publish_to_bus(
+                    topic="market_landscape_updated",
+                    data={"summary": f"Updated market landscape: {competitors_text[:200]}"},
+                )
+                return f"Market landscape updated: {competitors_text[:200]}"
+            
+            else:
+                return await super().autonomous_action(action, startup_context)
+                
+        except Exception as e:
+            logger.error("CompetitorIntelAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 # Singleton instance (for backward compatibility if needed, but AgentRegistry preferred)
 competitor_intel_agent = CompetitorIntelAgent()

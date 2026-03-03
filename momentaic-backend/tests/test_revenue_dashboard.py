@@ -76,8 +76,10 @@ async def test_stripe_integration_sync_logic():
                 }],
                 "has_more": False
             }),
-            # Customers call
+            # Customers call (Total)
             MagicMock(status_code=200, json=lambda: {"data": [1, 2, 3], "has_more": False}),
+            # Customers call (New this month)
+            MagicMock(status_code=200, json=lambda: {"data": [2, 3], "has_more": False}),
             # Active Subs call
             MagicMock(status_code=200, json=lambda: {"total_count": 50}),
             # Trialing Subs call

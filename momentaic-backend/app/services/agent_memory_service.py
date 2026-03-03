@@ -35,7 +35,7 @@ class AgentMemoryService:
     ) -> str:
         """Record an agent action for outcome tracking. Returns outcome_id."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import AgentOutcome
             from uuid import UUID
 
@@ -87,7 +87,7 @@ class AgentMemoryService:
     ):
         """Mark an outcome as resolved with its result."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import AgentOutcome, OutcomeStatus
             from sqlalchemy import select
             from uuid import UUID
@@ -119,7 +119,7 @@ class AgentMemoryService:
     ) -> Dict[str, Any]:
         """Get success rate for an agent over the past N days."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import AgentOutcome, OutcomeStatus
             from sqlalchemy import select, func
             from datetime import timedelta
@@ -167,7 +167,7 @@ class AgentMemoryService:
     ):
         """Store or update a memory for an agent."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import AgentMemoryEntry, MemoryType
             from sqlalchemy import select
             from uuid import UUID
@@ -216,7 +216,7 @@ class AgentMemoryService:
     ) -> List[Dict[str, Any]]:
         """Recall memories for an agent. Filter by key or type."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import AgentMemoryEntry, MemoryType
             from sqlalchemy import select, or_
             from uuid import UUID
@@ -289,7 +289,7 @@ class AgentMemoryService:
     ) -> bool:
         """Check if a lead has already been found for this startup."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import LeadFingerprint
             from sqlalchemy import select
 
@@ -314,7 +314,7 @@ class AgentMemoryService:
     ):
         """Register a lead fingerprint to prevent future duplicates."""
         try:
-            from app.core.database import async_session
+            from app.core.database import async_session_maker as async_session
             from app.models.agent_memory import LeadFingerprint
             from uuid import UUID
 

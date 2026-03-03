@@ -42,7 +42,7 @@ export default function OnboardingWizard() {
                 savedAt: new Date().toISOString()
             }));
         }
-        navigate('/dashboard');
+        navigate('/ghost-board');
     };
 
     return (

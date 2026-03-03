@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       setError('');
       await login(data.email, data.password);
-      navigate('/dashboard');
+      navigate('/ghost-board');
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     }
@@ -32,7 +32,7 @@ export default function LoginPage() {
       const result = await signInWithGoogle();
       const idToken = await result.user.getIdToken();
       await firebaseLogin(idToken);
-      navigate('/dashboard');
+      navigate('/ghost-board');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/account-exists-with-different-credential') {
@@ -49,7 +49,7 @@ export default function LoginPage() {
       const result = await signInWithGithub();
       const idToken = await result.user.getIdToken();
       await firebaseLogin(idToken);
-      navigate('/dashboard');
+      navigate('/ghost-board');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/account-exists-with-different-credential') {

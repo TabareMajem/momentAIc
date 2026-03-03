@@ -104,7 +104,27 @@ class GmailIntegration(BaseIntegration):
     async def execute_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute email actions"""
         if action == "send_email":
-            return self._send_email(params)
+            priority = params.get("priority", "urgent")
+            
+            if priority in ("normal", "low"):
+                recipient = params.get("to")
+                try:
+                    import json
+                    from app.core.redis_client import redis_client
+                    queue_key = f"email_digest_queue:{recipient}"
+                    await redis_client.rpush(queue_key, json.dumps({
+                        "subject": params.get("subject"),
+                        "body": params.get("body"),
+                        "html_body": params.get("html_body"),
+                        "agent_name": params.get("agent_name", "Autonomous Agent")
+                    }))
+                    logger.info(f"GmailIntegration: Email queued for digest for {recipient}")
+                    return {"success": True, "status": "queued", "recipient": recipient}
+                except Exception as e:
+                    logger.error(f"GmailIntegration: Queue failed, sending sync", error=str(e))
+                    return self._send_email(params)
+            else:
+                return self._send_email(params)
         return {"success": False, "error": f"Unknown action: {action}"}
 
     def _send_email(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -130,12 +150,24 @@ class GmailIntegration(BaseIntegration):
              return {"success": False, "error": "Missing recipient or body"}
 
         try:
-            # 2. Construct Message
-            msg = MIMEMultipart()
+            # 2. Construct Message (Alternative allows both Plain and HTML)
+            msg = MIMEMultipart('alternative')
             msg['From'] = username
             msg['To'] = recipient
             msg['Subject'] = subject
+            
+            # Add Plain Text Fallback
             msg.attach(MIMEText(body, 'plain'))
+            
+            # Add Premium HTML Version
+            html_body = params.get("html_body")
+            if not html_body:
+                agent_name = params.get("agent_name", "Autonomous Agent")
+                action_buttons = params.get("action_buttons")
+                severity = params.get("severity") or params.get("priority", "info")
+                html_body = self._build_html_template(subject, body, agent_name, action_buttons, severity)
+                
+            msg.attach(MIMEText(html_body, 'html'))
             
             # 3. Connect & Send
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
@@ -149,5 +181,82 @@ class GmailIntegration(BaseIntegration):
         except Exception as e:
             logger.error("Gmail send failed", error=str(e))
             return {"success": False, "error": str(e)}
+
+    def _build_html_template(self, title: str, content: str, agent_name: str, action_buttons: str = None, severity: str = "info") -> str:
+        """Wraps plain text content into a premium, dark-mode branded HTML template with dynamic severity styling."""
+        import re
+        
+        # Convert newlines to breaks
+        html_content = content.replace('\n', '<br>')
+        
+        # Super simple markdown conversion for bolding/italics/lists
+        html_content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #ffffff;">\1</strong>', html_content)
+        html_content = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html_content)
+        html_content = re.sub(r'#{1,3}\s(.*?)<br>', r'<h3 style="color: #ffffff; margin-top: 16px; margin-bottom: 8px;">\1</h3>', html_content)
+        
+        # Convert bullet points
+        html_content = html_content.replace('<br>- ', '<br>&bull; ')
+        
+        # Severity Themes mapping
+        gradients = {
+            "info": "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+            "normal": "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+            "low": "linear-gradient(135deg, #64748b 0%, #475569 100%)",       # Slate
+            "success": "linear-gradient(135deg, #10b981 0%, #059669 100%)",   # Emerald
+            "warning": "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",   # Amber
+            "medium": "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",    # Amber
+            "critical": "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",  # Red
+            "urgent": "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",    # Red
+            "high": "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",      # Red
+        }
+        header_gradient = gradients.get(severity.lower(), gradients["info"])
+        
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #000000; margin: 0; padding: 40px 20px; }}
+                .wrapper {{ width: 100%; table-layout: fixed; background-color: #000000; padding-bottom: 40px; }}
+                .main-container {{ max-width: 600px; margin: 0 auto; background-color: #111111; border-radius: 12px; border: 1px solid #222222; overflow: hidden; }}
+                .header {{ background: {header_gradient}; padding: 24px 32px; text-align: left; }}
+                .header h1 {{ margin: 0; color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }}
+                .content-box {{ padding: 32px; font-size: 15px; line-height: 1.6; color: #a1a1aa; }}
+                .badge {{ display: inline-block; background-color: rgba(139, 92, 246, 0.15); color: #c4b5fd; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid rgba(139, 92, 246, 0.3); }}
+                .content-title {{ color: #ffffff; margin-top: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 24px; }}
+                .code-block {{ background-color: #000000; border: 1px solid #222222; border-radius: 8px; padding: 16px; margin: 20px 0; font-family: monospace; font-size: 13px; color: #d4d4d8; overflow-x: auto; }}
+                .btn-container {{ margin-top: 32px; padding-top: 24px; border-top: 1px solid #222222; }}
+                .btn {{ display: inline-block; background-color: #ffffff; color: #000000 !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s; }}
+                .footer {{ padding: 24px; text-align: center; font-size: 12px; color: #52525b; }}
+            </style>
+        </head>
+        <body>
+            <center class="wrapper">
+                <div class="main-container">
+                    <div class="header">
+                        <h1>MomentAIc OS</h1>
+                    </div>
+                    <div class="content-box">
+                        <span class="badge">{agent_name}</span>
+                        <h2 class="content-title">{title}</h2>
+                        <div>{html_content}</div>
+                        
+                        {
+                            f'<div class="btn-container" style="display: flex; gap: 12px;">{action_buttons}</div>'
+                            if action_buttons 
+                            else '<div class="btn-container"><a href="https://momentaic.com/dashboard" class="btn">View & Execute in Dashboard &rarr;</a></div>'
+                        }
+                    </div>
+                </div>
+                <div class="footer">
+                    Sent autonomously by your Synthetic Co-Founders.<br>
+                    You can manage agent permissions in your Vault settings.
+                </div>
+            </center>
+        </body>
+        </html>
+        """
 
 gmail_integration = GmailIntegration()

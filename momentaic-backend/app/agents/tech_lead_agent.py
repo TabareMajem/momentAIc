@@ -312,6 +312,91 @@ Provide:
 
         return actions
 
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute tech lead autonomous actions:
+        - Generate tech debt report
+        - Create performance optimization plan
+        - Produce infrastructure health assessment
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("infra_alert_error_spike", "infra_alert_uptime", "investigate_error"):
+                # Investigate and generate incident report
+                if self.llm:
+                    error_rate = action.get("error_rate", "unknown")
+                    uptime = action.get("uptime", "unknown")
+                    prompt = f"""An infrastructure alert was detected for {startup_context.get('name', 'startup')}:
+- Error Rate: {error_rate}/hr
+- Uptime: {uptime}%
+
+Generate an incident investigation checklist:
+1. Immediate triage steps
+2. Common root causes for this pattern
+3. Diagnostic commands to run
+4. Escalation criteria
+5. Post-incident action items"""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self.config["system_prompt"]),
+                        HumanMessage(content=prompt),
+                    ])
+                    
+                    # Wire GitHub integration: Auto-create incident issue
+                    try:
+                        from app.integrations.github import GithubIntegration
+                        gh = GithubIntegration()
+                        repo_name = startup_context.get("name", "startup").lower().replace(" ", "-")
+                        await gh.execute_action("create_issue", {
+                            "repo": f"momentaic/{repo_name}",
+                            "title": f"🚨 [Incident]: Infra Alert ({error_rate}/hr errors)",
+                            "body": response.content[:2000]
+                        })
+                        logger.info("GitHub: Incident issue created")
+                    except Exception as gh_e:
+                        logger.error("GitHub integration failed", error=str(gh_e))
+
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "incident_report",
+                            "content": response.content[:2000],
+                            "agent": "tech_lead",
+                        }
+                    )
+                    return f"Incident investigation generated & GitHub Issue created: {response.content[:200]}"
+                return "LLM not available"
+
+            elif action_type in ("website_down", "performance_audit"):
+                # Generate performance optimization plan
+                url = action.get("url", startup_context.get("website_url", ""))
+                search_results = await web_search(f"website performance optimization checklist 2025")
+                if self.llm:
+                    prompt = f"""Generate a performance optimization plan for {url}.
+
+Based on best practices:
+{str(search_results)[:1500]}
+
+Provide:
+1. Critical performance bottlenecks to check
+2. Quick wins (< 1 hour each)
+3. Medium-term improvements
+4. Infrastructure recommendations
+5. Monitoring setup"""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self.config["system_prompt"]),
+                        HumanMessage(content=prompt),
+                    ])
+                    return f"Performance plan generated: {response.content[:200]}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("TechLead autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 
 # Singleton instance
 tech_lead_agent = TechLeadAgent()

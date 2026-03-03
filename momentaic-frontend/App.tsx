@@ -58,8 +58,6 @@ const GrowthPlaybook = lazy(() => import('./pages/GrowthPlaybook'));
 const CharacterFactory = lazy(() => import('./pages/CharacterFactory'));
 const GuerrillaWarfare = lazy(() => import('./pages/GuerrillaWarfare'));
 const TelemetryCore = lazy(() => import('./pages/TelemetryCore'));
-const OpenClawProxy = lazy(() => import('./pages/OpenClawProxy'));
-const CallCenter = lazy(() => import('./pages/CallCenter'));
 const FeatureArsenal = lazy(() => import('./pages/FeatureArsenal'));
 const LiveAgentView = lazy(() => import('./pages/LiveAgentView'));
 const AutonomySettings = lazy(() => import('./pages/AutonomySettings'));
@@ -72,8 +70,8 @@ const WarRoomDashboard = lazy(() => import('./pages/WarRoomDashboard'));
 const ExperimentsLab = lazy(() => import('./pages/ExperimentsLab'));
 const Campaigns = lazy(() => import('./pages/Campaigns'));
 const AgentComposability = lazy(() => import('./pages/AgentComposability'));
-const MagicDemo = lazy(() => import('./pages/MagicDemo'));
 const HitLDashboard = lazy(() => import('./pages/HitLDashboard'));
+const GhostBoard = lazy(() => import('./pages/GhostBoard'));
 import { ResearchWhitepaper } from './components/marketing/ResearchWhitepaper';
 
 const PageLoader = () => (
@@ -160,13 +158,12 @@ export default function App() {
             <Route path="/genius" element={<Navigate to="/onboarding/genius" replace />} />
 
             <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/from-lovable" element={<FromLovable />} />
             <Route path="/from-bolt" element={<FromBolt />} />
-            <Route path="/demo" element={<MagicDemo />} />
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/ghost-board" element={<GhostBoard />} />
               <Route path="/hitl" element={<HitLDashboard />} />
               <Route path="/war-room" element={<WarRoomDashboard />} />
 
@@ -217,8 +214,6 @@ export default function App() {
               <Route path="/characters" element={<CharacterFactory />} />
               <Route path="/live" element={<LiveAgentView />} />
               <Route path="/telemetry" element={<TelemetryCore />} />
-              <Route path="/openclaw" element={<OpenClawProxy />} />
-              <Route path="/call-center" element={<CallCenter />} />
               <Route path="/viral-swarm" element={<ViralSwarm />} />
               <Route path="/global-campaign" element={<GlobalCampaign />} />
               <Route path="/composability" element={<AgentComposability />} />

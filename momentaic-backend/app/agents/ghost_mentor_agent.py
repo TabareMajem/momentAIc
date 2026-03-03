@@ -4,7 +4,7 @@ Acts as a ruthless, highly experienced startup mentor (Paul Graham, Elon Musk, e
 Delivers daily 'hard truths' to force prioritization and kill feature creep.
 """
 
-from typing import Dict, Any
+from typing import List,  Dict, Any
 import structlog
 from app.agents.base import get_llm
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -61,5 +61,89 @@ Write exactly 2-3 sentences. Identify the most likely trap they are falling into
         except Exception as e:
             logger.error("ghost_mentor_generation_failed", error=str(e))
             return "Stop optimizing code. No one is using your product yet. Go sell."
+
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for founder focus drift, feature creep, and priority misalignment.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        
+        from app.agents.base import web_search
+        results = await web_search(f"{industry} founder focus drift, feature creep, and priority misalignment 2025")
+        
+        if results:
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-pro", temperature=0.3)
+            if llm:
+                from langchain_core.messages import HumanMessage
+                prompt = f"""Analyze these results for a {industry} startup:
+{str(results)[:2000]}
+
+Identify the top 3 actionable insights. Be concise."""
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+                    from app.agents.base import BaseAgent
+                    if hasattr(self, 'publish_to_bus'):
+                        await self.publish_to_bus(
+                            topic="intelligence_gathered",
+                            data={
+                                "source": "GhostMentorAgent",
+                                "analysis": response.content[:1500],
+                                "agent": "ghost_mentor_agent",
+                            }
+                        )
+                    actions.append({"name": "priority_drift_detected", "industry": industry})
+                except Exception as e:
+                    logger.error(f"GhostMentorAgent proactive scan failed", error=str(e))
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Generates hard-truth founder nudges and priority enforcement advice.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Ruthless startup mentorship and priority enforcement agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "ghost_mentor_agent",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("GhostMentorAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 ghost_mentor_agent = GhostMentorAgent()

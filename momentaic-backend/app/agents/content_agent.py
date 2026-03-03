@@ -619,6 +619,177 @@ Return ONLY the topic (max 8 words)."""
         
         return actions
 
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive content action using REAL services.
+        Generates content and schedules it for real posting.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type in ("counter_content", "weekly_content_calendar"):
+                # Generate real content using the agent's existing pipeline
+                result = await self.auto_generate_daily(startup_context=startup_context)
+                
+                if result.get("success"):
+                    # Schedule the content for real posting
+                    from app.services.social_scheduler import social_scheduler
+                    from datetime import datetime
+                    
+                    content_body = result.get("full_body", "")
+                    if content_body:
+                        post = await social_scheduler.schedule_post(
+                            startup_id=startup_context.get("id", startup_context.get("startup_id", "")),
+                            content=content_body,
+                            platforms=["linkedin"],
+                            scheduled_at=datetime.utcnow(),
+                        )
+                        
+                        # Wire Typefully Integration: Auto-schedule Twitter Thread
+                        try:
+                            from app.integrations.typefully import TypefullyIntegration
+                            _typefully = TypefullyIntegration()
+                            await _typefully.execute_action("create_draft", {
+                                "content": content_body,
+                                "schedule": True 
+                            })
+                            logger.info("Typefully: Thread scheduled successfully")
+                        except Exception as typ_e:
+                            logger.error("Typefully integration failed", error=str(typ_e))
+                        
+                        await self.publish_to_bus(
+                            topic="content_scheduled",
+                            data={
+                                "summary": f"Content scheduled for LinkedIn & Typefully: {result.get('topic', 'auto-generated')}",
+                                "post_id": str(post.id),
+                            },
+                        )
+                        return f"Content generated and scheduled (post_id: {post.id}, topic: {result.get('topic', 'N/A')})"
+                    
+                    return f"Content generated but no body to schedule"
+                
+                return f"Content generation failed: {result.get('error', 'unknown')}"
+            
+            else:
+                # Fallback: check for distribution_engineer or thought_leadership
+                if action_type == "distribution_engineer":
+                    # For each content piece, auto-generate platform-native variants
+                    source_content = action.get("content", "")
+                    if not source_content and self.llm:
+                        # Generate fresh content first
+                        daily = await self.auto_generate_daily(startup_context)
+                        source_content = daily.get("full_body", "")
+
+                    if source_content and self.llm:
+                        prompt = f"""You are a content distribution engineer. Take this content and create platform-native variants optimized for maximum reach.
+
+ORIGINAL CONTENT:
+{source_content[:3000]}
+
+STARTUP: {startup_context.get('name', 'Our Startup')} — {startup_context.get('industry', 'Tech')}
+
+Generate ALL of these variants:
+
+1. **Twitter/X Thread** (5-7 tweets, each under 280 chars):
+   - Hook tweet must be a contrarian take or surprising stat
+   - Number format: 1/ 2/ 3/
+   - Last tweet = CTA
+
+2. **LinkedIn Carousel** (8-10 slides):
+   - Slide 1: Bold statement hook
+   - Slides 2-8: One insight per slide (under 30 words each)
+   - Last slide: CTA
+   
+3. **Hacker News Post**:
+   - Title (clickbait-free, factual)
+   - Show HN format if applicable
+
+4. **Reddit Post** (r/startups or r/SaaS):
+   - Title + body (genuine, not promotional)
+   - Adds value first, mentions product only if relevant
+
+5. **YouTube Shorts Script** (60 seconds):
+   - Hook (3 seconds)
+   - Problem (10 seconds)
+   - Solution (30 seconds)
+   - CTA (7 seconds)
+
+Format as JSON with keys: twitter_thread, linkedin_carousel, hackernews, reddit, youtube_short"""
+
+                        response = await self.llm.ainvoke(prompt)
+                        from app.agents.base import safe_parse_json
+                        variants = safe_parse_json(response.content)
+
+                        # Try to schedule the Twitter thread via Typefully
+                        if variants and isinstance(variants, dict) and variants.get("twitter_thread"):
+                            try:
+                                from app.integrations.typefully import TypefullyIntegration
+                                typefully = TypefullyIntegration()
+                                tweets = variants["twitter_thread"]
+                                thread_content = "\n\n---\n\n".join(tweets) if isinstance(tweets, list) else str(tweets)
+                                await typefully.execute_action("create_draft", {"content": thread_content, "schedule": True})
+                            except Exception:
+                                pass
+
+                        await self.publish_to_bus(
+                            topic="content_distributed",
+                            data={"summary": f"Content distributed to {len(variants) if variants else 0} platforms", "platforms": list(variants.keys()) if variants else []},
+                        )
+                        return f"Distribution variants generated for {len(variants) if isinstance(variants, dict) else 0} platforms"
+                    return "No content to distribute"
+
+                elif action_type == "thought_leadership_pipeline":
+                    # Auto-curate industry data into founder's voice for authority building
+                    if self.llm:
+                        industry = startup_context.get("industry", "Technology")
+                        
+                        # Search for fresh industry data
+                        from app.agents.base import web_search
+                        try:
+                            search_results = await web_search.ainvoke(f"{industry} statistics data trends 2025 2026")
+                        except Exception:
+                            search_results = "No fresh data available"
+
+                        prompt = f"""You are a thought leadership ghostwriter for the founder of {startup_context.get('name', 'this startup')}.
+
+Industry: {industry}
+Founder voice: Confident, data-driven, contrarian when appropriate
+
+Latest industry data:
+{str(search_results)[:3000]}
+
+Create a 7-day thought leadership content pipeline:
+
+For each day, generate:
+1. **LinkedIn Post** (150-300 words): Insights + hot take wrapped in the founder's voice
+2. **Key Stat**: The data point that anchors the post
+3. **Hashtags**: 3-5 relevant hashtags
+4. **Engagement Hook**: Question or poll to drive comments
+
+Day themes:
+- Mon: Industry insight
+- Tue: Behind-the-scenes / building in public
+- Wed: Contrarian take
+- Thu: Customer success story framework
+- Fri: Tool/resource recommendation
+- Sat: Weekend read / long-form teaser
+- Sun: Week-ahead preview + ask
+
+Format as JSON array: [{{"day": "Monday", "post": "...", "key_stat": "...", "hashtags": [...], "hook": "..."}}]"""
+
+                        response = await self.llm.ainvoke(prompt)
+                        parsed = safe_parse_json(response.content)
+
+                        return f"7-day thought leadership pipeline generated: {len(parsed) if isinstance(parsed, list) else 0} posts"
+                    return "LLM not available"
+
+                else:
+                    return await super().autonomous_action(action, startup_context)
+                
+        except Exception as e:
+            logger.error("ContentAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 
 # Singleton instance
 content_agent = ContentAgent()

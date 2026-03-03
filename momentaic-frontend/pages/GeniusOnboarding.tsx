@@ -272,7 +272,7 @@ export default function GeniusOnboarding() {
                 console.error("Failed to execute plan", e);
             }
         }
-        navigate('/dashboard');
+        navigate('/ghost-board');
     };
 
     // Animation variants

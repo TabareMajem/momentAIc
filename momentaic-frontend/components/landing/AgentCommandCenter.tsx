@@ -35,29 +35,7 @@ export const AgentCommandCenter = () => {
 
     // Simulate live logs
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        const addLog = () => {
-            const randomLog = MOCK_LOGS[Math.floor(Math.random() * MOCK_LOGS.length)];
-            const newLog: Log = {
-                id: Math.random().toString(36).substr(2, 9),
-                agent: randomLog.agent,
-                action: randomLog.action,
-                status: randomLog.status as any,
-                timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-            };
-
-            setLogs(prev => [...prev.slice(-15), newLog]); // Keep last 15 logs
-        };
-
-        // Initial burst
-        for (let i = 0; i < 5; i++) setTimeout(addLog, i * 200);
-
-        // Ongoing stream
-        interval = setInterval(() => {
-            if (Math.random() > 0.3) addLog();
-        }, 1500);
-
-        return () => clearInterval(interval);
+        // Fake logs interval removed for production data integrity
     }, []);
 
     // Auto-scroll

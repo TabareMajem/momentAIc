@@ -273,7 +273,119 @@ Explain findings in business terms, not just technical terms."""
                     })
         
         return anomalies
-    
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively detect metric anomalies and data opportunities:
+        - Anomaly detection on key metrics
+        - Weekly KPI review
+        - Dashboard recommendations
+        """
+        actions = []
+        metrics = startup_context.get("metrics", {})
+        
+        # 1. Check for metric anomalies using z-score
+        metric_values = {
+            "mrr": metrics.get("mrr", 0),
+            "dau": metrics.get("dau", 0),
+            "churn": metrics.get("churn", 0),
+            "cac": metrics.get("cac", 0),
+        }
+        
+        for metric_name, value in metric_values.items():
+            if value and float(value) > 0:
+                # Simple anomaly check: if a metric changed by >30% it's worth investigating
+                prev_key = f"prev_{metric_name}"
+                prev_value = metrics.get(prev_key, 0)
+                if prev_value and float(prev_value) > 0:
+                    change_pct = abs((float(value) - float(prev_value)) / float(prev_value)) * 100
+                    if change_pct > 30:
+                        actions.append({
+                            "action": "anomaly_investigation",
+                            "name": f"anomaly_{metric_name}",
+                            "description": f"Anomaly detected: {metric_name} changed by {change_pct:.0f}% ({prev_value} → {value})",
+                            "priority": "high",
+                            "agent": "DataAnalystAgent",
+                            "metric_name": metric_name,
+                            "change_pct": change_pct,
+                            "current_value": value,
+                            "previous_value": prev_value,
+                        })
+        
+        # 2. Weekly KPI review
+        actions.append({
+            "action": "weekly_kpi_review",
+            "name": "kpi_review",
+            "description": "Generate weekly KPI analysis with trend insights.",
+            "priority": "medium",
+            "agent": "DataAnalystAgent",
+        })
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a proactive data analysis action using REAL LLM analysis.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+        
+        try:
+            if action_type == "anomaly_investigation":
+                # Investigate the anomaly with LLM
+                if self.llm:
+                    prompt = f"""A metric anomaly was detected for {startup_context.get('name', 'startup')}:
+
+Metric: {action.get('metric_name', 'unknown')}
+Previous: {action.get('previous_value', 'N/A')}
+Current: {action.get('current_value', 'N/A')}
+Change: {action.get('change_pct', 0):.0f}%
+
+Provide:
+1. Possible root causes (3 hypotheses)
+2. Impact assessment
+3. Recommended investigation steps
+4. Immediate actions to take"""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    
+                    from app.services.activity_stream import activity_stream
+                    await activity_stream.publish(
+                        startup_id=startup_context.get("id", ""),
+                        event_type="agent_action",
+                        title=f"📊 Anomaly Detected: {action.get('metric_name', 'metric')} changed by {action.get('change_pct', 0):.0f}%",
+                        description=response.content[:300],
+                        agent="DataAnalystAgent",
+                    )
+                    return f"Anomaly investigation complete: {response.content[:200]}"
+                return "LLM not available"
+            
+            elif action_type == "weekly_kpi_review":
+                # Generate weekly KPI review
+                if self.llm:
+                    metrics = startup_context.get("metrics", {})
+                    prompt = f"""Weekly KPI Review for {startup_context.get('name', 'startup')}:
+Industry: {startup_context.get('industry', 'SaaS')}
+MRR: ${metrics.get('mrr', 0):,}
+DAU: {metrics.get('dau', 0):,}
+Churn: {metrics.get('churn', 0)}%
+CAC: ${metrics.get('cac', 0)}
+
+Provide: Key insights, trend analysis, and 3 recommended actions."""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    return f"Weekly KPI review generated: {response.content[:200]}"
+                return "LLM not available"
+            
+            else:
+                return f"Unknown action type: {action_type}"
+                
+        except Exception as e:
+            logger.error("DataAnalyst autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 
 # Singleton

@@ -364,7 +364,7 @@ class QATesterAgent(BaseAgent):
             # Take screenshot for AI analysis and live view
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             filename = f"qa_audit_{timestamp}.png"
-            static_dir = "/root/momentaic/momentaic-backend/app/static/screenshots"
+            static_dir = "/app/app/static/screenshots"
             screenshot_path = f"{static_dir}/{filename}"
             
             # Ensure directory exists
@@ -681,6 +681,85 @@ Provide a URL and I'll run a full audit!""",
             logger.warning(f"Full QA audit failed (Playwright may be unavailable): {e}")
         
         return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute QA autonomous actions:
+        - Run full audit and generate bug report
+        - Re-test previously failed pages
+        - Generate accessibility compliance report
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("qa_audit_low_score", "full_audit"):
+                # Re-run full audit and generate detailed report
+                url = action.get("url", startup_context.get("website_url", ""))
+                if not url:
+                    return "No URL available for audit"
+
+                report = await self.run_full_audit(url, mode="full", personality="professional")
+
+                # Format a detailed bug report
+                bug_details = []
+                for rec in report.recommendations:
+                    bug_details.append(f"[{rec.priority.upper()}] {rec.category}: {rec.description}")
+
+                summary = f"""QA Audit Report for {report.page_title or url}
+Score: {report.overall_score}/100
+Bugs: {report.bugs_found} | Improvements: {report.improvements_suggested}
+Load Time: {report.load_time_ms}ms
+Issues: {chr(10).join(bug_details[:10])}"""
+
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": "qa_report",
+                        "content": summary[:2000],
+                        "full_report": report.to_dict(),
+                        "agent": "qa_tester",
+                    }
+                )
+                # ── SLACK ALERT & DISPATCH ────────────────────────────
+                try:
+                    from app.services.notification_service import notification_service
+                    from app.integrations.slack import SlackIntegration
+                    slack = SlackIntegration()
+                    
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="QATesterAgent",
+                        channel="slack",
+                        dispatch_func=slack.execute_action,
+                        action="send_message",
+                        params={
+                            "channel": "#general",
+                            "text": f"🐛 *QA Audit Report — {startup_context.get('name', 'Startup')}*\nScore: {report.overall_score}/100. Bugs Found: {report.bugs_found}. Auto-dispatching Tech Lead for triage.",
+                        }
+                    )
+                except Exception:
+                    pass
+                return f"QA audit complete — score: {report.overall_score}/100, {report.bugs_found} bugs found"
+
+            elif action_type in ("site_down", "site_check"):
+                url = action.get("url", startup_context.get("website_url", ""))
+                if url:
+                    from app.agents.browser_agent import BrowserAgent
+                    browser = BrowserAgent()
+                    await browser.initialize()
+                    result = await browser.navigate(url)
+                    if result.success:
+                        return f"Site recheck: {url} is now UP"
+                    else:
+                        return f"Site recheck: {url} is still DOWN — {result.error}"
+                return "No URL for site check"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("QA autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 
 # Singleton instance

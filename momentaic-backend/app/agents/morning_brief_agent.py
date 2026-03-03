@@ -103,4 +103,168 @@ Return ONLY valid JSON (no markdown fences):
             ]
         }
 
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for overnight metrics changes, competitor movements, and market shifts.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        
+        from app.agents.base import web_search
+        results = await web_search(f"{industry} overnight metrics changes, competitor movements, and market shifts 2025")
+        
+        if results:
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-pro", temperature=0.3)
+            if llm:
+                from langchain_core.messages import HumanMessage
+                prompt = f"""Analyze these results for a {industry} startup:
+{str(results)[:2000]}
+
+Identify the top 3 actionable insights. Be concise."""
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+                    from app.agents.base import BaseAgent
+                    if hasattr(self, 'publish_to_bus'):
+                        await self.publish_to_bus(
+                            topic="intelligence_gathered",
+                            data={
+                                "source": "MorningBriefAgent",
+                                "analysis": response.content[:1500],
+                                "agent": "morning_brief_agent",
+                            }
+                        )
+                    actions.append({"name": "brief_ready", "industry": industry})
+                except Exception as e:
+                    logger.error(f"MorningBriefAgent proactive scan failed", error=str(e))
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Generates actionable morning briefs with prioritized founder tasks.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Daily startup intelligence briefing agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            # ── DELIVER EMAIL & FLUSH DIGEST QUEUE ──────────────────
+            try:
+                from app.services.notification_service import notification_service
+                from app.integrations.gmail import gmail_integration
+                from app.core.config import settings as app_settings
+                from app.core.redis_client import redis_client
+                import json
+                
+                founder_email = startup_context.get("founder_email", getattr(app_settings, "GMAIL_USER", ""))
+                startup_name = startup_context.get("name", "Your Startup")
+                
+                # 1. Send the Morning Brief
+                await notification_service.dispatch_agent_alert(
+                    startup_id=startup_context.get("id"),
+                    agent_name="MorningBriefAgent",
+                    channel="email",
+                    dispatch_func=gmail_integration.execute_action,
+                    action="send_email",
+                    params={
+                        "to": founder_email,
+                        "subject": f"☀️ Morning Brief — {startup_name}",
+                        "body": response.content[:5000],
+                        "priority": "urgent",
+                        "agent_name": "Morning Brief Agent"
+                    }
+                )
+                logger.info("Morning Brief emailed to founder")
+                
+                # 2. Flush the Digest Queue
+                queue_key = f"email_digest_queue:{founder_email}"
+                digest_items = []
+                while await redis_client.llen(queue_key) > 0:
+                    item_str = await redis_client.lpop(queue_key)
+                    if item_str:
+                        digest_items.append(json.loads(item_str))
+                
+                if digest_items:
+                    digest_text = "Here is a roll-up of your low-priority agent updates from the last 24 hours:\n\n"
+                    for item in digest_items:
+                        digest_text += f"\n### [{item.get('agent_name', 'Agent')}] {item.get('subject', 'Update')}\n"
+                        digest_text += f"{item.get('body', '')}\n\n---\n"
+                    await notification_service.dispatch_agent_alert(
+                        startup_id=startup_context.get("id"),
+                        agent_name="NotificationAgent",
+                        channel="email",
+                        dispatch_func=gmail_integration.execute_action,
+                        action="send_email",
+                        params={
+                            "to": founder_email,
+                            "subject": f"📦 Daily Agent Digest ({len(digest_items)} items)",
+                            "body": digest_text,
+                            "priority": "urgent",
+                            "agent_name": "Notification Agent"
+                        }
+                    )
+                    logger.info(f"Morning Digest sent with {len(digest_items)} items")
+
+            except Exception as mail_err:
+                logger.warning("Morning Brief email delivery failed", error=str(mail_err))
+
+            # ── DELIVER VIA SLACK ─────────────────────────────────
+            try:
+                from app.integrations.slack import SlackIntegration
+                slack = SlackIntegration()
+                
+                await notification_service.dispatch_agent_alert(
+                    startup_id=startup_context.get("id"),
+                    agent_name="MorningBriefAgent",
+                    channel="slack",
+                    dispatch_func=slack.execute_action,
+                    action="send_message",
+                    params={
+                        "channel": "#general",
+                        "text": f"☀️ *Morning Brief — {startup_context.get('name', 'Startup')}*\n{response.content[:500]}",
+                    }
+                )
+                logger.info("Morning Brief posted to Slack")
+            except Exception as slack_err:
+                logger.warning("Morning Brief Slack delivery failed", error=str(slack_err))
+
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "morning_brief_agent",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("MorningBriefAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 morning_brief_agent = MorningBriefAgent()

@@ -232,17 +232,9 @@ class EcosystemService:
             return response
             
         # Fallback simulation if endpoint 404s (for smooth demo/dev flow)
-        # In STRICT production, you might want to return the error.
-        logger.warning(f"Verification endpoint failed for {platform}, checking for simulation fallback.")
-        if "404" in str(response.get("error", "")):
-             # Mock success for any email containing "pro" or "test" or "admin"
-             if any(x in email.lower() for x in ["pro", "test", "admin", "yokaizen"]):
-                 return {
-                     "success": True, 
-                     "data": {"status": "active", "tier": "pro", "email": email}
-                 }
-             else:
-                 return {"success": False, "error": "User not found or not PRO."}
+        # In production, we return the error.
+        logger.warning(f"Verification endpoint failed for {platform}.")
+        return {"success": False, "error": "User not found or not PRO."}
                  
         return response
 

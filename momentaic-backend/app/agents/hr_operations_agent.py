@@ -7,14 +7,14 @@ from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 import structlog
 
-from app.agents.base import get_llm
+from app.agents.base import get_llm, BaseAgent, web_search
 from app.models.conversation import AgentType
 from app.services.deliverable_service import deliverable_service
 
 logger = structlog.get_logger()
 
 
-class HROperationsAgent:
+class HROperationsAgent(BaseAgent):
     """
     HR & Operations Agent - Expert in people operations and org building
     
@@ -25,9 +25,11 @@ class HROperationsAgent:
     - Team structure recommendations
     - Compensation benchmarking
     - Culture documentation
+    - Proactive talent market scanning
     """
     
     def __init__(self):
+        self.name = "HR Operations Agent"
         self.llm = get_llm("gemini-pro", temperature=0.6)
     
     async def process(
@@ -255,6 +257,132 @@ Provide:
         except Exception as e:
             logger.error("Recruiting packet generation failed", error=str(e))
             return {"error": str(e), "agent": "hr_operations"}
+    
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for talent market trends and hiring opportunities.
+        Searches for salary benchmarks, hiring trends, and competitor job postings.
+        """
+        actions = []
+        logger.info(f"Agent {self.name} starting proactive talent scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        stage = startup_context.get("stage", "Seed")
+        
+        # 1. Search for hiring trends in this industry
+        results = await web_search(f"{industry} startup hiring trends salaries 2025")
+        
+        if results and self.llm:
+            prompt = f"""Analyze these hiring market results for a {stage}-stage {industry} startup:
+{str(results)[:2000]}
+
+Provide:
+1. Key hiring trends in this space
+2. Salary ranges for critical roles
+3. Hiring recommendations for this stage
+4. Talent pool availability assessment"""
+            
+            try:
+                response = await self.llm.ainvoke([
+                    SystemMessage(content=self._get_system_prompt()),
+                    HumanMessage(content=prompt),
+                ])
+                
+                await self.publish_to_bus(
+                    topic="talent_market_intel",
+                    data={
+                        "industry": industry,
+                        "analysis": response.content[:1500],
+                        "agent": "hr_operations",
+                    }
+                )
+                actions.append({"name": "talent_market_scanned", "industry": industry})
+            except Exception as e:
+                logger.error("HR proactive scan failed", error=str(e))
+        
+        # 2. Check competitor job postings
+        company_name = startup_context.get("name", "")
+        competitors = startup_context.get("competitors", [])
+        if competitors:
+            comp = competitors[0] if isinstance(competitors[0], str) else competitors[0].get("name", "")
+            comp_results = await web_search(f"{comp} job openings hiring 2025")
+            if comp_results:
+                from app.models.action_item import ActionPriority
+                await self.publish_to_bus(
+                    topic="action_item_proposed",
+                    data={
+                        "action_type": "competitor_hiring_alert",
+                        "title": f"🔍 Competitor Hiring: {comp} has open roles",
+                        "description": f"Competitor {comp} is actively hiring. Consider talent poaching or competitive positioning.",
+                        "payload": {"competitor": comp, "results": [r.get("title", "") for r in comp_results[:3]]},
+                        "priority": ActionPriority.low.value
+                    }
+                )
+                actions.append({"name": "competitor_hiring_detected", "competitor": comp})
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute HR autonomous actions:
+        - Auto-generate job descriptions for critical roles
+        - Create recruiting packets
+        - Generate onboarding plans
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("talent_market_scanned", "generate_jd"):
+                # Auto-generate JD for the most needed role
+                industry = startup_context.get("industry", "Technology")
+                stage = startup_context.get("stage", "Seed")
+                
+                if self.llm:
+                    prompt = f"""For a {stage}-stage {industry} startup, identify the single most critical hire right now and generate a complete job description.
+
+Consider: What role would have the highest impact on growth at this stage?
+
+Provide the full JD with title, responsibilities, requirements, and benefits."""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "job_description",
+                            "content": response.content[:2000],
+                            "agent": "hr_operations",
+                        }
+                    )
+                    return f"Critical hire JD generated: {response.content[:200]}"
+                return "LLM not available"
+
+            elif action_type in ("competitor_hiring_detected", "onboarding_plan"):
+                # Generate onboarding template
+                if self.llm:
+                    prompt = f"""Create a universal first-week onboarding plan for a {startup_context.get('stage', 'Seed')}-stage startup.
+
+Include:
+1. Pre-arrival setup (tools, accounts)
+2. Day 1: Welcome, culture, team introductions
+3. Day 2-3: Product deep-dive, codebase/system walkthrough
+4. Day 4-5: First meaningful task, buddy system setup
+5. Week 1 success criteria"""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    return f"Onboarding plan generated: {response.content[:200]}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("HR autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
     
     def _get_system_prompt(self) -> str:
         return """You are the HR & Operations agent - expert in startup people ops.

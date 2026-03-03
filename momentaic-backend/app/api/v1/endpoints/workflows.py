@@ -477,9 +477,7 @@ async def execute_workflow_task(run_id: str, workflow_id: str):
     logger.info("Executing workflow", run_id=run_id, workflow_id=workflow_id)
     
     # In production, use Celery for proper background task execution
-    # This is a simplified async execution
-    import asyncio
-    await asyncio.sleep(2)  # Simulate work
+    pass
     
     logger.info("Workflow completed", run_id=run_id)
 

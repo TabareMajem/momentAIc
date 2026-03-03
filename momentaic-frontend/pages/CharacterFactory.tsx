@@ -74,7 +74,8 @@ export default function CharacterFactory() {
     });
 
     // Using hardcoded startup ID for now — in production this comes from auth context
-    const startupId = localStorage.getItem('selected_startup_id') || '';
+    const { user } = useAuth();
+    const startupId = localStorage.getItem('selected_startup_id') || user?.id || '';
 
     useEffect(() => {
         if (startupId) fetchCharacters();

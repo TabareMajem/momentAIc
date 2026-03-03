@@ -374,7 +374,125 @@ Never provide specific legal advice or guarantee outcomes."""
             score += 15
         
         return max(0, min(100, score))
-    
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Execute a legal/compliance action autonomously.
+        Actions: generate compliance checklist, draft policy updates, create regulatory brief.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            if action_type in ("competitor_privacy_analyzed", "compliance_checklist"):
+                # Generate a compliance checklist for the startup
+                industry = startup_context.get("industry", "Technology")
+                if self.llm:
+                    prompt = f"""Generate a startup compliance checklist for a {industry} company.
+
+Include:
+1. Data privacy requirements (GDPR, CCPA, SOC2)
+2. Required legal documents (ToS, Privacy Policy, DPA)
+3. Industry-specific regulations
+4. Employment law basics
+5. IP protection steps
+6. Timeline with deadlines
+
+Format as a concise, actionable checklist."""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    # Publish to activity stream
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "compliance_checklist",
+                            "content": response.content[:2000],
+                            "agent": "legal_counsel",
+                        }
+                    )
+                    # ── EMAIL TO FOUNDER ──────────────────────────────
+                    try:
+                        from app.services.notification_service import notification_service
+                        from app.integrations.gmail import gmail_integration
+                        from app.core.config import settings as app_settings
+                        
+                        await notification_service.dispatch_agent_alert(
+                            startup_id=startup_context.get("id"),
+                            agent_name="LegalCounselAgent",
+                            channel="email",
+                            dispatch_func=gmail_integration.execute_action,
+                            action="send_email",
+                            params={
+                                "to": startup_context.get("founder_email", getattr(app_settings, "GMAIL_USER", "")),
+                                "subject": f"⚖️ Compliance Checklist — {startup_context.get('name', 'Startup')}",
+                                "body": response.content[:5000],
+                                "priority": "normal",
+                                "agent_name": "Legal Counsel Agent"
+                            }
+                        )
+                    except Exception:
+                        pass
+                    return f"Compliance checklist generated: {response.content[:200]}"
+                return "LLM not available"
+
+            elif action_type in ("regulatory_sweep_completed", "regulatory_brief"):
+                # Generate a regulatory risk brief
+                industry = startup_context.get("industry", "Technology")
+                search_results = await web_search(f"{industry} startup regulations compliance 2025")
+
+                if self.llm:
+                    prompt = f"""Based on these search results about {industry} regulations:
+{str(search_results)[:2000]}
+
+Generate a concise regulatory risk brief covering:
+1. Top 3 regulatory risks for this startup
+2. Required actions for each risk
+3. Deadlines or timelines
+4. Cost implications"""
+                    response = await self.llm.ainvoke([
+                        SystemMessage(content=self._get_system_prompt()),
+                        HumanMessage(content=prompt),
+                    ])
+                    await self.publish_to_bus(
+                        topic="deliverable_generated",
+                        data={
+                            "type": "regulatory_brief",
+                            "content": response.content[:2000],
+                            "agent": "legal_counsel",
+                        }
+                    )
+                    # ── EMAIL TO FOUNDER ──────────────────────────────
+                    try:
+                        from app.services.notification_service import notification_service
+                        from app.integrations.gmail import gmail_integration
+                        from app.core.config import settings as app_settings
+                        
+                        await notification_service.dispatch_agent_alert(
+                            startup_id=startup_context.get("id"),
+                            agent_name="LegalCounselAgent",
+                            channel="email",
+                            dispatch_func=gmail_integration.execute_action,
+                            action="send_email",
+                            params={
+                                "to": startup_context.get("founder_email", getattr(app_settings, "GMAIL_USER", "")),
+                                "subject": f"⚖️ Regulatory Risk Brief — {startup_context.get('name', 'Startup')}",
+                                "body": response.content[:5000],
+                                "priority": "normal",
+                                "agent_name": "Legal Counsel Agent"
+                            }
+                        )
+                    except Exception:
+                        pass
+                    return f"Regulatory brief generated: {response.content[:200]}"
+                return "LLM not available"
+
+            else:
+                return f"Unknown action type: {action_type}"
+
+        except Exception as e:
+            logger.error("Legal autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
 
 
 # Singleton instance

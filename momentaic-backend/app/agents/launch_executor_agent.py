@@ -297,7 +297,7 @@ class LaunchExecutorAgent:
             # 4. Capture screenshot (before submit)
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             filename = f"launch_{platform_id}_{timestamp}.png"
-            static_dir = "/root/momentaic/momentaic-backend/app/static/screenshots"
+            static_dir = "/app/app/static/screenshots"
             screenshot_path = f"{static_dir}/{filename}"
             
             # Ensure directory exists
@@ -460,4 +460,88 @@ Use the API endpoint `/launch/execute` to start an execution job.""",
 
 
 # Singleton instance
+
+    async def proactive_scan(self, startup_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Proactively scan for new launch platforms and submission deadlines.
+        """
+        actions = []
+        logger.info(f"Agent {self.__class__.__name__} starting proactive scan")
+        
+        industry = startup_context.get("industry", "Technology")
+        
+        from app.agents.base import web_search
+        results = await web_search(f"{industry} new launch platforms and submission deadlines 2025")
+        
+        if results:
+            from app.agents.base import get_llm
+            llm = get_llm("gemini-pro", temperature=0.3)
+            if llm:
+                from langchain_core.messages import HumanMessage
+                prompt = f"""Analyze these results for a {industry} startup:
+{str(results)[:2000]}
+
+Identify the top 3 actionable insights. Be concise."""
+                try:
+                    response = await llm.ainvoke([HumanMessage(content=prompt)])
+                    from app.agents.base import BaseAgent
+                    if hasattr(self, 'publish_to_bus'):
+                        await self.publish_to_bus(
+                            topic="intelligence_gathered",
+                            data={
+                                "source": "LaunchExecutorAgent",
+                                "analysis": response.content[:1500],
+                                "agent": "launch_executor_agent",
+                            }
+                        )
+                    actions.append({"name": "platform_submission_ready", "industry": industry})
+                except Exception as e:
+                    logger.error(f"LaunchExecutorAgent proactive scan failed", error=str(e))
+        
+        return actions
+
+    async def autonomous_action(self, action: Dict[str, Any], startup_context: Dict[str, Any]) -> str:
+        """
+        Executes browser-automated product submissions to directories and platforms.
+        """
+        action_type = action.get("action", action.get("name", "unknown"))
+
+        try:
+            from app.agents.base import get_llm, web_search
+            from langchain_core.messages import HumanMessage
+            
+            industry = startup_context.get("industry", "Technology")
+            llm = get_llm("gemini-pro", temperature=0.5)
+            
+            if not llm:
+                return "LLM not available"
+            
+            search_results = await web_search(f"{industry} {action_type} best practices 2025")
+            
+            prompt = f"""You are the Autonomous browser-based product submissions agent for a {industry} startup.
+
+Based on this context:
+- Action requested: {action_type}
+- Industry: {industry}
+- Research: {str(search_results)[:1500]}
+
+Generate a concrete, actionable deliverable. No fluff. Be specific and executable."""
+            
+            response = await llm.ainvoke([HumanMessage(content=prompt)])
+            
+            if hasattr(self, 'publish_to_bus'):
+                await self.publish_to_bus(
+                    topic="deliverable_generated",
+                    data={
+                        "type": action_type,
+                        "content": response.content[:2000],
+                        "agent": "launch_executor_agent",
+                    }
+                )
+            return f"Action complete: {response.content[:200]}"
+
+        except Exception as e:
+            logger.error("LaunchExecutorAgent autonomous action failed", action=action_type, error=str(e))
+            return f"Action failed: {str(e)}"
+
 launch_executor_agent = LaunchExecutorAgent()
