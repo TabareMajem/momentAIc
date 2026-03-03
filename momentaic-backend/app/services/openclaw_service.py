@@ -40,9 +40,9 @@ async def run_openclaw_session(websocket, directive: str):
         await send_log("AI", f"Directive received: {directive}")
 
         # ── STEP 1: AI Plan Generation ─────────────────────────────────
-        llm = get_llm("gemini-flash", temperature=0.3)
+        llm = get_llm("deepseek", temperature=0.3)
         if not llm:
-            await send_log("ERROR", "AI service unavailable. Configure GOOGLE_API_KEY.")
+            await send_log("ERROR", "AI service unavailable. Configure API KEY.")
             return
 
         await send_log("AI", "Decomposing directive into browser steps...")
