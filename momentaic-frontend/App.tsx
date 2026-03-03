@@ -82,10 +82,10 @@ const PageLoader = () => (
 
 const ProtectedLayout = () => {
   return (
-    <div className="flex min-h-screen bg-[#050505] text-white">
+    <div className="flex min-h-screen bg-[#0A0A0A] text-[#E0E0E0] font-sans">
       <OnboardingTour />
       <Sidebar />
-      <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#050505]">
+      <main className="flex-1 md:ml-64 pt-20 p-6 md:p-8 overflow-y-auto bg-[#0A0A0A]">
         <div className="max-w-[1600px] mx-auto animate-fade-in">
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
@@ -116,7 +116,7 @@ const ProtectedRoute = () => {
     }
   }, [location.pathname]);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#050505] text-purple-500 font-mono"><span className="animate-pulse">LOADING...</span></div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] text-gray-500 font-sans"><span className="animate-pulse tracking-widest text-xs font-semibold">LOADING CORE...</span></div>;
 
   if (!isAuthenticated && !localStorage.getItem('access_token')) {
     return <Navigate to="/login" replace />;
