@@ -30,6 +30,7 @@ from app.api.v1.endpoints import (
     a2a,
     hitl,
     swarm,
+    lead_generation,
 )
 
 api_router = APIRouter()
@@ -87,6 +88,13 @@ api_router.include_router(
     growth.router,
     prefix="/growth",
     tags=["Growth Engine"],
+)
+
+# AI SDR Browser Prospector
+api_router.include_router(
+    lead_generation.router,
+    prefix="/startups/{startup_id}/prospector",
+    tags=["Browser Prospector"],
 )
 
 # Growth Monitor (Pipeline Dashboard)
@@ -556,4 +564,20 @@ api_router.include_router(
     browser_social.router,
     prefix="/browser",
     tags=["Browser Social"],
+)
+
+# Swarm Steering (Slack/Discord/API Command Center)
+from app.api.v1.endpoints import swarm_steering
+api_router.include_router(
+    swarm_steering.router,
+    prefix="/swarm-steer",
+    tags=["Swarm Steering"],
+)
+
+# Trust Architect (SOC2, LOI, Security Questionnaires)
+from app.api.v1.endpoints import trust_architect_endpoints
+api_router.include_router(
+    trust_architect_endpoints.router,
+    prefix="/startups/{startup_id}/trust",
+    tags=["Trust Architect"],
 )

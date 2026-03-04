@@ -41,6 +41,16 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
     { id: 'triggers', name: 'Triggers', description: 'Event-driven automation workflows', href: '/triggers', icon: 'Bell', tier: 'godmode', category: 'operations', stageRecommended: ['scaling', 'mature'] },
     { id: 'experiments', name: 'Experiments Lab', description: 'A/B testing and hypothesis validation', href: '/experiments', icon: 'FlaskConical', tier: 'godmode', category: 'intelligence', stageRecommended: ['pmf', 'scaling'] },
     { id: 'ambassador', name: 'Revenue Program', description: 'Ambassador dashboard and referral commissions', href: '/ambassador', icon: 'DollarSign', tier: 'godmode', category: 'core', stageRecommended: ['pmf', 'scaling', 'mature'] },
+    {
+        id: "gtm-command",
+        name: "GTM Command Center",
+        description: "Browser Prospector, Trust Architect, and Swarm Steer.",
+        category: "OPERATIONS",
+        tier: "essential",
+        href: "/gtm",
+        icon: "Target",
+        isNew: true
+    }
 ];
 
 const ESSENTIAL_IDS = FEATURE_REGISTRY.filter(f => f.tier === 'essential').map(f => f.id);

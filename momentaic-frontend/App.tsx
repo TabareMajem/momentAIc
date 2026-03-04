@@ -72,6 +72,8 @@ const Campaigns = lazy(() => import('./pages/Campaigns'));
 const AgentComposability = lazy(() => import('./pages/AgentComposability'));
 const HitLDashboard = lazy(() => import('./pages/HitLDashboard'));
 const GhostBoard = lazy(() => import('./pages/GhostBoard'));
+const GTMCommandCenter = lazy(() => import('./pages/GTMCommandCenter'));
+const Blog = lazy(() => import('./pages/Blog'));
 import { ResearchWhitepaper } from './components/marketing/ResearchWhitepaper';
 
 const PageLoader = () => (
@@ -166,6 +168,8 @@ export default function App() {
               <Route path="/ghost-board" element={<GhostBoard />} />
               <Route path="/hitl" element={<HitLDashboard />} />
               <Route path="/war-room" element={<WarRoomDashboard />} />
+              <Route path="/gtm" element={<GTMCommandCenter />} />
+              <Route path="/blog" element={<Blog />} />
 
               {/* Startup Routes */}
               <Route path="/startups" element={<StartupsList />} />

@@ -828,6 +828,51 @@ class ApiClient {
     return data;
   }
 
+  // ═══════════════════════════════════════════════════════
+  // === PHASE 7: GTM COMMAND CENTER (a16z Playbook) ===
+  // ═══════════════════════════════════════════════════════
+
+  // Browser Prospector
+  async runProspector(startupId: string, icpPrompt: string, limit: number = 50) {
+    const { data } = await this.client.post(`/api/v1/startups/${startupId}/prospector/runs`, {
+      icp_prompt: icpPrompt,
+      limit
+    });
+    return data;
+  }
+
+  // Trust Architect — SOC2
+  async generateSOC2(startupId: string, targetCompany: string) {
+    const { data } = await this.client.post(`/api/v1/startups/${startupId}/trust/soc2`, {
+      target_company: targetCompany
+    });
+    return data;
+  }
+
+  // Trust Architect — Security Questionnaire
+  async answerSecurityQuestionnaire(startupId: string, questions: string[]) {
+    const { data } = await this.client.post(`/api/v1/startups/${startupId}/trust/questionnaire`, {
+      questions
+    });
+    return data;
+  }
+
+  // Trust Architect — LOI
+  async draftLOI(startupId: string, params: { target_company: string; scope?: string; pricing?: string; timeline?: string }) {
+    const { data } = await this.client.post(`/api/v1/startups/${startupId}/trust/loi`, params);
+    return data;
+  }
+
+  // Swarm Steering (Direct API)
+  async steerSwarm(command: string, source: string = 'dashboard') {
+    const { data } = await this.client.post(`/api/v1/swarm-steer/steer`, {
+      command,
+      source,
+      sender_name: 'CEO'
+    });
+    return data;
+  }
+
 }
 
 export const api = new ApiClient();

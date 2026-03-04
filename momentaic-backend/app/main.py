@@ -350,6 +350,16 @@ async def lifespan(app: FastAPI):
         from app.services.outreach_service import outreach_service
         await outreach_service.process_queue()
 
+    # 10b. IMAP Reply Listener: Every 3 minutes
+    @scheduler.scheduled_job(IntervalTrigger(minutes=3), id='imap_reply_listener')
+    async def schedule_imap_reply_listener():
+        """Poll IMAP for unseen replies and publish to SDR Event Bus"""
+        from app.integrations.gmail import gmail_integration
+        from app.core.database import AsyncSessionLocal
+        
+        async with AsyncSessionLocal() as db:
+            await gmail_integration.listen_for_replies(db=db)
+
     # 11. Autonomous Agent Scan: Every 2 hours
     @scheduler.scheduled_job(IntervalTrigger(hours=2), id='autonomous_scan')
     async def schedule_autonomous_scan():

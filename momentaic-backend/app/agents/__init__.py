@@ -253,5 +253,7 @@ __all__ = [
     "localization_architect_agent",
     "war_gaming_agent",
     "integration_builder_agent",
+    "trust_architect_agent",
+    "browser_prospector_agent",
 ]
 

@@ -92,4 +92,8 @@ agent_registry.register("guerrilla_campaign", "app.agents.guerrilla.guerrilla_ca
 agent_registry.register("discord", "app.agents.guerrilla.discord_agent", "DiscordAgent")
 agent_registry.register("reddit_sniper", "app.agents.guerrilla.reddit_sniper_agent", "RedditSniperAgent")
 
+# Enterprise / GTM
+agent_registry.register("trust_architect", "app.agents.trust_architect_agent", "TrustArchitectAgent")
+agent_registry.register("browser_prospector", "app.agents.browser_prospector_agent", "BrowserProspectorAgent")
+
 # Some legacy systems expect exact match keys

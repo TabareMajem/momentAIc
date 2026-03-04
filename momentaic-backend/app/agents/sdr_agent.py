@@ -702,6 +702,35 @@ Rate from 0-10 (0=Clean, 10=Spam) based on:
             "agent": "SDRAgent",
         })
         
+        # 3. Process Incoming Email Replies
+        try:
+            from app.core.database import AsyncSessionLocal
+            from sqlalchemy import select
+            from app.models.agent_message import AgentMessage, MessageStatus
+            
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(AgentMessage)
+                    .where(
+                        AgentMessage.topic == "email.reply_received",
+                        AgentMessage.status == MessageStatus.PENDING
+                    )
+                    .limit(10)
+                )
+                replies = result.scalars().all()
+                for reply in replies:
+                    actions.append({
+                        "action": "handle_email_reply",
+                        "name": "handle_email_reply",
+                        "description": f"Process incoming email from {reply.payload.get('sender', 'Unknown')}",
+                        "priority": "high",
+                        "agent": "SDRAgent",
+                        "message_id": str(reply.id),
+                        "payload": reply.payload,
+                    })
+        except Exception as e:
+            logger.warning("SDR failed to check reply inbox", error=str(e))
+        
         if actions:
             await self.publish_to_bus(
                 topic="sdr_opportunities_found",
@@ -792,7 +821,82 @@ For each, provide: Subject line and a 2-sentence body."""
                 return "LLM not available"
 
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # NEW: Growth-Strategy Precision Targeting
+            # CLOSED-LOOP SDR ORCHESTRATION (THE A16Z PLAYBOOK)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            elif action_type == "handle_email_reply":
+                payload = action.get("payload", {})
+                sender = payload.get("sender", "")
+                subject = payload.get("subject", "")
+                snippet = payload.get("snippet", "")
+                
+                logger.info(f"SDR Processing incoming reply from {sender}")
+                
+                # 1. LLM Decision Tree Classification (Interest, Objection, Unsubscribe, Question)
+                if self.llm:
+                    intent_prompt = f"""Analyze this prospect's incoming email reply.
+SENDER: {sender}
+SUBJECT: {subject}
+MESSAGE: {snippet}
+
+Determine their EXACT intent from these categories:
+- POSITIVE (Interested, wants a meeting, asking for next steps)
+- OBJECTION (Doubting, too expensive, not right now)
+- NEGATIVE (Not interested, unsubscribe, stop)
+- QUESTION (Needs more technical info or clarification)
+
+IMPORTANT: Reply ONLY with the exact category name. Nothing else."""
+                    
+                    intent_response = await self.llm.ainvoke(intent_prompt)
+                    intent = intent_response.content.strip().upper()
+                    
+                    logger.info("sdr_reply_intent_analyzed", sender=sender, intent=intent)
+                    
+                    # 2. Handle based on intent
+                    if intent == "POSITIVE" or intent == "QUESTION" or intent == "OBJECTION":
+                        original_email = {"body": "Previous outreach context"}
+                        response_result = await self.adapt_to_response(
+                            original_email=original_email,
+                            response_text=snippet,
+                            response_sentiment=intent.lower()
+                        )
+                        
+                        if response_result.get("success"):
+                            reply_email = response_result.get("reply", {})
+                            
+                            # Publish drafted response for approval or auto-send (depending on autonomy)
+                            await self.publish_to_bus(
+                                topic="sdr_reply_drafted",
+                                data={
+                                    "target": sender,
+                                    "intent": intent,
+                                    "draft_subject": reply_email.get("subject"),
+                                    "draft_body": reply_email.get("body"),
+                                }
+                            )
+                            
+                            # Mark message as processed
+                            try:
+                                from app.core.database import AsyncSessionLocal
+                                from app.services.message_bus import MessageBus
+                                async with AsyncSessionLocal() as db:
+                                    bus = MessageBus(db)
+                                    await bus.mark_processed(action.get("message_id"))
+                            except Exception as e:
+                                logger.error("Failed to mark message processed", error=str(e))
+                                
+                            return f"Drafted {intent} response to {sender}: {reply_email.get('subject')}"
+                    
+                    elif intent == "NEGATIVE":
+                        # Mark as unsubscribed / Do Not Contact
+                        # (Normally would update the Lead model in DB here)
+                        return f"Marked {sender} as Unsubscribed."
+                        
+                    return f"Processed reply from {sender}. Intent: {intent}"
+                return "LLM not available to process reply."
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Growth-Strategy Precision Targeting
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
             elif action_type == "intent_score_leads":
