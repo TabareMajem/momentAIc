@@ -212,7 +212,7 @@ class KOLHeadhunterAgent(BaseAgent):
         from app.agents.base import get_llm
         
         # Inject memory context
-        memory_context = await agent_memory_service.recall_as_context("system", limit=2)
+        memory_context = await agent_memory_service.recall_as_context("00000000-0000-0000-0000-000000000000", "system", limit=2)
         
         # Format results for the LLM
         results_text = json.dumps(raw_results[:80], indent=2)  # Cap input to avoid token limits

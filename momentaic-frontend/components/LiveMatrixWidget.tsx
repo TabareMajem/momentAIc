@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Activity, Zap, Search, MessageSquare, Terminal, UserPlus, DollarSign } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { api } from '../../lib/api';
+import { cn } from '../lib/utils';
+import { api } from '../lib/api';
 
 type EventType = 'agent_activity' | 'new_lead' | 'email_sent' | 'user_signed_up' | 'payment_received';
 

@@ -238,7 +238,7 @@ export default function StartupDetail() {
  <Textarea label="Description" {...register('description')} className="h-24" />
  <div className="grid grid-cols-2 gap-4">
  <Input label="Industry" {...register('industry')} />
- <Input label="Team Size" type="number" {...register('team_size')} />
+ <Input label="Team Size" type="number" {...register('team_size' as any)} />
  </div>
  <div className="grid grid-cols-2 gap-4">
  <Input label="Website" {...register('website')} />

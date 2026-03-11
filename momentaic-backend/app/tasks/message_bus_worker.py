@@ -39,43 +39,46 @@ async def process_a2a_messages_async():
     engine = create_async_engine(settings.database_url, echo=False)
     local_session_maker = async_sessionmaker(engine, expire_on_commit=False)
     
-    async with local_session_maker() as db:
-        # Get pending messages from the bus
-        from app.models.agent_message import AgentMessage
-        query = select(AgentMessage).where(AgentMessage.status == MessageStatus.PENDING.value).order_by(AgentMessage.created_at.asc()).limit(50)
-        result = await db.execute(query)
-        messages = result.scalars().all()
-        
-        if not messages:
-            return 0
+    try:
+        async with local_session_maker() as db:
+            # Get pending messages from the bus
+            from app.models.agent_message import AgentMessage
+            query = select(AgentMessage).where(AgentMessage.status == MessageStatus.PENDING.value).order_by(AgentMessage.created_at.asc()).limit(50)
+            result = await db.execute(query)
+            messages = result.scalars().all()
             
-        processed_count = 0
-        
-        for msg in messages:
-            logger.info(f"Routing message {msg.id} -> {msg.to_agent} (Topic: {msg.topic})")
-            
-            # Find the target agent
-            target_agent = get_agent_instance(msg.to_agent)
-            
-            if target_agent:
-                try:
-                    # Execute the agent's logic handler
-                    # We inject the db session temporarily
-                    target_agent.db_session = db
-                    await target_agent.handle_message(msg)
-                    
-                    # Mark successful
-                    msg.status = MessageStatus.DELIVERED.value
-                    processed_count += 1
-                except Exception as e:
-                    logger.error(f"Agent {msg.to_agent} failed to handle message {msg.id}", error=str(e))
-                    msg.status = MessageStatus.FAILED.value
-            else:
-                logger.warning(f"No agent class found for ID: {msg.to_agent}")
-                msg.status = MessageStatus.FAILED.value
+            if not messages:
+                return 0
                 
-        await db.commit()
-        return processed_count
+            processed_count = 0
+            
+            for msg in messages:
+                logger.info(f"Routing message {msg.id} -> {msg.to_agent} (Topic: {msg.topic})")
+                
+                # Find the target agent
+                target_agent = get_agent_instance(msg.to_agent)
+                
+                if target_agent:
+                    try:
+                        # Execute the agent's logic handler
+                        # We inject the db session temporarily
+                        target_agent.db_session = db
+                        await target_agent.handle_message(msg)
+                        
+                        # Mark successful
+                        msg.status = MessageStatus.DELIVERED.value
+                        processed_count += 1
+                    except Exception as e:
+                        logger.error(f"Agent {msg.to_agent} failed to handle message {msg.id}", error=str(e))
+                        msg.status = MessageStatus.FAILED.value
+                else:
+                    logger.warning(f"No agent class found for ID: {msg.to_agent}")
+                    msg.status = MessageStatus.FAILED.value
+                    
+            await db.commit()
+            return processed_count
+    finally:
+        await engine.dispose()
 
 @celery_app.task
 def sweep_message_bus():

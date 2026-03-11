@@ -1,6 +1,6 @@
 """
 OpenClaw Service — AI-Driven Browser Automation (REAL EXECUTION)
-Uses Gemini Flash to decompose natural language directives into browser steps,
+Uses DeepSeek to decompose natural language directives into browser steps,
 then executes them via Playwright, streaming real results back via WebSocket.
 """
 

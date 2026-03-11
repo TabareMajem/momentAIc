@@ -1,5 +1,6 @@
 // ... (imports remain the same)
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Zap, CheckCircle, Loader, Sparkles, ArrowRight, Terminal, Cpu } from 'lucide-react';
 import { api } from '../lib/api';
@@ -39,12 +40,12 @@ export default function AutoPilotOnboarding() {
  const [phase, setPhase] = useState<'input' | 'executing' | 'done'>('input');
  const [startupName, setStartupName] = useState('');
  const [startupDescription, setStartupDescription] = useState('');
- const [steps, setSteps] = useState<ExecutionStep[]>([]);
+ const [steps, setSteps] = useState<any[]>([]);
  const [logs, setLogs] = useState<string[]>([]);
 
  const addLog = (msg: string) => setLogs(prev => [...prev, `> ${msg}`]);
 
- const allSteps: ExecutionStep[] = [
+ const allSteps: any[] = [
  { id: 'create', label: 'Initializing Startup Matrix', status: 'pending' },
  { id: 'market', label: 'Deep Market Analysis (Web Search)', status: 'pending' },
  { id: 'competitors', label: 'Competitor Intel Extraction', status: 'pending' },
@@ -79,59 +80,51 @@ export default function AutoPilotOnboarding() {
  setSteps(allSteps);
  addLog('initiating_sequence...');
 
- // Step 1: Create startup
- await runStep('create', async () => {
- addLog(`registering_entity: ${startupName}`);
- await api.createStartup({
- name: startupName,
- description: startupDescription || `A startup called ${startupName}`,
- stage: 'idea',
- industry: 'technology'
- });
- addLog('entity_registered_successfully');
- await new Promise(r => setTimeout(r, 800));
- });
+    // Step 1: Create startup
+    await runStep('create', async () => {
+        addLog(`registering_entity: ${startupName}`);
+        await api.createStartup({
+            name: startupName,
+            description: startupDescription || `A startup called ${startupName}`,
+            stage: 'idea',
+            industry: 'technology'
+        });
+        addLog('entity_registered_successfully');
+    });
 
- // Step 2: Market Analysis
- await runStep('market', async () => {
- addLog('scanning_web_indices...');
- addLog('identifying_tam_sam_som...');
- // Simulation of "Deep Research"
- await new Promise(r => setTimeout(r, 600));
- addLog('analyzing_consumer_sentiment...');
- await new Promise(r => setTimeout(r, 800));
- addLog('market_opportunity_score: 87/100');
- });
+    // Step 2: Market Analysis
+    await runStep('market', async () => {
+        addLog('scanning_web_indices...');
+        addLog('identifying_tam_sam_som...');
+        addLog('analyzing_consumer_sentiment...');
+        addLog('market_opportunity_score: 87/100');
+    });
 
- // Step 3: Competitor Research
- await runStep('competitors', async () => {
- addLog('detecting_rival_signals...');
- await new Promise(r => setTimeout(r, 500));
- addLog('analyzing_keyword_gaps...');
- addLog('competitor_matrix_generated');
- await new Promise(r => setTimeout(r, 800));
- });
+    // Step 3: Competitor Research
+    await runStep('competitors', async () => {
+        addLog('detecting_rival_signals...');
+        addLog('analyzing_keyword_gaps...');
+        addLog('competitor_matrix_generated');
+    });
 
- // Step 4: Strategy
- await runStep('strategy', async () => {
- addLog('synthesizing_growth_vectors...');
- addLog('optimizing_conversion_funnels...');
- await new Promise(r => setTimeout(r, 1000));
- });
+    // Step 4: Strategy
+    await runStep('strategy', async () => {
+        addLog('synthesizing_growth_vectors...');
+        addLog('optimizing_conversion_funnels...');
+    });
 
- // Step 5: Day 1 Pack
- await runStep('assets', async () => {
- addLog('generating_launch_manifest...');
- try {
- // Actual API call if backend supports it quickly
- // await api.generateDayOnePack();
- addLog('queued_background_generation');
- } catch (e) {
- addLog('day_pack_generation_failed');
- }
- addLog('finalizing_dashboard_setup...');
- await new Promise(r => setTimeout(r, 1500));
- });
+    // Step 5: Day 1 Pack
+    await runStep('assets', async () => {
+        addLog('generating_launch_manifest...');
+        try {
+            // Actual API call if backend supports it quickly
+            // await api.generateDayOnePack();
+            addLog('queued_background_generation');
+        } catch (e) {
+            addLog('day_pack_generation_failed');
+        }
+        addLog('finalizing_dashboard_setup...');
+    });
 
  setPhase('done');
 
@@ -145,14 +138,14 @@ export default function AutoPilotOnboarding() {
  <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6 font-sans">
  <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
- <div
+ <motion.div
  initial={{ opacity: 0, scale: 0.95 }}
  animate={{ opacity: 1, scale: 1 }}
  className="w-full max-w-2xl relative z-10"
  >
  {/* INPUT PHASE */}
  {phase === 'input' && (
- <div
+ <motion.div
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  className="text-center"
@@ -194,12 +187,12 @@ export default function AutoPilotOnboarding() {
  <ArrowRight className="w-5 h-5" />
  </button>
  </div>
- </div>
+ </motion.div>
  )}
 
  {/* EXECUTING PHASE */}
  {phase === 'executing' && (
- <div
+ <motion.div
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  className="space-y-6"
@@ -244,12 +237,12 @@ export default function AutoPilotOnboarding() {
  <AgentTerminal logs={logs} />
  </div>
  </div>
- </div>
+ </motion.div>
  )}
 
  {/* DONE PHASE */}
  {phase === 'done' && (
- <div
+ <motion.div
  // ... (keep similar completion provided in previous context but enhanced)
  initial={{ opacity: 0, scale: 0.9 }}
  animate={{ opacity: 1, scale: 1 }}
@@ -269,9 +262,9 @@ export default function AutoPilotOnboarding() {
  <div className="inline-flex items-center gap-2 text-sm text-slate-500 animate-pulse">
  Initializing Dashboard Interface...
  </div>
- </div>
+ </motion.div>
  )}
- </div>
+ </motion.div>
  </div>
  );
 }

@@ -75,7 +75,7 @@ const SectionHeader = ({ title, subtitle, id }: { title: string, subtitle: strin
 
 const ModuleCard = ({ icon: Icon, title, desc, delay, visible = true }: { icon: any, title: string, desc: string, delay: number, visible?: boolean }) => (
  <div
- className={`group relative bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/10 p-1 transition-all duration-700 hover:border-purple-500/50 clip-corner-4 transform ${visible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'} hover:-translate-y-2 hover:`}
+ className={`group relative bg-[#0A0A0A]/60 backdrop-blur-xl border border-white/10 p-1 transition-all duration-700 hover:border-purple-500/50 clip-corner-4 transform ${visible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'} hover:-translate-y-2`}
  style={{ transitionDelay: `${delay}ms` }}
  >
  <div className="absolute inset-0 bg-tech-grid opacity-20" />
@@ -242,11 +242,11 @@ export default function LandingPage() {
  type="url"
  required
  placeholder="Enter your startup's URL..."
- className="w-full h-16 pl-14 pr-40 bg-[#0A0A0A] border-2 border-white/20 hover:border-purple-500/50 focus:border-purple-500 rounded-2xl text-white font-mono text-sm xl:text-base outline-none transition-all shadow-2xl focus:"
+ className="w-full h-16 pl-14 pr-40 bg-[#0A0A0A] border-2 border-white/20 hover:border-purple-500/50 focus:border-purple-500 rounded-2xl text-white font-mono text-sm xl:text-base outline-none transition-all shadow-2xl"
  />
  <button
  type="submit"
- className="absolute right-2 h-12 px-6 bg-[#111111] from-purple-600 hover:from-purple-500 hover: text-white rounded-xl font-bold font-mono text-sm shadow-lg transition-all flex items-center gap-2 group"
+ className="absolute right-2 h-12 px-6 bg-[#111111] from-purple-600 hover:from-purple-500 text-white rounded-xl font-bold font-mono text-sm shadow-lg transition-all flex items-center gap-2 group"
  >
  <Sparkles className="w-4 h-4" />
  <span>ANALYZE</span>
@@ -365,45 +365,52 @@ export default function LandingPage() {
 
  <div ref={modulesRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
  <ModuleCard
+ icon={Crosshair}
+ title="Stealth Target Scraper"
+ desc="Scrape up to 10k highly targeted leads from Instagram, X, and TikTok with zero API costs using the DeerFlow anti-detect broker."
+ delay={0}
+ visible={modulesVisible}
+ />
+ <ModuleCard
  icon={Cpu}
  title="The Live War Room"
  desc="Watch specialized agents strictly debate growth strategies before you deploy them."
- delay={0}
+ delay={100}
  visible={modulesVisible}
  />
  <ModuleCard
  icon={Globe}
  title="Omni-Channel Auto-Post"
  desc="Generate viral hooks and HeyGen AI video avatars. Automatically publish to TikTok and Socials."
- delay={100}
+ delay={200}
  visible={modulesVisible}
  />
  <ModuleCard
  icon={Activity}
  title="Phantom Co-Founders"
  desc="Toggle 'Phantom Mode'. Agents take a tiny % of Stripe revenue (Equity-for-Compute) aligned with your growth."
- delay={200}
+ delay={300}
  visible={modulesVisible}
  />
  <ModuleCard
  icon={Target}
  title="Predictive War Gaming"
  desc="Swarms run nightly market simulations, autonomously deploying countermeasures against competitor moves."
- delay={300}
+ delay={400}
  visible={modulesVisible}
  />
  <ModuleCard
  icon={Zap}
  title="Autonomous Incident Response"
  desc="Site goes down? The swarm reads Vercel logs, proposes fixes in Slack, and waits for your 1-click deploy approval."
- delay={400}
+ delay={500}
  visible={modulesVisible}
  />
  <ModuleCard
  icon={Terminal}
  title="60-Second AI Onboarding"
  desc="Drop your URL. Watch agents instantly scrape your ICP, draft 3 viral hooks, and write emails live."
- delay={500}
+ delay={600}
  visible={modulesVisible}
  />
  </div>
@@ -481,60 +488,60 @@ export default function LandingPage() {
  />
 
  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
- {/* Plan 1 */}
- <div className="border border-white/10 bg-[#0A0A0A]/60 backdrop-blur-xl p-8 clip-corner-2 hover:border-gray-400 transition-all duration-300 hover: group">
- <div className="text-xs font-mono text-gray-500 mb-2">TIER_1</div>
- <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-gray-100">Starter</h3>
- <div className="text-4xl font-mono text-white mb-1">$9<span className="text-sm text-gray-500">/mo</span></div>
- <div className="text-[10px] font-mono text-gray-600 mb-6">Perfect for solo founders</div>
- <ul className="space-y-3 font-mono text-xs text-gray-400 mb-8">
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> 100 Credits/mo</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> Basic Agent Access</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> 1 Startup Profile</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> Email Support</li>
- </ul>
- <Button onClick={() => handleCheckout('starter')} className="w-full h-10 bg-white/5 border border-white/20 hover:bg-white/10 font-mono text-xs uppercase tracking-widest transition-all duration-300">
- Deploy Unit
- </Button>
- </div>
+   {/* Plan 1 */}
+   <div className="border border-white/10 bg-[#0A0A0A]/60 backdrop-blur-xl p-8 clip-corner-2 hover:border-gray-400 transition-all duration-300 group">
+     <div className="text-xs font-mono text-gray-500 mb-2">TIER_1</div>
+     <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-gray-100">Starter</h3>
+     <div className="text-4xl font-mono text-white mb-1">$9<span className="text-sm text-gray-500">/mo</span></div>
+     <div className="text-[10px] font-mono text-gray-600 mb-6">Perfect for solo founders</div>
+     <ul className="space-y-3 font-mono text-xs text-gray-400 mb-8">
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> 100 Credits/mo</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> Basic Agent Access</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> 1 Startup Profile</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-500 rounded-full" /> Email Support</li>
+     </ul>
+     <Button onClick={() => handleCheckout('starter')} className="w-full h-10 bg-white/5 border border-white/20 hover:bg-white/10 font-mono text-xs uppercase tracking-widest transition-all duration-300">
+       Deploy Unit
+     </Button>
+   </div>
 
- {/* Plan 2 (Highlighted) */}
- <div className="relative border border-purple-500/50 bg-[#0f0f16] p-8 clip-corner-2 transform md:scale-105 hover: transition-all duration-500 group">
- <div className="absolute -top-px -left-px -right-px h-px bg-[#111111] from-transparent to-transparent" />
- <div className="absolute top-0 right-0 bg-[#111111] from-purple-600 text-white text-[10px] font-bold px-3 py-1 font-mono rounded-bl-lg">MOST POPULAR</div>
- <div className="text-xs font-mono text-purple-400 mb-2">TIER_2</div>
- <h3 className="text-2xl font-bold text-white mb-4">Growth</h3>
- <div className="text-4xl font-mono text-white mb-1">$19<span className="text-sm text-gray-500">/mo</span></div>
- <div className="text-[10px] font-mono text-purple-400/60 mb-6">Best for growing startups</div>
- <ul className="space-y-3 font-mono text-xs text-gray-300 mb-8">
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" /> 500 Credits/mo</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" /> Full Swarm Access</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" /> Sales Automation</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" /> 5 Startup Profiles</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" /> Priority Support</li>
- </ul>
- <Button onClick={() => handleCheckout('growth')} className="w-full h-10 bg-[#111111] from-purple-600 hover:from-purple-500 hover: text-white font-mono text-xs uppercase tracking-widest shadow-lg transition-all duration-300">
- Deploy Unit →
- </Button>
- </div>
+   {/* Plan 2 (Highlighted) */}
+   <div className="relative border border-deerflow-cyan/50 bg-[#0f0f16] p-8 clip-corner-2 transform md:scale-105 transition-all duration-500 group">
+     <div className="absolute -top-px -left-px -right-px h-px bg-[#111111] from-transparent to-transparent" />
+     <div className="absolute top-0 right-0 bg-[#111111] from-deerflow-cyan text-[#020202] text-[10px] font-bold px-3 py-1 font-mono rounded-bl-lg animate-pulse-ring">POWERED BY DEERFLOW</div>
+     <div className="text-xs font-mono text-deerflow-cyan mb-2">TIER_2</div>
+     <h3 className="text-2xl font-bold text-white mb-4">Lite</h3>
+     <div className="text-4xl font-mono text-white mb-1">$19<span className="text-sm text-gray-500">/mo</span></div>
+     <div className="text-[10px] font-mono text-deerflow-cyan/60 mb-6">Massive Growth Campaigns</div>
+     <ul className="space-y-3 font-mono text-xs text-gray-300 mb-8">
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-deerflow-cyan rounded-full animate-pulse" /> 500 Credits/mo</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-deerflow-cyan rounded-full animate-pulse" /> DeerFlow UI Access</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-deerflow-cyan rounded-full animate-pulse" /> DeepSeek V3 Sub-Agents</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-deerflow-cyan rounded-full animate-pulse" /> Growth Engine HQ</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-deerflow-cyan rounded-full animate-pulse" /> Advanced Marketing Campaigns</li>
+     </ul>
+     <Button onClick={() => handleCheckout('growth')} className="w-full h-10 bg-[#111111] from-deerflow-cyan hover:from-blue-500 text-[#020202] font-bold font-mono text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(0,229,255,0.3)] transition-all duration-300">
+       Deploy Swarm →
+     </Button>
+   </div>
 
- {/* Plan 3 */}
- <div className="border border-white/10 bg-[#0A0A0A]/60 backdrop-blur-xl p-8 clip-corner-2 hover:border-[#222222] transition-all duration-300 hover: group">
- <div className="text-xs font-mono text-blue-400 mb-2">TIER_3</div>
- <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-blue-100">God Mode</h3>
- <div className="text-4xl font-mono text-white mb-1">$39<span className="text-sm text-gray-500">/mo</span></div>
- <div className="text-[10px] font-mono text-blue-400/60 mb-6">Unlimited everything</div>
- <ul className="space-y-3 font-mono text-xs text-gray-400 mb-8">
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> 2000 Credits/mo</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Unlimited Startups</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Full API Access</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> White-glove Onboarding</li>
- <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Dedicated Support</li>
- </ul>
- <Button onClick={() => handleCheckout('god_mode')} className="w-full h-10 bg-white/5 border border-[#222222] hover:bg-blue-900/20 hover:border-blue-500/50 font-mono text-xs uppercase tracking-widest transition-all duration-300">
- Deploy Unit
- </Button>
- </div>
+   {/* Plan 3 */}
+   <div className="border border-white/10 bg-[#0A0A0A]/60 backdrop-blur-xl p-8 clip-corner-2 hover:border-[#222222] transition-all duration-300 group">
+     <div className="text-xs font-mono text-blue-400 mb-2">TIER_3</div>
+     <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-blue-100">God Mode</h3>
+     <div className="text-4xl font-mono text-white mb-1">$39<span className="text-sm text-gray-500">/mo</span></div>
+     <div className="text-[10px] font-mono text-blue-400/60 mb-6">Unlimited AI Power</div>
+     <ul className="space-y-3 font-mono text-xs text-gray-400 mb-8">
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> 2000 Credits/mo</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> BYO Model (Gemini 3.0, Seedance)</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Full API Access</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> White-glove Onboarding</li>
+       <li className="flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Dedicated Support</li>
+     </ul>
+     <Button onClick={() => handleCheckout('god_mode')} className="w-full h-10 bg-white/5 border border-[#222222] hover:bg-blue-900/20 hover:border-blue-500/50 font-mono text-xs uppercase tracking-widest transition-all duration-300">
+       Deploy Unit
+     </Button>
+   </div>
  </div>
  </div>
  </section>
@@ -551,7 +558,7 @@ export default function LandingPage() {
  </p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
  <Link to="/ambassador">
- <Button className="h-12 px-8 bg-[#111111] from-purple-600 hover:from-purple-500 hover: text-white font-mono text-sm uppercase tracking-widest shadow-lg ">
+ <Button className="h-12 px-8 bg-[#111111] from-purple-600 hover:from-purple-500 text-white font-mono text-sm uppercase tracking-widest shadow-lg">
  Apply Now →
  </Button>
  </Link>

@@ -182,6 +182,23 @@ class Settings(BaseSettings):
     openclaw_api_url: Optional[str] = "http://localhost:8888"
     openclaw_api_key: Optional[str] = None
     
+    # Camoufox Anti-Detect (Fingerprint Spoofing Layer)
+    camoufox_api_url: str = "http://localhost:8585"
+    camoufox_api_key: Optional[str] = None
+    
+    # Influencer Scraper Module
+    scraper_max_concurrent_workers: int = 10
+    scraper_batch_size: int = 50
+    scraper_proxy_pool_url: Optional[str] = None
+    scraper_accounts_per_platform: int = 30
+    scraper_micro_delay_min: float = 3.0
+    scraper_micro_delay_max: float = 5.0
+    scraper_macro_pause_min: float = 300.0   # 5 minutes
+    scraper_macro_pause_max: float = 600.0   # 10 minutes
+    scraper_macro_pause_interval: int = 75   # every 50-100 requests (midpoint)
+    scraper_proxy_sticky_duration: int = 420  # 7 minutes avg
+    scraper_cooldown_hours: int = 24
+    
     # Yokaizen Config
     momentaic_master_key: Optional[str] = None
     symbiotask_api_url: str = "https://symbiotask.com/api/v1"

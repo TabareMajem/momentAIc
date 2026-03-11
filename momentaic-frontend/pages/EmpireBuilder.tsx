@@ -165,7 +165,7 @@ export default function EmpireBuilder() {
  message: `Sales Agent found ${leads.length} new leads.`
  });
  } else {
- toast({ type: 'warning', title: 'Hunt Empty', message: 'No leads found yet. Try refining audience.' });
+ toast({ type: 'info', title: 'Hunt Empty', message: 'No leads found yet. Try refining audience.' });
  // Add dummy for UI if empty, or just leave empty?
  // Let's leave empty to be honest.
  }

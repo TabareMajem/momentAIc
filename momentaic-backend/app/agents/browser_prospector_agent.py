@@ -38,12 +38,10 @@ class BrowserProspectorAgent(BaseAgent):
     """
 
     def __init__(self):
-        super().__init__(
-            name="Browser Prospector",
-            role="Head of Outbound Sourcing",
-            goal="Identify and extract high-quality leads natively via browser automation.",
-            capabilities=["web_browsing", "lead_generation", "data_extraction"]
-        )
+        self.name = "Browser Prospector"
+        self.role = "Head of Outbound Sourcing"
+        self.goal = "Identify and extract high-quality leads natively via browser automation."
+        self.capabilities = ["web_browsing", "lead_generation", "data_extraction"]
 
     async def _translate_icp_to_query(self, icp_prompt: str) -> str:
         """Use LLM to convert natural language ICP into a LinkedIn boolean search string."""

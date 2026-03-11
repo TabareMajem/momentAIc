@@ -233,7 +233,15 @@ export function Sidebar() {
  </button>
  )}
 
- <div className="bg-[#111] rounded-lg p-3 border border-white/10">
+            <Link
+                to="/support"
+                onClick={() => setIsOpen(false)}
+                className="w-full flex items-center justify-center py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-all text-[10px] font-bold tracking-widest uppercase mt-2"
+            >
+                <Shield className="w-3 h-3 mr-2" /> Support HQ
+            </Link>
+
+ <div className="bg-[#111] rounded-lg p-3 border border-white/10 mt-3">
  <div className="flex justify-between items-center mb-1">
  <span className="text-[9px] uppercase text-gray-500 tracking-widest flex items-center gap-1">
  <Zap className="w-3 h-3 text-yellow-500" /> COMPUTE CREDITS

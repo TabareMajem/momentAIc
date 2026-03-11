@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Button } from '../components/ui/Button';
@@ -197,7 +198,7 @@ export default function StartupNew() {
 
  {/* PHASE 1: INPUT */}
  {phase === 'input' && (
- <div
+ <motion.div
  key="input"
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
@@ -287,12 +288,12 @@ export default function StartupNew() {
  </Button>
  </form>
  </Card>
- </div>
+ </motion.div>
  )}
 
  {/* PHASE 2: ANALYZING (Live Progress) */}
  {phase === 'analyzing' && (
- <div
+ <motion.div
  key="analyzing"
  initial={{ opacity: 0, scale: 0.95 }}
  animate={{ opacity: 1, scale: 1 }}
@@ -309,7 +310,7 @@ export default function StartupNew() {
 
  {/* Progress Bar */}
  <div className="relative h-3 bg-white/10 rounded-full overflow-hidden mb-8">
- <div
+ <motion.div
  className="absolute inset-y-0 left-0 bg-[#111111] from-[#00f0ff] to-[#0066ff] rounded-full"
  initial={{ width: '0%' }}
  animate={{ width: `${progress}%` }}
@@ -323,7 +324,7 @@ export default function StartupNew() {
  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Competitors Found</h3>
  <div className="space-y-2">
  {competitors.map((comp, i) => (
- <div
+ <motion.div
  key={i}
  initial={{ opacity: 0, x: -20 }}
  animate={{ opacity: 1, x: 0 }}
@@ -339,19 +340,19 @@ export default function StartupNew() {
  <ExternalLink className="w-4 h-4" />
  </a>
  )}
- </div>
+ </motion.div>
  ))}
  </div>
  </div>
  )}
  </Card>
- </div>
+ </motion.div>
  )}
 
 
  {/* PHASE 3: COMPLETE (AI CEO Report) */}
  {phase === 'complete' && report && (
- <div
+ <motion.div
  key="complete"
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
@@ -464,12 +465,12 @@ export default function StartupNew() {
  </Button>
  </div>
  </Card>
- </div>
+ </motion.div>
  )}
 
  {/* PHASE 4: TEAM ASSEMBLY (CINEMATIC) */}
  {phase === 'assembly' && (
- <div
+ <motion.div
  key="assembly"
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
@@ -480,7 +481,7 @@ export default function StartupNew() {
 
  <div className="relative z-10 w-full max-w-2xl text-center space-y-12">
 
- <div
+ <motion.div
  initial={{ y: 20, opacity: 0 }}
  animate={{ y: 0, opacity: 1 }}
  className="space-y-4"
@@ -491,11 +492,11 @@ export default function StartupNew() {
  <p className="text-[#00f0ff] font-mono animate-pulse">
  &gt; SCANNING GLOBAL TALENT POOL...
  </p>
- </div>
+ </motion.div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {recruitedAgents.map((agent, i) => (
- <div
+ <motion.div
  key={agent}
  initial={{ scale: 0.8, opacity: 0 }}
  animate={{ scale: 1, opacity: 1 }}
@@ -513,20 +514,20 @@ export default function StartupNew() {
  </div>
  </div>
  <Check className="ml-auto text-green-500 w-6 h-6" />
- </div>
+ </motion.div>
  ))}
  </div>
 
- <div
+ <motion.div
  animate={{ opacity: [0.5, 1, 0.5] }}
  transition={{ repeat: Infinity, duration: 2 }}
  className="text-gray-500 font-mono text-sm mt-8"
  >
  Initializing Neural Links... {Math.min(recruitedAgents.length * 25, 100)}%
- </div>
+ </motion.div>
 
  </div>
- </div>
+ </motion.div>
  )}
 
  

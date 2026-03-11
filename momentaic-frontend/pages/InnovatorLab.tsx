@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Brain, Search, Users, ShieldAlert, Rocket, Newspaper, AlertTriangle, CheckCircle, Zap, Code, FileText, Cpu } from 'lucide-react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
@@ -201,13 +202,13 @@ const DeepResearchWidget = () => {
  </div>
 
  {report && (
- <div
+ <motion.div
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
  className="bg-white/5 border border-white/10 rounded-xl p-8 prose prose-invert max-w-none"
  >
  <ReactMarkdown>{report}</ReactMarkdown>
- </div>
+ </motion.div>
  )}
  </div>
  );

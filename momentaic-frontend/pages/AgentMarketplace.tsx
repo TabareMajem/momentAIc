@@ -13,8 +13,8 @@ interface Template {
  author_name: string;
  industry: string;
  agent_type_target: string;
- upvotes: int;
- clones: int;
+ upvotes: number;
+ clones: number;
 }
 
 export default function AgentMarketplace() {

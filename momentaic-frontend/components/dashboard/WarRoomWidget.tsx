@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Shield, Zap, Target, Eye, PenTool, Users, Video, Palette, Code, DollarSign, Activity, Lock, AlertTriangle, Flame, CircleDashed, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
@@ -92,7 +93,7 @@ export function WarRoomWidget({ product, onClose }: { product: any, onClose: () 
 
  return (
  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
- <div
+ <motion.div
  initial={{ scale: 0.9, opacity: 0 }}
  animate={{ scale: 1, opacity: 1 }}
  className="bg-[#050510] border border-red-500/30 rounded-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col "
@@ -161,7 +162,7 @@ export function WarRoomWidget({ product, onClose }: { product: any, onClose: () 
  {/* Output Terminal */}
  <div className="h-48 bg-black rounded border border-white/5 p-3 overflow-y-auto font-mono text-[10px] text-green-400">
  {s.status === 'idle' && <span className="text-slate-600">Waiting for deployment...</span>}
- {isRunning && (
+ {running && (
  <div className={dryRun ? "text-cyan-500/80" : "text-red-500/80"}>
  <div className="mb-2 opacity-50">
  <span>&gt; INITIALIZING HANDSHAKE... OK</span><br />
@@ -187,8 +188,7 @@ export function WarRoomWidget({ product, onClose }: { product: any, onClose: () 
  })}
  </div>
  </div>
-
- </div>
+ </motion.div>
  </div>
  );
 }

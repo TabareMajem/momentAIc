@@ -74,6 +74,52 @@ class BaseAgent(ABC):
     Provides structured output mapping and common utilities.
     """
     
+    def _generate_mock_from_model(self, model: Type[BaseModel]) -> BaseModel:
+        """Dynamically generate a mock Pydantic instance based on the schema."""
+        mock_data = {}
+        for field_name, field_info in model.model_fields.items():
+            field_type = field_info.annotation
+            
+            # Simple heuristic mock generation for testing Pipeline data flow
+            if field_type == str or getattr(field_type, '__origin__', None) == str:
+                if "email" in field_name.lower():
+                    mock_data[field_name] = "test.founder@mock.momentaic.com"
+                elif "link" in field_name.lower() or "url" in field_name.lower():
+                    mock_data[field_name] = "https://mock.momentaic.com/r/test"
+                elif "subject" in field_name.lower():
+                    mock_data[field_name] = "[MOCK] Urgent Partnership Opportunity"
+                elif "body" in field_name.lower() or "copy" in field_name.lower():
+                    mock_data[field_name] = "This is a deterministic Zero-Cost E2E mock email body."
+                else:
+                    mock_data[field_name] = f"mock_{field_name}_data"
+            elif field_type == int:
+                mock_data[field_name] = 42
+            elif field_type == float:
+                mock_data[field_name] = 3.14
+            elif field_type == bool:
+                mock_data[field_name] = True
+            elif field_type == list or getattr(field_type, '__origin__', None) == list:
+                args = getattr(field_type, '__args__', None)
+                if args and hasattr(args[0], "model_fields"):
+                    mock_data[field_name] = [self._generate_mock_from_model(args[0])]
+                elif args and args[0] == str:
+                    mock_data[field_name] = ["mock_item"]
+                else:
+                    mock_data[field_name] = []
+            elif field_type == dict or getattr(field_type, '__origin__', None) == dict:
+                mock_data[field_name] = {"mock_key": "mock_value"}
+            else:
+                try:
+                    # If it's a nested Pydantic model
+                    if hasattr(field_type, "model_fields"):
+                        mock_data[field_name] = self._generate_mock_from_model(field_type)
+                    else:
+                        mock_data[field_name] = None
+                except Exception:
+                    mock_data[field_name] = None
+                    
+        return model(**mock_data)
+
     async def structured_llm_call(
         self, 
         prompt: str, 
@@ -88,6 +134,23 @@ class BaseAgent(ABC):
         returning a tuple: (parsed_object, chain_of_thought_dict).
         Otherwise returns just the parsed object/dict.
         """
+        from app.core.test_context import is_e2e_test_mode
+        
+        # === ZERO-COST E2E TEST MODE ===
+        if is_e2e_test_mode():
+            logger.info("🧪 [E2E TEST MODE] Bypassing LLM call for structure", model=model_name)
+            if response_model:
+                mock_instance = self._generate_mock_from_model(response_model)
+                if include_cot:
+                    return mock_instance, {"research_analyzed": "MOCK", "options_considered": "MOCK", "final_decision_rationale": "MOCK E2E TEST RESOLUTION."}
+                return mock_instance
+            else:
+                mock_dict = {"success": True, "notes": "E2E mock response"}
+                if include_cot:
+                    return mock_dict, {"research_analyzed": "MOCK"}
+                return mock_dict
+        # ===============================
+        
         llm = get_llm(model_name, temperature=temperature)
         
         if response_model and hasattr(llm, "with_structured_output"):

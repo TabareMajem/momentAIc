@@ -69,7 +69,7 @@ export default function Blog() {
             if (!scriptTag) {
                 scriptTag = document.createElement('script');
                 scriptTag.id = 'json-ld-article-schema';
-                scriptTag.type = 'application/ld+json';
+                scriptTag.setAttribute('type', 'application/ld+json');
                 document.head.appendChild(scriptTag);
             }
             scriptTag.textContent = schemaScriptContent;

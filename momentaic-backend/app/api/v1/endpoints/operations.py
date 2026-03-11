@@ -52,12 +52,26 @@ async def _run_agent_task(mission: str, context: Dict[str, Any], startup_id: str
     Background task wrapper for the agent
     """
     try:
-        # Get startup context (mock for now or fetch from DB)
-        startup_context = {
-            "id": startup_id,
-            "stage": "Growth", 
-            "industry": "Technology" # In real app, fetch from DB
-        }
+        from app.core.database import async_session_maker
+        from app.models.startup import Startup
+        from sqlalchemy import select
+        import uuid
+        
+        try:
+            startup_context = {
+                "id": startup_id,
+                "stage": "Growth", 
+                "industry": "Technology"
+            }
+            async with async_session_maker() as db:
+                result = await db.execute(select(Startup).where(Startup.id == uuid.UUID(startup_id)))
+                startup = result.scalar_one_or_none()
+                if startup:
+                    startup_context["industry"] = getattr(startup, "industry", "Technology")
+                    startup_context["stage"] = "Growth" # Default safely
+        except Exception as dbe:
+            import structlog
+            structlog.get_logger().error("db_fetch_error", error=str(dbe))
         
         result = await operations_agent.run(
             mission=mission,

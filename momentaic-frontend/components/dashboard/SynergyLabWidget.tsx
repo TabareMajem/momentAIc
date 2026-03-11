@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Network, Link, Unplug, ArrowRightLeft, Sparkles, Database, Code, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
@@ -51,7 +52,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  <div className="pointer-events-none fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] via-black to-black" />
  <div className="pointer-events-none fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]" />
 
- <div
+ <motion.div
  initial={{ scale: 0.9, opacity: 0 }}
  animate={{ scale: 1, opacity: 1 }}
  className="relative w-full max-w-5xl bg-[#0b0c15]/80 border border-[#222222] rounded-3xl p-10 backdrop-blur-2xl overflow-hidden"
@@ -84,7 +85,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  {fusing && <div className="absolute left-[50%] right-[30%] h-[2px] bg-purple-400 animate-pulse " />}
 
  {/* Slot A */}
- <div
+ <motion.div
  whileHover={{ scale: 1.02 }}
  className="w-1/3 relative z-10"
  >
@@ -101,7 +102,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  </select>
  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">▼</div>
  </div>
- </div>
+ </motion.div>
 
  {/* Fusion Core */}
  <div className="relative z-20 flex flex-col items-center">
@@ -117,7 +118,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  </div>
 
  {/* Slot B */}
- <div
+ <motion.div
  whileHover={{ scale: 1.02 }}
  className="w-1/3 relative z-10"
  >
@@ -134,7 +135,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  </select>
  <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">▼</div>
  </div>
- </div>
+ </motion.div>
  </div>
 
  <div className="text-center mb-10 relative z-10">
@@ -162,7 +163,7 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  {/* Output Console (Holographic Card) */}
  
  {result && (
- <div
+ <motion.div
  initial={{ opacity: 0, scale: 0.9, y: 20 }}
  animate={{ opacity: 1, scale: 1, y: 0 }}
  exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -216,11 +217,11 @@ export function SynergyLabWidget({ products, onClose }: { products: any[], onClo
  </div>
  </div>
 
- </div>
+ </motion.div>
  )}
  
 
- </div>
+ </motion.div>
  </div>
  );
 }

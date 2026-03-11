@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 
 import React, { useState, useEffect } from 'react';
 import { Check, X, Bell, Zap } from 'lucide-react';
@@ -24,7 +25,7 @@ export const MorningBriefWidget = () => {
 
  const fetchItems = async () => {
  try {
- const res = await api.get('/actions/pending');
+ const res = await (api as any).client.get('/actions/pending');
  setItems(res.data);
  } catch (err) {
  console.error(err);
@@ -35,7 +36,7 @@ export const MorningBriefWidget = () => {
 
  const handleAction = async (id: string, action: 'approve' | 'reject') => {
  try {
- await api.post(`/actions/${id}/${action}`);
+ await (api as any).client.post(`/actions/${id}/${action}`);
  toast.success(action === 'approve' ? 'Action Approved & Executed' : 'Action Rejected');
  // Remove from list immediately (optimistic)
  setItems(prev => prev.filter(i => i.id !== id));
@@ -59,7 +60,7 @@ export const MorningBriefWidget = () => {
  <div className="flex overflow-x-auto pb-4 gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-mandatory md:snap-none hide-scrollbar">
  
  {items.map((item) => (
- <div
+ <motion.div
  key={item.id}
  initial={{ opacity: 0, scale: 0.95 }}
  animate={{ opacity: 1, scale: 1 }}
@@ -105,7 +106,7 @@ export const MorningBriefWidget = () => {
  </button>
  </div>
 
- </div>
+ </motion.div>
  ))}
  
  </div>

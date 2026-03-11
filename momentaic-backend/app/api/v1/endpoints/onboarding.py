@@ -54,10 +54,6 @@ async def run_onboarding_wizard(
         "strategy": strategy,
         "generated_post": draft
     }
-    return {
-        "strategy": strategy,
-        "generated_post": draft
-    }
 
 
 class StartupAnalysisRequest(BaseModel):
@@ -176,8 +172,11 @@ async def start_genius_session(
     from app.agents.browser_agent import browser_agent
     
     # Scrape the URL
-    scraped = await browser_agent.scrape_url(request.url)
-    scraped_context = scraped.get("content", "") if isinstance(scraped, dict) else str(scraped)
+    try:
+        scraped = await browser_agent.scrape_url(request.url)
+        scraped_context = scraped.get("content", "") if isinstance(scraped, dict) else str(scraped)
+    except Exception as e:
+        scraped_context = f"Could not fully scrape the URL {request.url}. Error: {str(e)}"
     
     # Start the genius session
     result = await onboarding_genius.start_session(

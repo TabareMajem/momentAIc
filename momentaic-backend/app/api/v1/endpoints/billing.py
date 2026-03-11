@@ -111,16 +111,15 @@ async def get_tiers():
         ),
         TierInfo(
             id="growth",
-            name="Growth",
+            name="Lite",
             price=19.0,
             credits=settings.default_growth_credits,
             features=[
                 "500 AI credits/month",
-                "Full Agent Swarm Access",
-                "Hunter Sales Automation",
-                "Priority Support",
-                "5 Startup Profiles",
-                "Content Scheduling",
+                "DeerFlow UI Access",
+                "DeepSeek V3 Sub-Agents",
+                "Growth Engine HQ",
+                "Advanced Marketing Campaigns",
             ],
             stripe_price_id=settings.stripe_growth_price_id,
         ),
@@ -131,12 +130,10 @@ async def get_tiers():
             credits=settings.default_god_mode_credits,
             features=[
                 "2000 AI credits/month",
-                "Unlimited Agent Access",
+                "BYO Model (Gemini 3.0, Seedance)",
+                "Full API Access",
                 "White-glove Onboarding",
-                "Custom Integrations",
-                "Unlimited Startups",
-                "API Access",
-                "Dedicated Success Manager",
+                "Dedicated Support",
             ],
             stripe_price_id=settings.stripe_god_mode_price_id,
         ),
@@ -366,15 +363,12 @@ async def create_founders_club_checkout(
     """
     Create checkout session for "Founders Club" ($350 Lifetime).
     """
-    if not settings.stripe_secret_key:
+    price_id = settings.stripe_founders_club_price_id
+    if not price_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Stripe not configured"
+            detail="Founders Club pricing not configured"
         )
-        
-    # Fixed price ID for Founders Club (configured in env)
-    # If not set, use a fallback or error
-    price_id = getattr(settings, "stripe_founders_club_price_id", "price_founders_club_test")
     
     if not current_user.stripe_customer_id:
         customer = stripe.Customer.create(
@@ -539,7 +533,7 @@ async def handle_checkout_completed(session: dict, db: AsyncSession):
             balance_after=user.credits_balance,
             transaction_type="topup",
             reason=f"Subscription upgrade to {user.tier.value}",
-            metadata={"subscription_id": subscription_id},
+            transaction_meta={"subscription_id": subscription_id},
         )
         db.add(transaction)
         
@@ -611,7 +605,7 @@ async def handle_payment_succeeded(invoice: dict, db: AsyncSession):
             balance_after=user.credits_balance,
             transaction_type="topup",
             reason=f"Monthly {user.tier.value} renewal",
-            metadata={"invoice_id": invoice.get("id")},
+            transaction_meta={"invoice_id": invoice.get("id")},
         )
         db.add(transaction)
         

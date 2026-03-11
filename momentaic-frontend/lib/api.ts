@@ -160,6 +160,11 @@ class ApiClient {
     return data;
   }
 
+  async runOnboardingWizard(url: string, description: string): Promise<any> {
+    const { data } = await this.client.post('/api/v1/onboarding/wizard', { url, description });
+    return data;
+  }
+
   async importFromSource(url: string, sourceType: 'github' | 'web' | 'doc' = 'github'): Promise<any> {
     const { data } = await this.client.post('/api/v1/startups/import', {
       url,
@@ -870,6 +875,12 @@ class ApiClient {
       source,
       sender_name: 'CEO'
     });
+    return data;
+  }
+
+  // === PROACTIVE / GHOST BOARD ===
+  async getMorningBrief() {
+    const { data } = await this.client.get('/api/v1/proactive/morning-brief');
     return data;
   }
 

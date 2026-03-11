@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, Globe, Rocket, Terminal, X, CheckCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 
@@ -57,7 +58,7 @@ export const OnboardingTour = () => {
 
  return (
  
- <div
+ <motion.div
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
@@ -65,7 +66,7 @@ export const OnboardingTour = () => {
  >
  <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
- <div
+ <motion.div
  initial={{ scale: 0.9, opacity: 0, y: 20 }}
  animate={{ scale: 1, opacity: 1, y: 0 }}
  className="relative w-full max-w-4xl bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[600px]"
@@ -95,7 +96,7 @@ export const OnboardingTour = () => {
  </div>
 
  <div className="space-y-6 mt-8">
- <div
+ <motion.div
  key={step} // Animate on step change
  initial={{ opacity: 0, x: 20 }}
  animate={{ opacity: 1, x: 0 }}
@@ -115,7 +116,7 @@ export const OnboardingTour = () => {
  {currentStep.highlight}
  </p>
  </div>
- </div>
+ </motion.div>
  </div>
 
  {/* Footer Controls */}
@@ -140,7 +141,7 @@ export const OnboardingTour = () => {
  </Button>
  ) : (
  <Button
- variant="brand"
+ variant="default"
  onClick={handleComplete}
  className=" hover:"
  >
@@ -150,8 +151,8 @@ export const OnboardingTour = () => {
  </div>
  </div>
  </div>
- </div>
- </div>
+ </motion.div>
+ </motion.div>
  
  );
 };

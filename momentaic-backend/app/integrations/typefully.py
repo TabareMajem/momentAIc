@@ -34,7 +34,7 @@ class TypefullyIntegration(BaseIntegration):
         self.base_url = "https://api.typefully.com/v1"
         
         self.headers = {
-            "X-API-KEY": f"{self.api_key or 'mock_key'}",
+            "X-API-KEY": f"{self.api_key}",
             "Content-Type": "application/json"
         }
 

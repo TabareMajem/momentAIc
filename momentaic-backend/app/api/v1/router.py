@@ -6,34 +6,20 @@ Aggregates all endpoint modules
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth,
-    startups,
-    signals,
-    growth,
-    agents,
-    workflows,
-    billing,
-    integrations,
-    triggers,
-    mcp_tools,
-    import_flows,
-    social,
-    growth_analytics,
-    growth_monitor,
-    llm_optimization,
-    social_ugc,
-    characters,
-    webhooks,
-    intelligence,
-    playbooks,
-    ws,
-    a2a,
-    hitl,
-    swarm,
-    lead_generation,
+    auth, startups, signals, growth, agents, workflows, billing, 
+    integrations, triggers, mcp_tools, import_flows, social, 
+    growth_analytics, growth_monitor, llm_optimization, social_ugc, 
+    characters, webhooks, intelligence, playbooks, ws, a2a, hitl, 
+    swarm, lead_generation, campaigns, deerflow
 )
 
 api_router = APIRouter()
+
+# Yokaizen inbound campaigns
+api_router.include_router(
+    campaigns.router,
+    tags=["Campaigns (Inbound Yokaizen)"],
+)
 
 # Human-in-the-Loop (Action Queue)
 api_router.include_router(
@@ -88,6 +74,13 @@ api_router.include_router(
     growth.router,
     prefix="/growth",
     tags=["Growth Engine"],
+)
+
+# DeerFlow Integration (Lite Tier + GTM Capabilities)
+api_router.include_router(
+    deerflow.router,
+    prefix="/deerflow",
+    tags=["DeerFlow Integration"],
 )
 
 # AI SDR Browser Prospector
@@ -580,4 +573,12 @@ api_router.include_router(
     trust_architect_endpoints.router,
     prefix="/startups/{startup_id}/trust",
     tags=["Trust Architect"],
+)
+
+# Influencer Scraper (DeerFlow + OpenClaw + Camoufox)
+from app.api.v1.endpoints import scraper
+api_router.include_router(
+    scraper.router,
+    prefix="/scraper",
+    tags=["Influencer Scraper"],
 )

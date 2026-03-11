@@ -117,6 +117,12 @@ class AffiliateIntegration:
             created_at=datetime.utcnow()
         )
         
+        from app.core.test_context import is_e2e_test_mode
+        
+        if is_e2e_test_mode():
+            logger.info("🧪 [E2E TEST MODE] Mocking affiliate creation", name=name)
+            return profile
+
         # In production, call affiliate platform API
         if self.api_key:
             try:

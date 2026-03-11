@@ -46,6 +46,13 @@ def get_credentials():
         msg = f"Loaded creds for {info.get('client_email')}"
         logger.info(msg)
         creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        
+        # Service Accounts cannot access 'me' Gmail unless they impersonate a workspace user
+        user_email = os.environ.get("GOOGLE_WORKSPACE_USER")
+        if user_email:
+            logger.info(f"Impersonating workspace user: {user_email}")
+            creds = creds.with_subject(user_email)
+            
         return creds
     except Exception as e:
         logger.error(f"Error loading credentials: {e}")
@@ -102,8 +109,14 @@ async def handle_call_tool(
             
             return [types.TextContent(type="text", text="\n".join(output))]
         except Exception as e:
-            logger.exception("Gmail error")
-            return [types.TextContent(type="text", text=f"Error: {str(e)}")]
+            error_str = str(e)
+            logger.error(f"Gmail error: {error_str}")
+            if "Precondition check failed" in error_str:
+                return [types.TextContent(
+                    type="text", 
+                    text="Error: Precondition check failed. The service account does not have a Gmail mailbox. Set GOOGLE_WORKSPACE_USER environment variable for Domain-Wide Delegation."
+                )]
+            return [types.TextContent(type="text", text=f"Error: {error_str}")]
 
     elif name == "list_calendar_events":
         max_results = (arguments or {}).get("max_results", 5)
@@ -126,7 +139,7 @@ async def handle_call_tool(
             
             return [types.TextContent(type="text", text="\n".join(output))]
         except Exception as e:
-            logger.exception("Calendar error")
+            logger.error(f"Calendar error: {e}")
             return [types.TextContent(type="text", text=f"Error: {str(e)}")]
             
     else:

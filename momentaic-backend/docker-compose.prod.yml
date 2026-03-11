@@ -15,6 +15,28 @@ services:
         limits:
           memory: 1G
 
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: momentaic-pgbouncer-prod
+    restart: always
+    environment:
+      DB_USER: ${POSTGRES_USER:-momentaic}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_NAME: ${POSTGRES_DB:-momentaic}
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 100
+    depends_on:
+      - postgres
+    networks:
+      - momentaic-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   redis:
     restart: always
     deploy:
@@ -27,6 +49,10 @@ services:
     environment:
       APP_ENV: production
       DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-momentaic}
+    depends_on:
+      - pgbouncer
+      - redis
     deploy:
       resources:
         limits:
@@ -34,6 +60,11 @@ services:
 
   celery-worker:
     restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-momentaic}
+    depends_on:
+      - pgbouncer
+      - redis
     deploy:
       resources:
         limits:
@@ -41,6 +72,11 @@ services:
 
   celery-beat:
     restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-momentaic}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-momentaic}
+    depends_on:
+      - pgbouncer
+      - redis
     deploy:
       resources:
         limits:

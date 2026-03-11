@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.api.v1.router import api_router
 from app.middleware.rate_limit import RateLimitMiddleware
+from app.core.test_context import e2e_test_mode
 
 # Configure structured logging
 structlog.configure(
@@ -92,7 +93,7 @@ async def lifespan(app: FastAPI):
             name="postgres",
             command="npx",
             args=["-y", "@zeddotdev/postgres-context-server", pg_url],
-            env={**os.environ}
+            env={**os.environ, "NPM_CONFIG_CACHE": "/tmp/.npm"}
         )
         mcp_status["postgres"] = "connected"
     except Exception as e:
@@ -106,7 +107,7 @@ async def lifespan(app: FastAPI):
             name="filesystem",
             command="npx",
             args=["-y", "@modelcontextprotocol/server-filesystem", project_root],
-            env={**os.environ}
+            env={**os.environ, "NPM_CONFIG_CACHE": "/tmp/.npm"}
         )
         mcp_status["filesystem"] = "connected"
     except Exception as e:
@@ -439,6 +440,25 @@ async def log_requests(request: Request, call_next):
     )
     
     return response
+
+# Zero-Cost E2E Test Mode Middleware
+@app.middleware("http")
+async def e2e_test_mode_middleware(request: Request, call_next):
+    """Detect Playwright test header and enable Zero-Cost Mock Mode"""
+    is_test = request.headers.get("X-E2E-Test-Mode", "").lower() == "true"
+    
+    # Set the ContextVar for the duration of this request
+    token = e2e_test_mode.set(is_test)
+    
+    if is_test:
+        logger.info("🧪 ZERO-COST E2E TEST MODE ACTIVE for request", path=request.url.path)
+        
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        # Reset the ContextVar
+        e2e_test_mode.reset(token)
 
 
 # Exception handlers

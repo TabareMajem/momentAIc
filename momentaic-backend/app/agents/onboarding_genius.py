@@ -58,10 +58,28 @@ class OnboardingGeniusAgent:
                 logger.error("OnboardingGeniusAgent: LLM init failed", error=str(e))
         return self._llm
     
-    async def start_session(self, user_id: str, product_url: str, scraped_context: str) -> Dict[str, Any]:
+    async def start_session(self, user_id: str, product_url: str, scraped_context: str, startup_id: str = None) -> Dict[str, Any]:
         """
         Start a new onboarding session with initial context.
         """
+        from app.core.websocket import websocket_manager
+        import json
+        from datetime import datetime
+        import asyncio
+
+        # Broadcast initialization
+        if startup_id:
+            msg = {
+                "type": "activity",
+                "payload": {
+                    "agent": "genius",
+                    "action": "initializing",
+                    "status": "started",
+                    "details": "Initializing Onboarding Genius context",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            }
+            asyncio.create_task(websocket_manager.broadcast_to_startup(startup_id, msg))
         # Initialize conversation with system prompt and scraped context
         initial_context = f"""
         The user has provided their product URL: {product_url}
@@ -69,8 +87,12 @@ class OnboardingGeniusAgent:
         Here is the scraped content from their site:
         {scraped_context[:10000]}
         
-        Based on this, ask 1-2 intelligent follow-up questions to clarify their GTM strategy.
-        Then provide your initial strategic observations.
+        Based on this, please directly generate the full Day-1 Execution Plan for this startup.
+        Output it as pure JSON with the EXACT structure specified in your system instructions.
+        Include:
+        - 3 ready-to-post social media messages
+        - Ideal customer profile for lead generation
+        - 1 growth experiment to run
         """
         
         self.conversations[user_id] = [
@@ -78,8 +100,36 @@ class OnboardingGeniusAgent:
             HumanMessage(content=initial_context)
         ]
         
+        # Broadcast scanning step
+        if startup_id:
+            msg = {
+                "type": "activity",
+                "payload": {
+                    "agent": "genius",
+                    "action": "scanning",
+                    "status": "running",
+                    "details": "Synthesizing product context and market strategy...",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            }
+            asyncio.create_task(websocket_manager.broadcast_to_startup(startup_id, msg))
+
         # Get initial response
         response = await self.llm.ainvoke(self.conversations[user_id])
+        
+        # Broadcast completed step
+        if startup_id:
+            msg = {
+                "type": "activity",
+                "payload": {
+                    "agent": "genius",
+                    "action": "session_created",
+                    "status": "completed",
+                    "details": "Initial analysis complete. Awaiting user input.",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            }
+            asyncio.create_task(websocket_manager.broadcast_to_startup(startup_id, msg))
         
         # Store AI response
         self.conversations[user_id].append(AIMessage(content=response.content))

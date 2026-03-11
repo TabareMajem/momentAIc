@@ -86,11 +86,11 @@ function StatCard({ label, value, icon: Icon, color, trend }: {
 
 function ConversionTable({ conversions }: { conversions: Conversion[] }) {
  const getStatusBadge = (status: string) => {
- const variants: Record<string, 'warning' | 'success' | 'cyber' | 'destructive'> = {
+ const variants: Record<string, 'warning' | 'success' | 'cyber' | 'error'> = {
  pending: 'warning',
  cleared: 'success',
  paid: 'cyber',
- refunded: 'destructive',
+ refunded: 'error',
  };
  return <Badge variant={variants[status] || 'outline'} className="text-xs uppercase">{status}</Badge>;
  };
@@ -447,7 +447,7 @@ export default function AmbassadorDashboard() {
  }
  };
 
- const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'admin@momentaic.com';
+ const isSuperAdmin = user?.role === 'admin' || user?.email === 'admin@momentaic.com';
 
  if (loading) {
  return (

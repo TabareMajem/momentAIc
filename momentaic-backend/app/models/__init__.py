@@ -156,6 +156,14 @@ from app.models.platform_credentials import (
     CredentialStatus,
 )
 
+from app.models.scraped_profile import (
+    ScrapedProfile,
+)
+
+from app.models.platform_account import (
+    PlatformAccount,
+)
+
 __all__ = [
     # User
     "User",
@@ -251,4 +259,8 @@ __all__ = [
     "Referral",
     "ReferralReward",
     "ReferralStats",
+    # Scraper
+    "ScrapedProfile",
+    # Platform Accounts (Scraper)
+    "PlatformAccount",
 ]

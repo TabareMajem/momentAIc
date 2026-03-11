@@ -20,6 +20,7 @@ from app.core.database import Base
 class UserTier(str, enum.Enum):
     """User subscription tiers"""
     STARTER = "starter"
+    LITE = "lite"
     GROWTH = "growth"
     GOD_MODE = "god_mode"
 

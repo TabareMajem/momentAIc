@@ -32,7 +32,7 @@ const TARGET_MAP: Record<string, Location> = {
 };
 
 export function CampaignWarMap({ activeTargets, isDeploying }: CampaignWarMapProps) {
- const globeRef = useRef<any>();
+ const globeRef = useRef<any>(null);
  const [arcs, setArcs] = useState<any[]>([]);
  const [rings, setRings] = useState<any[]>([]);
 

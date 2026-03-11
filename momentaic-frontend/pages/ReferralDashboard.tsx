@@ -207,7 +207,7 @@ export default function ReferralDashboard() {
  api.getReferralLeaderboard(),
  ]);
 
- setStats(statsData);
+ setStats(statsData as unknown as ReferralStats);
 
  // Transform API response to match UI interface if needed
  setReferralLink({

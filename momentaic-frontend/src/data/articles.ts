@@ -160,7 +160,7 @@ Fixing churn isn't about better emails. It's about faster nervous systems.
 ];
 
 import { EXTRA_ARTICLES } from './articles_pt2';
-const FULL_ARTICLES = [...ARTICLES, ...EXTRA_ARTICLES];
+const FULL_ARTICLES: Article[] = [...ARTICLES, ...(EXTRA_ARTICLES as Article[])];
 
 export const getArticleBySlug = (slug: string): Article | undefined => {
     return FULL_ARTICLES.find(a => a.slug === slug);

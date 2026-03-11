@@ -49,7 +49,7 @@ class ClayIntegration(BaseIntegration):
         # we will simulate the behavior of a high-end enrichment tool.
         
         self.headers = {
-            "Authorization": f"Bearer {self.api_key or 'mock_key'}",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
 

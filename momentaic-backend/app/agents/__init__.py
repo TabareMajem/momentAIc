@@ -18,11 +18,24 @@ def _get_agent(agent_class_path: str):
     import importlib
     module_path, class_name = agent_class_path.rsplit(".", 1)
     module = importlib.import_module(module_path)
-    # Most agents are exported as a singleton instance in their module
-    # or we might need to instantiate them. 
-    # Looking at the original code, it was 'from ... import X_agent'
-    # which implies the module already has an instance.
     return getattr(module, class_name)
+
+def get_agent(agent_name: str):
+    """"
+    Retrieve an agent instance by its Type/Name string.
+    Maps string names to the agent registry.
+    """
+    from app.agents.registry import agent_registry
+    try:
+        # e.g 'sales_hunter' -> 'sales_hunter' or 'sales'
+        # The registry keys might need normalization depending on how they're registered.
+        # Fallback to appending/removing '_agent' if direct match fails.
+        return agent_registry.get(agent_name)
+    except Exception as e:
+        import structlog
+        logger = structlog.get_logger()
+        logger.error(f"Failed to get agent {agent_name} from registry: {str(e)}")
+        return None
 
 class LazyAgents:
     @property

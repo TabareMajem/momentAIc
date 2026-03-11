@@ -8,13 +8,15 @@ import {
 import api from "../lib/api";
 import { Lead } from "../types";
 
+import DeerflowDashboard from "../components/DeerflowDashboard";
+
 const TABS = [
+ { id: "deerflow", label: "DeerFlow HQ", icon: <Zap size={16} /> },
  { id: "sop", label: "SOPs", icon: <ClipboardList size={16} /> },
  { id: "content", label: "Content Engine", icon: <Video size={16} /> },
  { id: "accounts", label: "Account Ops", icon: <Users size={16} /> },
  { id: "outreach", label: "Outreach CRM", icon: <Target size={16} /> },
  { id: "analytics", label: "Analytics", icon: <BarChart2 size={16} /> },
- { id: "yokaizen", label: "Yokaizen Adapt", icon: <Zap size={16} /> },
 ];
 
 const sops = [
@@ -995,13 +997,18 @@ return (
  </div>
  )}
 
- {/* YOKAIZEN ADAPTATION TAB */}
- {activeTab === "yokaizen" && (
- <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
- Analysis visualization coming soon.
- </div>
- )}
- </div>
+      {/* YOKAIZEN ADAPTATION TAB */}
+      {activeTab === "yokaizen" && (
+        <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+          Analysis visualization coming soon.
+        </div>
+      )}
+
+      {/* DEERFLOW TAB */}
+      {activeTab === "deerflow" && (
+        <DeerflowDashboard startupId={startupId} />
+      )}
+    </div>
  </div>
  );
 }

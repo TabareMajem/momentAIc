@@ -25,7 +25,8 @@ type TabFilter = 'pending' | 'approved' | 'rejected' | 'all';
 // ============ MAIN PAGE ============
 
 export default function HitLDashboard() {
- const { currentStartup } = useStartupStore();
+ const { activeStartupId, startups } = useStartupStore();
+ const currentStartup = startups.find(s => s.id === activeStartupId);
  const [actions, setActions] = useState<ActionItem[]>([]);
  const [loading, setLoading] = useState(true);
  const [activeTab, setActiveTab] = useState<TabFilter>('pending');
@@ -39,7 +40,7 @@ export default function HitLDashboard() {
  setLoading(true);
  try {
  const statusParam = activeTab === 'all' ? '' : `?status_filter=${activeTab}`;
- const res = await api.get(`/hitl/startups/${currentStartup.id}/actions${statusParam}`);
+ const res = await (api as any).client.get(`/hitl/startups/${currentStartup.id}/actions${statusParam}`);
  setActions(res.data);
  } catch (err) {
  console.error("Failed to fetch actions", err);
@@ -55,7 +56,7 @@ export default function HitLDashboard() {
  const handleReview = async (ids: string[], approve: boolean) => {
  if (!currentStartup) return;
  try {
- await api.post(`/hitl/startups/${currentStartup.id}/actions/review`, {
+ await (api as any).client.post(`/hitl/startups/${currentStartup.id}/actions/review`, {
  action_ids: ids,
  approve: approve
  });

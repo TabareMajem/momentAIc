@@ -44,9 +44,25 @@ async def yokaizen_webhook(
         job_id = payload.data.get("job_id")
         agent = payload.data.get("agent")
         result = payload.data.get("result_payload", {})
+        startup_id = payload.data.get("startup_id")
         
         # Here we would update the Momentaic DB with the output (e.g., video_url)
         logger.info(f"Task {job_id} by {agent} completed.", result=result)
+        
+        # Publish event to the Live Agent Feed (ActivityStream)
+        from app.core.events import publish_event
+        import datetime
+        await publish_event(
+            event_type="yokaizen_task_completed",
+            data={
+                "job_id": job_id,
+                "agent": agent,
+                "status": "success",
+                "result": result,
+                "timestamp": str(datetime.datetime.utcnow()),
+                "startup_id": startup_id
+            }
+        )
 
     elif payload.event == "lead.captured":
         character_id = payload.data.get("character_id")

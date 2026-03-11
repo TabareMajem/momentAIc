@@ -12,6 +12,7 @@
     "@google/genai": "^1.30.0",
     "@radix-ui/react-tabs": "^1.1.13",
     "axios": "^1.13.2",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",
     "framer-motion": "^12.34.3",
@@ -29,12 +30,13 @@
     "react-router-dom": "^7.9.6",
     "reactflow": "^11.11.4",
     "recharts": "^3.5.0",
-    "tailwind-merge": "^3.4.0",
+    "tailwind-merge": "^3.5.0",
     "three": "^0.183.1",
     "uuid": "^13.0.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.24",

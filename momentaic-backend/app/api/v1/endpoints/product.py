@@ -48,12 +48,25 @@ async def _run_agent_task(mission: str, requirement: Dict[str, Any], startup_id:
     Background task wrapper for the agent
     """
     try:
-        # Get startup context (mock for now or fetch from DB)
-        startup_context = {
-            "id": startup_id,
-            "stage": "Growth", 
-            "tech_stack": "React, Python, FastAPI, PostgreSQL" # TODO: Load from DB
-        }
+        from app.core.database import async_session_maker
+        from app.models.startup import Startup
+        from sqlalchemy import select
+        import uuid
+        
+        try:
+            startup_context = {
+                "id": startup_id,
+                "stage": "Growth", 
+                "tech_stack": "React, Python, FastAPI, PostgreSQL"
+            }
+            async with async_session_maker() as db:
+                result = await db.execute(select(Startup).where(Startup.id == uuid.UUID(startup_id)))
+                startup = result.scalar_one_or_none()
+                if startup:
+                    startup_context["tech_stack"] = getattr(startup, "tech_stack", "React, Python, FastAPI, PostgreSQL")
+        except Exception as dbe:
+            import structlog
+            structlog.get_logger().error("db_fetch_error", error=str(dbe))
         
         result = await product_agent.run(
             mission=mission,

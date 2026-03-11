@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStartupStore } from '../../stores/startup-store';
 import { CheckCircle, XCircle, Zap, RefreshCw, Send, Twitter, ShieldAlert } from 'lucide-react';
-import { Button } from '../Button';
-import { api } from '../../../lib/api';
+import { Button } from '../../components/ui/Button';
+import { api } from '../../lib/api';
 
 interface ActionItem {
  id: string;
@@ -16,7 +16,8 @@ interface ActionItem {
 }
 
 export function ActionQueueWidget() {
- const { currentStartup } = useStartupStore();
+ const { startups, activeStartupId } = useStartupStore();
+  const currentStartup = startups.find(s => s.id === activeStartupId);
  const [actions, setActions] = useState<ActionItem[]>([]);
  const [loading, setLoading] = useState(true);
 
@@ -24,7 +25,7 @@ export function ActionQueueWidget() {
  if (!currentStartup) return;
  setLoading(true);
  try {
- const res = await api.get(`/hitl/startups/${currentStartup.id}/actions?status_filter=pending`);
+ const res = await (api as any).client.get(`/hitl/startups/${currentStartup.id}/actions?status_filter=pending`);
  setActions(res.data);
  } catch (err) {
  console.error("Failed to fetch HitL actions", err);
@@ -42,7 +43,7 @@ export function ActionQueueWidget() {
  const handleReview = async (ids: string[], approve: boolean) => {
  if (!currentStartup) return;
  try {
- await api.post(`/hitl/startups/${currentStartup.id}/actions/review`, {
+ await (api as any).client.post(`/hitl/startups/${currentStartup.id}/actions/review`, {
  action_ids: ids,
  approve: approve
  });

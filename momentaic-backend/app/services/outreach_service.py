@@ -172,6 +172,14 @@ class SelfHostedOutreach:
         2. Resend (if RESEND_API_KEY set)
         3. SMTP fallback
         """
+        from app.core.test_context import is_e2e_test_mode
+        
+        if is_e2e_test_mode():
+            logger.info("🧪 [E2E TEST MODE] Mocking email send", to=email.to_email, subject=email.subject)
+            email.status = EmailStatus.SENT
+            email.sent_at = datetime.utcnow()
+            return True
+
         # Check rate limits
         self._check_rate_limits()
         

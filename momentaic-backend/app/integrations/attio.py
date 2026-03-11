@@ -34,7 +34,7 @@ class AttioIntegration(BaseIntegration):
         self.base_url = "https://api.attio.com/v2"
         
         self.headers = {
-            "Authorization": f"Bearer {self.api_key or 'mock_key'}",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
 

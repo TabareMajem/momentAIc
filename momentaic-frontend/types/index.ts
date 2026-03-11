@@ -1,6 +1,6 @@
 
 // User & Auth
-export type SubscriptionTier = 'starter' | 'growth' | 'god_mode';
+export type SubscriptionTier = 'starter' | 'lite' | 'growth' | 'god_mode';
 
 export interface User {
   id: string;
@@ -249,6 +249,20 @@ export interface Lead {
   last_interaction?: string;
   ai_notes?: string;
   probability?: number;
+}
+
+// --- SNIPER AGENT ---
+export interface SniperTarget {
+    id: string;
+    userId: string;
+    name: string;
+    linkedinUrl: string;
+    companyUrl?: string;
+    rawProfileText?: string;
+    icebreaker?: string;
+    status: 'NEW' | 'GENERATED' | 'DELIVERED';
+    createdAt: string;
+    updatedAt: string;
 }
 
 // --- AMBASSADOR & REFERRAL ---

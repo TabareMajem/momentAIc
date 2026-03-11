@@ -26,12 +26,10 @@ class TrustArchitectAgent(BaseAgent):
     """
     
     def __init__(self):
-        super().__init__(
-            name="Trust Architect",
-            role="Head of Security & Deal Desk",
-            goal="Remove friction from enterprise deals by instantly providing custom compliance architectures and legal intent documents.",
-            capabilities=["security_questionnaires", "soc2_generation", "loi_drafting"]
-        )
+        self.name = "Trust Architect"
+        self.role = "Head of Security & Deal Desk"
+        self.goal = "Remove friction from enterprise deals by instantly providing custom compliance architectures and legal intent documents."
+        self.capabilities = ["security_questionnaires", "soc2_generation", "loi_drafting"]
 
     async def generate_soc2_summary(self, startup_context: Dict[str, Any], target_company: str) -> Dict[str, Any]:
         """

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Shield, Lock, FileText, Share2, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export default function PrivacyPolicy() {
  return (
@@ -19,7 +20,7 @@ export default function PrivacyPolicy() {
  </header>
 
  <main className="pt-24 pb-20 px-6 max-w-4xl mx-auto">
- <div
+ <motion.div
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
  className="mb-12 text-center"
@@ -31,7 +32,7 @@ export default function PrivacyPolicy() {
  </div>
  <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">Privacy Policy</h1>
  <p className="text-xl text-gray-400">Effective Date: January 1, 2026</p>
- </div>
+ </motion.div>
 
  <div className="space-y-12 bg-white/5 border border-white/10 rounded-2xl p-8 md:p-12 backdrop-blur-sm">
 

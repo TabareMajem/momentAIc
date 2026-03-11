@@ -28,6 +28,8 @@ RUN groupadd -r momentaic && useradd -r -g momentaic momentaic
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels from builder
